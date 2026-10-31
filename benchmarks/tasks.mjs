@@ -21,7 +21,7 @@ export const TASKS = Object.freeze([
 ]);
 
 /** Item counts of the successive-halving rungs; a rung stops at the task's size. */
-export const TASK_RUNGS = Object.freeze([6, 12, 24]);
+export const TASK_RUNGS = Object.freeze([12, 24, 48]);
 
 function taskOf(taskId) {
   const task = TASKS.find((item) => item.id === taskId);

@@ -5,23 +5,12 @@
     "last_phase": "verification",
     "active_phase": 4,
     "status": "in_progress",
-    "updated_at": 1793446065.5357642,
+    "updated_at": 1793446084.5787516,
     "owner": "claude-opus-5.5",
     "started_by": "claude-opus-5.5",
     "continuations": []
   },
   "checkpoints": [
-    {
-      "task_id": "review-fixes-v1",
-      "phase": "in_progress",
-      "phase_num": 4,
-      "description": "[1/2] M1 atomic replace retries transient EPERM/EBUSY/EACCES 5x (PRINCIPLE-013); tune cancel and steps PUT local-only, proven over a real LAN socket with a key; profile caching dropped after measuring 1.08 ms per chat message; checklists: passed",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793437523.6364827,
-      "timestamp_str": "2026-10-31 12:05:23",
-      "agent": "claude-code:20b8d1d8"
-    },
     {
       "task_id": "review-fixes-v1",
       "phase": "in_progress",
@@ -254,6 +243,17 @@
       "status": "in_progress",
       "timestamp": 1793446065.5357642,
       "timestamp_str": "2026-10-31 14:27:45",
+      "agent": "claude-opus-5.5"
+    },
+    {
+      "task_id": "suite-v10",
+      "phase": "verification",
+      "phase_num": 4,
+      "description": "Milestone 2 rungs 12/24/48; 303/303 tests, gate 4/4; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793446084.5787516,
+      "timestamp_str": "2026-10-31 14:28:04",
       "agent": "claude-opus-5.5"
     }
   ]

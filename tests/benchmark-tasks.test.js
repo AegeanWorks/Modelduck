@@ -62,3 +62,9 @@ test("the speed workload is six fixed items covering every task", () => {
   assert.equal(new Set(items).size, 6);
   for (const task of TASKS) assert.ok(items.some((id) => taskPrompts(task.id).some((prompt) => prompt.id === id)), `${task.id} missing`);
 });
+
+test("every task's last rung scores at least 48 items, enough to separate settings", () => {
+  for (const task of TASKS) {
+    assert.ok(taskRungs(task.id).at(-1).length >= 48, `${task.id} ends at ${taskRungs(task.id).at(-1).length} items`);
+  }
+});

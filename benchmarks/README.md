@@ -28,18 +28,20 @@ npm run bench:link            # after commit: run once per pending phase
 The required gate runs SmolLM2 135M, Qwen2.5 0.5B and Qwen2.5 Coder 1.5B.
 `--full-matrix` adds Qwen2.5 1.5B, Llama 3.2 3B and Phi-3.5 Mini plus their KV
 variants; on a CPU that deeper review takes hours, so it is opt-in.
-Suite v9 has 174 items in sixteen categories:
+Suite v10 has 256 items in eighteen categories:
 
 | Category | Items | What is measured |
 |---|---:|---|
 | code | 30 | 28 functions run against 3–5 test cases each (strings, arrays, Roman numerals, intervals, binary search, primes, Pascal's row and more), plus the original add/repair checks |
 | code-long | 6 | Long tasks with a 1024-token budget: an arithmetic evaluator with precedence and parentheses, a CSV line parser, greedy word wrap, checkout with buy-N-get-one-free, matrix multiplication and an INI parser |
 | bugfix | 26 | One realistic bug each: off-by-one, wrong initial value or divisor, inverted condition, missing join, lexicographic sort, assignment in a condition, wrong side, ignored quantity and more; the repair must pass the tests |
+| code-repo | 9 | Multi-file codebases (a shop with tax, a search index, a meeting calendar), each with a distractor file: six functions to write on top of the existing helpers, which are loaded before the answer, and three "which function holds this reported bug?" questions |
+| bugfix-repo | 3 | A user's bug report against one of those codebases; the corrected function must pass the tests with the rest of the codebase loaded |
 | bugfix-long | 6 | Multi-line functions with two or three interacting bugs (binary search, interval merge, a crashing word counter, Roman numerals, cart total with coupon, CSV parsing) |
 | comprehension | 10 | Who/what, event order, negation, time arithmetic, two-step inference, main idea, close distractor, counting, temporal negation and abstaining when the answer is absent |
-| recall | 8 | Locker-register lookups at the start, second, middle and end, a reverse lookup, two needles, list position, latest value wins |
+| recall | 48 | Locker-register lookups at the start, second, middle and end, a reverse lookup, two needles, list position, latest value wins; v10 adds 40 generated from a fixed seed: PIN lookups at four depths in 20/50/80-row registers, reverse lookups, the latest status in a delivery log, the sum of two balances and colour counts |
 | facts | 11 | Capitals, a chemical symbol, a planet, an author, a year, a boiling point, continents, photosynthesis and Italy |
-| instruction, reasoning, knowledge, format, context | 17 | The original v1–v2 tasks plus exact-prefix, three-way comparison, largest-ocean, JSON-array and long-context code checks |
+| instruction, reasoning, knowledge, format, context | 47 | The original v1–v2 tasks plus exact-prefix, three-way comparison, largest-ocean, JSON-array and long-context code checks; v10 adds 30 own word problems (rates, percentages, ages, time, averages) scored on the last number |
 | public-math | 16 | GSM8K word problems; the check reads the last number in the reply |
 | public-knowledge | 12 | MMLU multiple-choice items across subjects |
 | public-code | 20 | HumanEval (12) and MBPP (8) tasks translated from Python to JavaScript, checked by their original cases |
