@@ -121,3 +121,27 @@ export function taskSubsetHash(prompts = PROMPTS) {
   };
   return createHash("sha256").update(JSON.stringify(definition)).digest("hex").slice(0, 16);
 }
+
+/**
+ * What the suite asks, per task and question type: item counts, where the items come
+ * from, how answers are checked, and how many are held back from tuning.
+ */
+export function suiteSummary(prompts = PROMPTS) {
+  const tasks = TASKS.map((task) => {
+    const items = taskPrompts(task.id, prompts);
+    const held = new Set(taskHoldout(task.id, prompts));
+    const rungs = taskRungs(task.id, prompts);
+    const types = task.categories.map((category) => {
+      const ofType = items.filter((prompt) => prompt.category === category);
+      return {
+        category,
+        items: ofType.length,
+        held: ofType.filter((prompt) => held.has(prompt.id)).length,
+        sources: [...new Set(ofType.map((prompt) => prompt.source?.dataset ?? "own"))].sort(),
+        checks: [...new Set(ofType.flatMap((prompt) => prompt.checks.map((check) => check.type)))].sort(),
+      };
+    }).filter((type) => type.items);
+    return { id: task.id, label: task.label, items: items.length, held: held.size, tunedOn: rungs.at(-1).length, rungs: rungs.map((rung) => rung.length), types };
+  });
+  return { suiteVersion: SUITE_VERSION, items: prompts.length, holdoutShare: HOLDOUT_SHARE, tasks };
+}

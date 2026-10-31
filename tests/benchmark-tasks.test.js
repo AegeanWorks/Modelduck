@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { PROMPTS } from "../benchmarks/suite.mjs";
-import { TASKS, TASK_RUNGS, speedItems, taskHoldout, taskPrompts, taskRungs, taskSubsetHash, tuneRungs } from "../benchmarks/tasks.mjs";
+import { TASKS, TASK_RUNGS, speedItems, suiteSummary, taskHoldout, taskPrompts, taskRungs, taskSubsetHash, tuneRungs } from "../benchmarks/tasks.mjs";
 
 test("the four tasks cover every suite item exactly once", () => {
   assert.deepEqual(TASKS.map((task) => task.id), ["chat", "code", "math", "recall"]);
@@ -81,4 +81,21 @@ test("a quarter of each task is held back from tuning, across its categories, ne
     assert.ok(categories.size >= Math.min(3, new Set(all.map((prompt) => prompt.category)).size), `${task.id} holds back only ${[...categories].join(", ")}`);
   }
   assert.deepEqual(tuneRungs(["math"]).holdout.math, taskHoldout("math"));
+});
+
+test("the suite summary describes every task's question types, sources, checks and held-back items", () => {
+  const summary = suiteSummary();
+  assert.equal(summary.items, PROMPTS.length);
+  assert.deepEqual(summary.tasks.map((task) => task.id), ["chat", "code", "math", "recall"]);
+  const code = summary.tasks.find((task) => task.id === "code");
+  assert.equal(code.items, taskPrompts("code").length);
+  assert.equal(code.held, taskHoldout("code").length);
+  assert.equal(code.tunedOn, taskRungs("code").at(-1).length);
+  const repo = code.types.find((type) => type.category === "code-repo");
+  assert.ok(repo.checks.includes("jsTests") && repo.checks.includes("oneOf"), "codebase items run code and name a function");
+  assert.deepEqual(repo.sources, ["own"]);
+  const humaneval = code.types.find((type) => type.category === "public-code");
+  assert.ok(humaneval.sources.includes("HumanEval") && humaneval.sources.includes("MBPP"));
+  assert.equal(code.types.reduce((sum, type) => sum + type.items, 0), code.items);
+  assert.equal(code.types.reduce((sum, type) => sum + type.held, 0), code.held);
 });

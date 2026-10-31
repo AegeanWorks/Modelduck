@@ -434,3 +434,10 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
 - **Context**: Device, quality and speed settings are shared by all of a model's tasks; only sampling and prompt are per task. The quality stage (context and KV cache) chooses on a mix of every task's items, so a setting much better on one task could win while clearly hurting another.
 - **Decision**: After the quality stage, each task's share of the last load level (`rungs.loadByTask`) is scored with the chosen settings and with the settings before the stage, paired, from the answers the sweep already measured. A task worse at `changeAlpha` (0.2, uncorrected, so every task is protected) sends the quality settings back to those before the stage. The profile's load carries `perTask` (each task's rate before and after, p, worse) and `reverted` (the task that lost); Details and a run's detail state it.
 - **Consequences**: A shared setting can no longer trade one task for another unnoticed. Since the check uses already-measured answers, it costs nothing extra.
+
+### ADR-058: The app describes the benchmark suite
+- **Date**: 2026-11-01
+- **Status**: Accepted
+- **Context**: The suite is what sets ModelDuck apart, but what it asks was only visible in the source: which question types each task has, how many items, where they come from, how answers are checked and how many are held back.
+- **Decision**: `suiteSummary()` in `benchmarks/tasks.mjs` derives, per task, the items, the held-back items, the items tuned on and the rung sizes, and per question type the items, held-back items, sources (own or the public dataset) and check types, from the suite itself. `GET /api/benchmarks/suite` returns it, and a Benchmark tab in the Tune and benchmark dialog shows it in plain words.
+- **Consequences**: The description cannot drift from the suite, since it is computed from the same items and split the tuner uses.

@@ -2,25 +2,15 @@
   "version": 1,
   "active_task": {
     "task_id": "bench-types",
-    "last_phase": "verification",
+    "last_phase": "phase 4",
     "active_phase": 4,
     "status": "in_progress",
-    "updated_at": 1793475150.0065262,
+    "updated_at": 1793475339.0431433,
     "owner": "claude-opus-5.5",
     "started_by": "claude-opus-5.5",
     "continuations": []
   },
   "checkpoints": [
-    {
-      "task_id": "tune-stats-v1",
-      "phase": "completed",
-      "phase_num": 5,
-      "description": "Task 'tune-stats-v1' completed successfully.",
-      "status": "completed",
-      "timestamp": 1793471580.7263286,
-      "timestamp_str": "2026-10-31 21:33:00",
-      "agent": "claude-opus-5.5"
-    },
     {
       "task_id": "continue-v1",
       "phase": "planning",
@@ -254,6 +244,17 @@
       "status": "in_progress",
       "timestamp": 1793475150.0065262,
       "timestamp_str": "2026-10-31 22:32:30",
+      "agent": "claude-opus-5.5"
+    },
+    {
+      "task_id": "bench-types",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "[3/3] suiteSummary describes each task's question types, sources, checks and held-back items (ADR-058); route and Benchmark tab follow in the UI task. checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793475339.0431433,
+      "timestamp_str": "2026-10-31 22:35:39",
       "agent": "claude-opus-5.5"
     }
   ]
