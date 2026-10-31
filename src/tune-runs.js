@@ -138,6 +138,9 @@ export async function summarizeAnswers(dir, id) {
   let passed = 0;
   let total = 0;
   let errors = 0;
+  let wrong = 0;
+  let unreadable = 0;
+  const unreadableExamples = [];
   let tokens = 0;
   let counted = 0;
   try {
@@ -153,6 +156,12 @@ export async function summarizeAnswers(dir, id) {
       passed += Number(row.passed) || 0;
       total += Number(row.total) || 0;
       if (row.error) errors += 1;
+      else if (row.unreadable) {
+        unreadable += 1;
+        // A few to look at, so a format problem can be seen, not only counted.
+        if (unreadableExamples.length < 5) unreadableExamples.push({ item: row.item, text: String(row.text ?? "").slice(0, 200) });
+      }
+      else if ((Number(row.passed) || 0) < (Number(row.total) || 0)) wrong += 1;
       if (Number.isFinite(row.ms)) times.push(row.ms);
       if (Number.isFinite(row.outputTokens)) {
         tokens += row.outputTokens;
@@ -167,6 +176,9 @@ export async function summarizeAnswers(dir, id) {
     answers,
     right: total ? Math.round((passed / total) * 1000) / 10 : null,
     errors,
+    wrong,
+    unreadable,
+    unreadableExamples,
     ms: times.length ? { median: percentile(times, 0.5), p90: percentile(times, 0.9) } : null,
     outputTokens: counted ? { mean: Math.round((tokens / counted) * 10) / 10 } : null,
   };

@@ -104,6 +104,8 @@ export function createEvaluator({ engine, modelId, prompts = PROMPTS, systemProm
       return {
         passed: evaluation.passed,
         total: evaluation.total,
+        unreadable: evaluation.unreadable,
+        text: result.text,
         error: null,
         ms: result.stats?.ms ?? Date.now() - started,
         tokensPerSecond: result.stats?.tokensPerSecond ?? null,

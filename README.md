@@ -90,8 +90,8 @@ device. It is off by default so a missing driver never prevents chat from workin
 ## What you get
 
 - **Model library** — scan a folder, import a GGUF by path, or download a curated
-  model from Hugging Face, checked against a pinned SHA-256 before use, with resumable `.part` downloads
-  (starting a model that is already downloading reuses that download).
+  model from Hugging Face, checked against a pinned SHA-256, with resumable `.part`
+  downloads (a repeated start reuses the running download).
 - **Streaming chat** — token-by-token replies, stop, regenerate, copy, searchable
   history, and a local Markdown renderer (raw HTML is always escaped).
 - **Model controls** - context size, CPU threads and thread pool, batch size,
@@ -547,6 +547,7 @@ modelduck/
 │   ├── engine-parallel.test.js
 │   ├── engine-system-prompt.test.js
 │   ├── engine-memory.test.js
+│   ├── answer-reading.test.js
 │   ├── tune-lock.test.js
 │   ├── tune-runs.test.js
 │   ├── tune-scheduler.test.js

@@ -102,6 +102,7 @@ export async function runTune(target, { tasks, stages = STAGES, only = null, ste
     void run.answers(answers.map((answer) => ({
       settings, seed, item: answer.id, passed: answer.passed, total: answer.total, ms: answer.ms ?? null,
       outputTokens: answer.outputTokens ?? null, tokensPerSecond: answer.tokensPerSecond ?? null, digest: answer.digest ?? null, error: answer.error ?? null,
+      unreadable: Boolean(answer.unreadable), text: answer.text ?? null,
     })));
   };
   let lastState = null;

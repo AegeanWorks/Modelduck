@@ -44,3 +44,12 @@ test("the code tested is the block that defines the function, not a usage exampl
   assert.match(extractCode("```js\nconst clamp = (x, a, b) => Math.min(b, Math.max(a, x));\n```", "clamp"), /const clamp/);
   assert.match(extractCode("```js\nfunction other() {}\n```", "clamp"), /function other/, "with no defining block, the first block is used as before");
 });
+
+test("a whole reply is unreadable when a check found nothing to read, and the code check says so when the function is missing", async () => {
+  const { evaluateResponse } = await import("../benchmarks/suite.mjs");
+  const choice = await evaluateResponse({ checks: [{ type: "choice", value: "B" }] }, "I am not sure.");
+  assert.equal(choice.unreadable, true);
+  assert.equal((await evaluateResponse({ checks: [{ type: "choice", value: "B" }] }, "Answer: A")).unreadable, false);
+  const code = await evaluateResponse({ checks: [{ type: "jsTests", entry: "clamp", cases: [{ args: [1, 0, 2], expect: 1 }] }] }, "I would use Math.min and Math.max.");
+  assert.equal(code.unreadable, true, "no clamp function in the reply");
+});

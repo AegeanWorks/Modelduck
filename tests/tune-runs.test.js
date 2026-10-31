@@ -65,7 +65,7 @@ test("a run's answers are summarised: how many, how many right, errors, typical 
   assert.equal(summary.ms.median, 500);
   assert.equal(summary.ms.p90, 900);
   assert.equal(summary.outputTokens.mean, 24.5);
-  assert.deepEqual(await summarizeAnswers(dir, "2026-01-01T00-00-00-000Z-1"), { answers: 0, right: null, errors: 0, ms: null, outputTokens: null }, "a run without answers summarises to nothing");
+  assert.deepEqual(await summarizeAnswers(dir, "2026-01-01T00-00-00-000Z-1"), { answers: 0, right: null, errors: 0, wrong: 0, unreadable: 0, unreadableExamples: [], ms: null, outputTokens: null }, "a run without answers summarises to nothing");
 });
 
 test("an unfinished run shows its answers and time so far, and the same outcome in the list and in full", async (t) => {
@@ -81,4 +81,21 @@ test("an unfinished run shows its answers and time so far, and the same outcome 
   assert.equal(listed.durationMs, 20_000, "time so far for a run that never finished");
   assert.equal(listed.outcome, "interrupted");
   assert.equal(full.outcome, "interrupted", "the full record agrees with the list");
+});
+
+test("the answer summary counts wrong answers apart from replies that could not be read", async (t) => {
+  const dir = await runsDir(t);
+  const run = await startRun(dir, { profileId: "a", model: "a.gguf", request: REQUEST });
+  await run.answers([
+    { item: "i-1", passed: 1, total: 1, text: "B" },
+    { item: "i-2", passed: 0, total: 1, unreadable: false, text: "Answer: A" },
+    { item: "i-3", passed: 0, total: 1, unreadable: true, text: "I am not sure." },
+    { item: "i-4", passed: 0, total: 1, error: "timed out" },
+  ]);
+  await run.finish({ outcome: "done" });
+  const summary = await summarizeAnswers(dir, run.id);
+  assert.equal(summary.wrong, 1);
+  assert.equal(summary.unreadable, 1);
+  assert.equal(summary.errors, 1);
+  assert.deepEqual(summary.unreadableExamples, [{ item: "i-3", text: "I am not sure." }], "a few unreadable replies are kept to look at");
 });

@@ -693,12 +693,14 @@ const RESULT_MARKER = "__MODELDUCK_TEST_RESULTS__";
 export async function runJavaScriptTests(text, check, { timeoutMs = 5000 } = {}) {
   const { execFile } = await import("node:child_process");
   const cases = check.cases ?? [];
+  const code = extractCode(text, check.entry);
+  const named = new RegExp(`\\b${check.entry}\\b`).test(code);
   const harness = [
     // The rest of a codebase item's files; the answer comes after, so its functions replace theirs.
     check.setup ?? "",
     ";",
     // `-e` runs CommonJS, so ESM export keywords would be a syntax error.
-    extractCode(text, check.entry).replace(/^\s*export\s+(default\s+)?/gm, ""),
+    code.replace(/^\s*export\s+(default\s+)?/gm, ""),
     ";",
     `const __cases = ${JSON.stringify(cases)};`,
     `const __fn = typeof ${check.entry} === "function" ? ${check.entry} : null;`,
@@ -733,6 +735,8 @@ export async function runJavaScriptTests(text, check, { timeoutMs = 5000 } = {})
   return cases.map((testCase, index) => ({
     type: "jsTests",
     passed: Boolean(results?.[index]?.ok),
+    // No function of that name in the reply: a format problem, not a wrong function (ADR-052).
+    unreadable: !named,
     detail: `${check.entry}(${JSON.stringify(testCase.args).slice(1, -1)}): ${results?.[index]?.detail ?? failure}`,
   }));
 }
@@ -752,7 +756,9 @@ export async function evaluateResponse(prompt, text) {
     });
   }
   const passed = checks.filter((check) => check.passed).length;
-  return { passed, total: checks.length, checks };
+  // Nothing readable where a check looked: counted apart from wrong answers.
+  const unreadable = passed < checks.length && checks.some((check) => !check.passed && check.unreadable);
+  return { passed, total: checks.length, unreadable, checks };
 }
 
 /** Number of checks a prompt produces; jsTests counts one per case. */
