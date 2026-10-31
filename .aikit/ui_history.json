@@ -138,5 +138,19 @@
     "final_snapshot_digest": "",
     "final_snapshot_entries": 0,
     "surface_digest": "e25ba1e0ccdc37786d7582a50ec9fc37a9292e32117d64a6966a7eada5a248c8"
+  },
+  {
+    "schema": 1,
+    "surface": "app",
+    "baseline_commit": "66996de5e5da79ed5ea8d0644a53c803f69f31a8",
+    "contract_hash": "c6a291e913a9c8f174aadf7fb264b0941c55e9f4999a9a43152f1fb616845d11",
+    "started_at": 1793450060.6156354,
+    "finished_at": 1793450229.8120499,
+    "strikes": 0,
+    "reviewer": "Claude (AI; headless Edge review: grouped settings, progress chips, stale reasons, per-model Details with rates, ranges and p-values; Re-tune sends force only for a whole tune; no console errors; delegated by the user on 2026-10-31)",
+    "allowed_removals": [],
+    "final_snapshot_digest": "",
+    "final_snapshot_entries": 0,
+    "surface_digest": "c97a541c09ab87459d0fe3574707a2efb4b93872b3f45a272eda83c8ecd4eb2b"
   }
 ]

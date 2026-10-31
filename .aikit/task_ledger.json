@@ -2,31 +2,15 @@
   "version": 1,
   "active_task": {
     "task_id": "bench-ui-v1",
-    "last_phase": "planning",
-    "active_phase": 2,
+    "last_phase": "verification",
+    "active_phase": 4,
     "status": "in_progress",
-    "updated_at": 1793447395.5162826,
+    "updated_at": 1793450236.7178235,
     "owner": "claude-opus-5.5",
     "started_by": "claude-opus-5.5",
-    "continuations": [],
-    "impact_assessment": {
-      "why": "User review: the Bench section is crowded, lacks descriptions and details, and shows older statistics by default",
-      "benefits": "The tuner explains itself and shows each model's results; old reports stay out of the way until asked for",
-      "risks": "contract: tune overview adds staleParts; dependency: none; concurrency: none; state: none",
-      "mitigation": "UI tasks per milestone with headless Edge screenshots and console checks; existing UI tests"
-    }
+    "continuations": []
   },
   "checkpoints": [
-    {
-      "task_id": "polish-v1",
-      "phase": "completed",
-      "phase_num": 5,
-      "description": "Task 'polish-v1' completed successfully.",
-      "status": "completed",
-      "timestamp": 1793439447.4620068,
-      "timestamp_str": "2026-10-31 12:37:27",
-      "agent": "claude-code:20b8d1d8"
-    },
     {
       "task_id": "directive-prompts-v1",
       "phase": "planning",
@@ -271,6 +255,17 @@
         "risks": "contract: tune overview adds staleParts; dependency: none; concurrency: none; state: none",
         "mitigation": "UI tasks per milestone with headless Edge screenshots and console checks; existing UI tests"
       }
+    },
+    {
+      "task_id": "bench-ui-v1",
+      "phase": "verification",
+      "phase_num": 4,
+      "description": "Milestone 1 tuner panel in; 310/310 tests, gate 4/4, Edge review; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793450236.7178235,
+      "timestamp_str": "2026-10-31 15:37:16",
+      "agent": "claude-opus-5.5"
     }
   ]
 }

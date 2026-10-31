@@ -120,6 +120,8 @@ const els = {
 };
 
 const state = {
+  // Models whose tune details are expanded in the Bench dialog.
+  tuneOpen: new Set(),
   app: null,
   settings: null,
   modelsDir: null,
@@ -2027,12 +2029,87 @@ function populateBenchmarkModels(models) {
 }
 
 const TUNE_TASKS = ["chat", "code", "math", "recall"];
+const TASK_NAMES = { chat: "Chat", code: "Code", math: "Math", recall: "Long context" };
 
-function tuneStageLine(stages) {
-  if (!stages) return "not tuned";
-  const perTask = (entry) => `${TUNE_TASKS.filter((task) => entry?.[task] === "done").length}/${TUNE_TASKS.length}`;
-  const mark = (status) => (status === "done" ? "✓" : status === "partial" ? "…" : "–");
-  return `device ${mark(stages.device)} · quality ${mark(stages.quality)} · speed ${mark(stages.speed)} · sampling ${perTask(stages.sampling)} · prompt ${perTask(stages.prompt)}`;
+/** Every tunable setting: its stage, a readable name and what it changes. */
+const SETTING_GUIDE = {
+  device: ["device", "CPU or GPU", "Which backend answers fastest with as many right answers"],
+  contextSize: ["quality", "Context size", "How much text the model can see at once"],
+  kvCache: ["quality", "KV cache type", "Precision of the attention cache; lower saves memory"],
+  flashAttention: ["speed", "Flash attention", "A faster attention kernel"],
+  useMmap: ["speed", "Memory map", "Read the model file in place instead of copying it"],
+  batchSize: ["speed", "Batch size", "Tokens processed per step while reading the prompt"],
+  threads: ["speed", "Threads", "CPU threads used for answering"],
+  checkpointing: ["speed", "Checkpointing", "Saved states for recurrent and sliding-window models"],
+  temperature: ["sampling", "Temperature", "Randomness of the answer; 0 always picks the likeliest word"],
+  maxTokens: ["sampling", "Answer length", "Most tokens an answer may use"],
+  repeatPenalty: ["sampling", "Repeat penalty", "Discourages repeating the same words"],
+  minP: ["sampling", "Min-p", "Drops words much less likely than the best one"],
+  topP: ["sampling", "Top-p", "Keeps the likeliest words up to this share of probability"],
+  topK: ["sampling", "Top-k", "Keeps only this many likeliest words (0 = off)"],
+  systemPrompt: ["prompt", "System prompt", "The one-sentence instruction given before every question"],
+  reasoning: ["prompt", "Reasoning", "Off, or asking the model to think before answering"],
+  promptRepeat: ["prompt", "Prompt repeat", "Asking the question once or twice"],
+};
+const STAGE_NAMES = { device: "Device", quality: "Quality", speed: "Speed", sampling: "Sampling", prompt: "Prompt" };
+
+/** One chip per stage: done, partly done or not yet, flagged when measured on an older test suite. */
+function tuneStageChips(stages, staleParts = []) {
+  const chips = document.createElement("div");
+  chips.className = "tune-chips";
+  const add = (text, status, stale, title) => {
+    chips.appendChild(Object.assign(document.createElement("span"), { className: `tune-chip ${status}${stale ? " stale" : ""}`, textContent: text, title }));
+  };
+  for (const stage of ["device", "quality", "speed"]) {
+    const status = stages?.[stage] ?? "pending";
+    const stale = staleParts.includes(stage);
+    add(`${STAGE_NAMES[stage]} ${status === "done" ? "✓" : status === "partial" ? "…" : "–"}`, status, stale, `${STAGE_NAMES[stage]}: ${status}${stale ? ", measured on an older test suite" : ""}`);
+  }
+  for (const stage of ["sampling", "prompt"]) {
+    const done = TUNE_TASKS.filter((task) => stages?.[stage]?.[task] === "done");
+    const status = done.length === TUNE_TASKS.length ? "done" : done.length ? "partial" : "pending";
+    const stale = staleParts.some((part) => part.startsWith(`${stage}:`));
+    add(`${STAGE_NAMES[stage]} ${done.length}/${TUNE_TASKS.length}`, status, stale, `${STAGE_NAMES[stage]} done for: ${done.map((task) => TASK_NAMES[task]).join(", ") || "no task yet"}`);
+  }
+  return chips;
+}
+
+const shownValue = (value) => (typeof value === "string" && value.length > 60 ? `${value.slice(0, 57)}…` : String(value));
+
+/** The expanded row under a model: why it is out of date, the device verdict, load settings and each task's result. */
+function tuneDetails(model) {
+  const profile = model.profile;
+  const box = document.createElement("div");
+  box.className = "tune-details";
+  const line = (label, text) => {
+    const row = document.createElement("p");
+    row.append(Object.assign(document.createElement("strong"), { textContent: `${label}: ` }), text);
+    box.appendChild(row);
+  };
+  if (model.warnings.length) line("Out of date", `${model.warnings.map((warning) => warning.split(";")[0]).join("; ")}. Re-tune, or measure only the parts you need again.`);
+  if (profile?.device?.reason) line("Device", profile.device.reason);
+  const load = Object.entries(profile?.load?.settings ?? {});
+  if (load.length) line("Load settings", load.map(([key, value]) => `${SETTING_GUIDE[key]?.[1] ?? SETTING_LABELS[key] ?? key} ${value}`).join(" · "));
+  if (profile?.speed) line("Speed presets", `Fastest uses ${profile.speed.fastest?.threads ?? "–"} threads, Light ${profile.speed.light?.threads ?? "–"}`);
+  const table = document.createElement("table");
+  table.className = "benchmark-table";
+  const head = table.createTHead().insertRow();
+  for (const label of ["Task", "Right answers", "95% range", "vs defaults", "Chosen settings"]) head.appendChild(Object.assign(document.createElement("th"), { textContent: label }));
+  const body = table.createTBody();
+  for (const task of TUNE_TASKS) {
+    const preset = profile?.tasks?.[task];
+    const stats = preset?.stats;
+    const versus = stats?.vsDefault;
+    body.insertRow().append(
+      tuneCell(TASK_NAMES[task]),
+      tuneCell(stats ? `${stats.rate}%` : "not tuned"),
+      tuneCell(stats?.ci95 ? `${stats.ci95.low}–${stats.ci95.high}%` : "–", "The true rate lies in this range with 95% confidence"),
+      tuneCell(versus ? `${versus.rateDelta >= 0 ? "+" : ""}${versus.rateDelta} pts (p=${versus.pValue})` : "–", "Paired against the app defaults; p below 0.05 means the gain is unlikely to be chance"),
+      tuneCell(Object.entries(preset?.settings ?? {}).map(([key, value]) => `${SETTING_GUIDE[key]?.[1] ?? key} ${shownValue(value)}`).join(" · ") || "defaults"),
+    );
+  }
+  box.appendChild(table);
+  return box;
 }
 
 function tuneCell(text, title = "") {
@@ -2056,7 +2133,7 @@ function renderTuneModels() {
   const table = document.createElement("table");
   table.className = "benchmark-table";
   const head = table.createTHead().insertRow();
-  for (const label of ["Model", "Device", "Stages", "Speed presets", "Task presets", ""]) {
+  for (const label of ["Model", "Device", "Progress", "Right answers per task", ""]) {
     head.appendChild(Object.assign(document.createElement("th"), { textContent: label }));
   }
   const body = table.createTBody();
@@ -2070,15 +2147,17 @@ function renderTuneModels() {
     const step = item?.progress?.stage ? ` · ${item.progress.stage}${item.progress.axis ? `: ${item.progress.axis}` : ""}` : "";
     const live = item && running ? ` — ${item.status}${item.lane ? ` in the ${item.lane.toUpperCase()} lane` : ""}${step}` : "";
     const label = repeated.has(model.name) ? `${model.name} (${model.fileName})` : model.name;
-    row.appendChild(tuneCell(`${label}${live}`, model.fileName));
+    const nameCell = tuneCell(`${label}${live}`, model.fileName);
+    // Say why a profile is out of date, not only that it is.
+    if (model.warnings.length) nameCell.appendChild(Object.assign(document.createElement("small"), { className: "tune-stale", textContent: `⚠ ${model.warnings[0].split(";")[0]}` }));
+    row.appendChild(nameCell);
     const device = profile?.device?.settings;
     row.appendChild(tuneCell(device ? (device.gpuBackend === "cpu" ? "CPU" : `${device.gpuBackend} GPU`) : "–", profile?.device?.reason ?? ""));
-    row.appendChild(tuneCell(tuneStageLine(profile?.stages), model.warnings.join("\n")));
-    const speed = profile?.speed;
-    row.appendChild(tuneCell(speed ? `Fastest ${speed.fastest?.threads ?? "–"} threads · Light ${speed.light?.threads ?? "–"}` : "–"));
-    const tasks = Object.entries(profile?.tasks ?? {});
-    const settingsText = tasks.map(([task, preset]) => `${task}: ${Object.entries(preset.settings).map(([key, value]) => `${key}=${value}`).join(", ")}`).join("\n");
-    row.appendChild(tuneCell(tasks.map(([task, preset]) => (preset.stats ? `${task} ${preset.stats.rate}%` : `${task} …`)).join(" · ") || "–", settingsText));
+    const progress = document.createElement("td");
+    progress.appendChild(tuneStageChips(profile?.stages, model.staleParts ?? []));
+    row.appendChild(progress);
+    const rated = TUNE_TASKS.filter((task) => profile?.tasks?.[task]?.stats);
+    row.appendChild(tuneCell(rated.map((task) => `${TASK_NAMES[task]} ${profile.tasks[task].stats.rate}%`).join(" · ") || "–"));
     const action = document.createElement("td");
     const button = document.createElement("button");
     button.type = "button";
@@ -2091,11 +2170,23 @@ function renderTuneModels() {
     const complete = ["device", "quality", "speed"].every((stage) => stages[stage] === "done") &&
       TUNE_TASKS.every((task) => stages.sampling?.[task] === "done" && stages.prompt?.[task] === "done");
     button.textContent = model.warnings.length ? "Re-tune ⚠" : complete ? "Tuned ✓" : profile ? "Continue" : "Tune";
-    if (model.warnings.length) button.title = model.warnings.join("\n");
+    if (model.warnings.length) button.title = `${model.warnings.join("\n")}\nWith only some stages or settings chosen, just those are measured again and the rest is kept.`;
     // A finished tune is skipped unless asked again, so say how.
-    else if (complete) button.title = "Fully tuned. Tick Re-tune from scratch, or choose settings above, to run it again.";
+    else if (complete) button.title = "Fully tuned. Choose some stages or settings above to measure them again, or tick Re-tune from scratch.";
+    action.className = "tune-actions-cell";
     action.appendChild(button);
+    if (profile) {
+      const more = Object.assign(document.createElement("button"), { type: "button", className: "small-btn", textContent: state.tuneOpen.has(model.id) ? "Hide" : "Details" });
+      more.dataset.tuneDetails = model.id;
+      action.appendChild(more);
+    }
     row.appendChild(action);
+    if (profile && state.tuneOpen.has(model.id)) {
+      const cell = body.insertRow().insertCell();
+      cell.className = "tune-details-cell";
+      cell.colSpan = 5;
+      cell.appendChild(tuneDetails(model));
+    }
   }
   els.tuneModels.appendChild(table);
 }
@@ -2155,16 +2246,17 @@ async function pollTune() {
 
 async function startTune(models, { force = false, forceStale = false } = {}) {
   const settings = [...els.tuneOnly.querySelectorAll("input:checked")].map((input) => input.value);
+  const all = [...els.tuneStages.querySelectorAll("input[value]")].map((input) => input.value);
   // Chosen settings run wherever they belong, so they override the stage boxes.
-  const stages = settings.length
-    ? [...els.tuneStages.querySelectorAll("input[value]")].map((input) => input.value).filter((value) => value !== "on")
-    : [...els.tuneStages.querySelectorAll("input[value]:checked")].map((input) => input.value);
+  const stages = settings.length ? all : [...els.tuneStages.querySelectorAll("input[value]:checked")].map((input) => input.value);
   if (!stages.length) {
     showToast("Choose at least one stage", { kind: "error" });
     return;
   }
+  // A part run measures its parts again on top of the saved rest; only a whole tune starts a stale profile over (ADR-040).
+  const partRun = settings.length > 0 || stages.length < all.length;
   try {
-    const { job } = await request("/api/tune/start", { method: "POST", body: { models, stages, settings: settings.length ? settings : null, force: force || els.tuneForce.checked, forceStale } });
+    const { job } = await request("/api/tune/start", { method: "POST", body: { models, stages, settings: settings.length ? settings : null, force: (force && !partRun) || els.tuneForce.checked, forceStale } });
     state.tuneJob = job;
     renderTuneJob();
     startTunePolling();
@@ -2272,12 +2364,17 @@ function describeTuneEstimate(data) {
 
 function renderTuneOnly(names) {
   if (els.tuneOnly.querySelector("input")) return;
-  for (const name of names) {
-    const option = document.createElement("label");
-    option.className = "check";
-    const box = Object.assign(document.createElement("input"), { type: "checkbox", value: name });
-    option.append(box, Object.assign(document.createElement("span"), { textContent: name }));
-    els.tuneOnly.appendChild(option);
+  // Grouped by the stage each setting belongs to, with what it changes.
+  for (const stage of Object.keys(STAGE_NAMES)) {
+    const group = Object.assign(document.createElement("fieldset"), { className: "tune-only-group" });
+    group.appendChild(Object.assign(document.createElement("legend"), { textContent: STAGE_NAMES[stage] }));
+    for (const name of names.filter((item) => (SETTING_GUIDE[item]?.[0] ?? "speed") === stage)) {
+      const option = Object.assign(document.createElement("label"), { className: "check", title: SETTING_GUIDE[name]?.[2] ?? name });
+      const box = Object.assign(document.createElement("input"), { type: "checkbox", value: name });
+      option.append(box, Object.assign(document.createElement("span"), { textContent: SETTING_GUIDE[name]?.[1] ?? name }));
+      group.appendChild(option);
+    }
+    if (group.querySelector("input")) els.tuneOnly.appendChild(group);
   }
 }
 
@@ -2549,6 +2646,13 @@ function bindEvents() {
     if (state.tuneDefaults) void saveTuneSettings(state.tuneDefaults);
   });
   els.tuneModels.addEventListener("click", (event) => {
+    const details = event.target.closest("[data-tune-details]");
+    if (details) {
+      const id = details.dataset.tuneDetails;
+      if (!state.tuneOpen.delete(id)) state.tuneOpen.add(id);
+      renderTuneModels();
+      return;
+    }
     const button = event.target.closest("[data-tune-model]");
     if (button) void startTune([button.dataset.tuneModel], { force: button.dataset.tuneForce === "true" });
   });
