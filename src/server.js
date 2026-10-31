@@ -450,6 +450,7 @@ export function createHttpServer({
           profileId,
           profile: loaded ? profile : null,
           stale: loaded?.stale ?? [],
+          staleParts: loaded?.staleParts ?? [],
           warnings: loaded?.warnings ?? [],
         });
       }

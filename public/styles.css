@@ -2578,3 +2578,137 @@ a:focus-visible {
 .tune-models .small-btn {
   white-space: nowrap;
 }
+
+/* Tuner panel: intro, stage list with descriptions, grouped settings, progress chips, details */
+.tune-intro {
+  margin: 4px 0 12px;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.tune-stage-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.tune-stage {
+  align-items: flex-start;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.tune-stage strong {
+  display: block;
+  font-size: 13px;
+}
+
+.tune-stage small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+.tune-actions {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+}
+
+.tune-only-details {
+  margin-top: 10px;
+}
+
+.tune-only-details summary {
+  cursor: pointer;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.tune-only-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0;
+  padding: 6px 10px 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.tune-only-group legend {
+  padding: 0 4px;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.tune-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.tune-chip {
+  padding: 1px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.tune-chip.done {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--green, #3fb950) 55%, var(--line));
+}
+
+.tune-chip.partial {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+}
+
+.tune-chip.stale {
+  border-style: dashed;
+  border-color: var(--accent);
+}
+
+.tune-stale {
+  display: block;
+  margin-top: 3px;
+  color: var(--accent);
+  font-size: 11px;
+}
+
+.benchmark-table td.tune-actions-cell {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.benchmark-table td.tune-details-cell,
+.tune-details .benchmark-table th,
+.tune-details .benchmark-table td {
+  text-align: left;
+}
+
+.tune-details .benchmark-table td:nth-child(3) {
+  white-space: nowrap;
+}
+
+.tune-details {
+  padding: 4px 4px 10px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.tune-details p {
+  margin: 4px 0;
+}
+
+.tune-details .benchmark-table td:last-child {
+  white-space: normal;
+}

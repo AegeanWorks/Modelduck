@@ -124,5 +124,19 @@
     "final_snapshot_digest": "",
     "final_snapshot_entries": 0,
     "surface_digest": "f942ad724256a4fa16429cf8fb9956705e658434a430e510de80e67421d9f1bf"
+  },
+  {
+    "schema": 1,
+    "surface": "app",
+    "baseline_commit": "76b77a8f4807a6812d0209d35b8cacf5ddbc5af5",
+    "contract_hash": "c6a291e913a9c8f174aadf7fb264b0941c55e9f4999a9a43152f1fb616845d11",
+    "started_at": 1793447398.8625505,
+    "finished_at": 1793450034.548718,
+    "strikes": 1,
+    "reviewer": "Claude (AI; headless Edge review of the Bench tuner panel: stage descriptions and collapsible settings picker render with the current JS, no console errors; delegated by the user on 2026-10-31)",
+    "allowed_removals": [],
+    "final_snapshot_digest": "",
+    "final_snapshot_entries": 0,
+    "surface_digest": "e25ba1e0ccdc37786d7582a50ec9fc37a9292e32117d64a6966a7eada5a248c8"
   }
 ]

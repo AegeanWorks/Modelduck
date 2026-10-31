@@ -472,20 +472,28 @@
             </div>
             <span class="badge" id="tune-run-state">idle</span>
           </div>
-          <div class="benchmark-controls" id="tune-stages">
-            <label class="check"><input type="checkbox" value="device" checked /><span>Device</span></label>
-            <label class="check"><input type="checkbox" value="quality" checked /><span>Quality</span></label>
-            <label class="check"><input type="checkbox" value="speed" checked /><span>Speed</span></label>
-            <label class="check"><input type="checkbox" value="sampling" checked /><span>Sampling</span></label>
-            <label class="check"><input type="checkbox" value="prompt" checked /><span>Prompt</span></label>
-            <label class="check"><input id="tune-force" type="checkbox" /><span>Re-tune from scratch</span></label>
-            <button class="primary-btn" id="tune-all" type="button">Run all</button>
-            <button class="small-btn" id="tune-cancel" type="button" disabled>Cancel</button>
+          <p class="tune-intro">
+            Measures each installed model on this PC and saves the best settings as presets the app applies
+            automatically, per task (chat, code, math, long context). Results are kept: a stopped tune keeps what it
+            found, and choosing only some stages or settings measures just those again on top of the rest.
+          </p>
+          <div class="tune-stage-list" id="tune-stages">
+            <label class="check tune-stage"><input type="checkbox" value="device" checked /><span><strong>Device</strong><small>CPU or GPU: whichever answers fastest while getting as many answers right.</small></span></label>
+            <label class="check tune-stage"><input type="checkbox" value="quality" checked /><span><strong>Quality</strong><small>Context size and KV cache: the most correct answers.</small></span></label>
+            <label class="check tune-stage"><input type="checkbox" value="speed" checked /><span><strong>Speed</strong><small>Flash attention, memory map, batch and threads: fastest with identical answers. Saves the Fastest and Light presets.</small></span></label>
+            <label class="check tune-stage"><input type="checkbox" value="sampling" checked /><span><strong>Sampling</strong><small>Temperature, answer length, repeat penalty, min-p, top-p and top-k, per task.</small></span></label>
+            <label class="check tune-stage"><input type="checkbox" value="prompt" checked /><span><strong>Prompt</strong><small>System prompt, reasoning off or on, and prompt repetition, per task.</small></span></label>
+            <div class="benchmark-controls tune-actions">
+              <label class="check" title="Discard the chosen models' saved results and measure everything again"><input id="tune-force" type="checkbox" /><span>Re-tune from scratch</span></label>
+              <button class="primary-btn" id="tune-all" type="button" title="Tune every installed model with the choices above">Run all</button>
+              <button class="small-btn" id="tune-cancel" type="button" disabled>Cancel</button>
+            </div>
           </div>
-          <div class="tune-only" id="tune-only" aria-label="Only these settings">
-            <span class="tune-only-label">Only these settings (optional; overrides the stages above):</span>
-          </div>
-          <p class="benchmark-progress" id="tune-progress">No tune is running. A saved profile is reused; stop any time and what was found is applied.</p>
+          <details class="tune-only-details">
+            <summary>Only some settings (optional; replaces the stage choice above)</summary>
+            <div class="tune-only" id="tune-only" aria-label="Only these settings"></div>
+          </details>
+          <p class="benchmark-progress" id="tune-progress">No tune is running. Pick a model below, or Run all; stop any time and what was found is applied.</p>
           <div class="tune-models" id="tune-models"></div>
           <details class="tune-settings" id="tune-settings">
             <summary>Tune settings: the values each setting is tried at, lanes and devices</summary>

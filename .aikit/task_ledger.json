@@ -1,34 +1,22 @@
 {
   "version": 1,
   "active_task": {
-    "task_id": "reasoning-steps",
-    "last_phase": "verification",
-    "active_phase": 5,
-    "status": "completed",
-    "updated_at": 1793447254.1990058,
+    "task_id": "bench-ui-v1",
+    "last_phase": "planning",
+    "active_phase": 2,
+    "status": "in_progress",
+    "updated_at": 1793447395.5162826,
     "owner": "claude-opus-5.5",
     "started_by": "claude-opus-5.5",
     "continuations": [],
     "impact_assessment": {
-      "why": "The user asked for reasoning to be tuned off and on; auto is only a nudge",
-      "benefits": "The tune compares no reasoning with a real think-first directive",
-      "risks": "contract: default reasoning steps change, saved grids keep theirs; dependency: none; concurrency: none; state: saved profiles keep their choice",
-      "mitigation": "Failing-first step test; ADR-041"
-    },
-    "completed_at": 1793447260.677105
+      "why": "User review: the Bench section is crowded, lacks descriptions and details, and shows older statistics by default",
+      "benefits": "The tuner explains itself and shows each model's results; old reports stay out of the way until asked for",
+      "risks": "contract: tune overview adds staleParts; dependency: none; concurrency: none; state: none",
+      "mitigation": "UI tasks per milestone with headless Edge screenshots and console checks; existing UI tests"
+    }
   },
   "checkpoints": [
-    {
-      "task_id": "polish-v1",
-      "phase": "in_progress",
-      "phase_num": 4,
-      "description": "[2/2] M2 Re-tune on a stale profile forces that model, Run all sends forceStale, table buttons stay on one line; reviewed in headless Edge by Claude (requests intercepted: force true for the stale model, forceStale true for Run all; no console errors); checklists: passed",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793439446.5079522,
-      "timestamp_str": "2026-10-31 12:37:26",
-      "agent": "claude-code:20b8d1d8"
-    },
     {
       "task_id": "polish-v1",
       "phase": "completed",
@@ -266,6 +254,23 @@
       "timestamp": 1793447260.6771069,
       "timestamp_str": "2026-10-31 14:47:40",
       "agent": "claude-opus-5.5"
+    },
+    {
+      "task_id": "bench-ui-v1",
+      "phase": "planning",
+      "phase_num": 2,
+      "description": "[1/2] Tuner panel: intro, stage descriptions, grouped settings with help, stale reason, per-model details, part-run force fix; [2/2] reports collapsed, older suites optional, item tables folded, tile overlap fixed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793447395.5162826,
+      "timestamp_str": "2026-10-31 14:49:55",
+      "agent": "claude-opus-5.5",
+      "impact_assessment": {
+        "why": "User review: the Bench section is crowded, lacks descriptions and details, and shows older statistics by default",
+        "benefits": "The tuner explains itself and shows each model's results; old reports stay out of the way until asked for",
+        "risks": "contract: tune overview adds staleParts; dependency: none; concurrency: none; state: none",
+        "mitigation": "UI tasks per milestone with headless Edge screenshots and console checks; existing UI tests"
+      }
     }
   ]
 }
