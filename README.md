@@ -468,7 +468,7 @@ modelduck/
 │   ├── downloader.js <- resumable Hugging Face downloads
 │   ├── chat-store.js <- atomic, quarantine-safe conversation storage
 │   ├── settings.js <- validated persisted settings
-│   ├── generation-manifest.js <- exact prompt/history/template fingerprints
+│   ├── generation-manifest.js <- prompt/history/template fingerprints
 │   ├── benchmark-report.js <- baseline/JSONL summary for the Bench panel
 │   ├── benchmark-runner.js <- one benchmark child at a time, JSON progress
 │   ├── benchmark-base.js <- model-phase choice for a chat run
@@ -570,7 +570,8 @@ modelduck/
 │   ├── screenshot-welcome.png
 │   ├── screenshot-chat.png
 │   ├── screenshot-models.png
-│   └── screenshots/2026-10-31-home.png
+│   └── screenshots/
+│       └── 2026-10-31-home.png
 ├── .aikit/ <- project memory: map, ADRs, ledger
 ├── .gitignore
 ├── start.bat
