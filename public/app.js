@@ -2132,6 +2132,14 @@ function byTypeSection(tasks) {
   return section;
 }
 
+/** The shared quality settings checked on each task (ADR-057). */
+function perTaskText(load) {
+  if (!load?.perTask) return null;
+  const parts = Object.entries(load.perTask).map(([task, entry]) => `${TASK_NAMES[task] ?? task} ${entry.rate}% (was ${entry.before}%)`);
+  const reverted = load.reverted ? ` Went back to the earlier settings: ${TASK_NAMES[load.reverted] ?? load.reverted} was worse (p=${load.perTask[load.reverted]?.pValue}).` : " No task got worse.";
+  return `${parts.join(" · ")}.${reverted}`;
+}
+
 /** A preset against the defaults on items it was never tuned on (ADR-054). */
 function unseenText(holdout) {
   if (!holdout) return "–";
@@ -2156,6 +2164,8 @@ function tuneDetails(model) {
   if (profile?.device?.reason) line("Device", profile.device.reason);
   const load = Object.entries(profile?.load?.settings ?? {});
   if (load.length) line("Load settings", load.map(([key, value]) => `${SETTING_GUIDE[key]?.[1] ?? SETTING_LABELS[key] ?? key} ${value}`).join(" · "));
+  const qualityCheck = perTaskText(profile?.load);
+  if (qualityCheck) line("Quality settings checked per task", qualityCheck);
   if (profile?.speed) line("Speed presets", `Fastest uses ${profile.speed.fastest?.threads ?? "–"} threads, Light ${profile.speed.light?.threads ?? "–"}`);
   const table = document.createElement("table");
   table.className = "benchmark-table";
@@ -2403,6 +2413,8 @@ function renderTuneRunDetail({ run, answers }) {
   }
   const backend = run.result?.load?.settings?.gpuBackend;
   if (backend) line("Device", backend === "cpu" ? "CPU" : `${backend} GPU`);
+  const qualityCheck = perTaskText(run.result?.load);
+  if (qualityCheck) line("Quality settings checked per task", qualityCheck);
   if (run.fingerprint) line("Measured on", `test suite v${run.fingerprint.suiteVersion}, ${run.fingerprint.cpu ?? "this CPU"}, node-llama-cpp ${run.fingerprint.nodeLlamaCpp ?? "?"}`);
   const tasks = Object.entries(run.result?.tasks ?? {});
   if (tasks.length) {

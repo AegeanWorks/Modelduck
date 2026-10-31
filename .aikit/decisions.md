@@ -427,3 +427,10 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
 - **Context**: A task's preset was reported as one rate, so a setting that helped one kind of question (say, writing functions) and hurt another (fixing bugs) looked like a small net change. The benchmark is what sets ModelDuck apart, and its question types were invisible in the tuner.
 - **Decision**: The tune takes `typeOf(itemId)` (the tune job passes each suite item's category), and a task's statistics and its held-back check carry `byType`: per question type, the items and right answers for the chosen settings and for the defaults. Details and a run's detail show them under "By question type" in plain words (for example "Work in a codebase", "GSM8K word problems"), with the types the preset answers worse than the defaults marked.
 - **Consequences**: Per-type counts are small (often under 15), so they show where to look rather than prove a difference; the task-level paired test stays the decision rule.
+
+### ADR-057: The shared quality settings are checked on every task
+- **Date**: 2026-11-01
+- **Status**: Accepted
+- **Context**: Device, quality and speed settings are shared by all of a model's tasks; only sampling and prompt are per task. The quality stage (context and KV cache) chooses on a mix of every task's items, so a setting much better on one task could win while clearly hurting another.
+- **Decision**: After the quality stage, each task's share of the last load level (`rungs.loadByTask`) is scored with the chosen settings and with the settings before the stage, paired, from the answers the sweep already measured. A task worse at `changeAlpha` (0.2, uncorrected, so every task is protected) sends the quality settings back to those before the stage. The profile's load carries `perTask` (each task's rate before and after, p, worse) and `reverted` (the task that lost); Details and a run's detail state it.
+- **Consequences**: A shared setting can no longer trade one task for another unnoticed. Since the check uses already-measured answers, it costs nothing extra.

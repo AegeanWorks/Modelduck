@@ -404,5 +404,19 @@
     "final_snapshot_digest": "",
     "final_snapshot_entries": 0,
     "surface_digest": "d0870eec62a7fb155289f4068e05ffade1e2e51749c94a699c01dea481e42545"
+  },
+  {
+    "schema": 1,
+    "surface": "app",
+    "baseline_commit": "aca9f85fab8c1f2d0e7204f96f802a436ab89713",
+    "contract_hash": "c6a291e913a9c8f174aadf7fb264b0941c55e9f4999a9a43152f1fb616845d11",
+    "started_at": 1793475095.9902282,
+    "finished_at": 1793475142.559075,
+    "strikes": 0,
+    "reviewer": "Claude (AI; headless Edge review with a sample per-task check in a scratch profile: Details states each task's result under the shared quality settings and which task sent them back; no console errors; delegated by the user on 2026-11-01)",
+    "allowed_removals": [],
+    "final_snapshot_digest": "",
+    "final_snapshot_entries": 0,
+    "surface_digest": "917daab5063a98ff1163ec8d08d6aaffed443cd5fd9c4a4ae6c648f53e6566ff"
   }
 ]
