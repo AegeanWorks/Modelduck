@@ -471,7 +471,7 @@ modelduck/
 │   ├── generation-manifest.js <- exact prompt/history/template fingerprints
 │   ├── benchmark-report.js <- baseline/JSONL summary for the Bench panel
 │   ├── benchmark-runner.js <- one benchmark child at a time, JSON progress
-│   ├── benchmark-base.js <- saves the model-phase choice for a later chat run
+│   ├── benchmark-base.js <- model-phase choice for a chat run
 │   ├── openai.js <- OpenAI-compatible models/chat endpoints
 │   ├── http.js <- JSON, SSE, static serving, loopback guard
 │   ├── jit.js <- just-in-time loading and idle unload
@@ -501,7 +501,7 @@ modelduck/
 │   ├── recommend.mjs
 │   ├── stats.mjs
 │   ├── tasks.mjs        <- chat/code/math/recall items and tuning rungs
-│   ├── tune.mjs         <- quality → speed → sampling → prompt search, resumable
+│   ├── tune.mjs         <- staged, resumable settings search
 │   ├── tune-measure.mjs <- candidate scoring, statistics and the run cache
 │   ├── tune-speed.mjs   <- speed stage, Fastest and Light presets
 │   ├── tune-device.mjs  <- stage 0: CPU or GPU, per model
@@ -569,7 +569,8 @@ modelduck/
 │   ├── social-preview.svg
 │   ├── screenshot-welcome.png
 │   ├── screenshot-chat.png
-│   └── screenshot-models.png
+│   ├── screenshot-models.png
+│   └── screenshots/2026-10-31-home.png
 ├── .aikit/ <- project memory: map, ADRs, ledger
 ├── .gitignore
 ├── start.bat

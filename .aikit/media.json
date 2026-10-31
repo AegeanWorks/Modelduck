@@ -34,13 +34,33 @@
       "generated_at": "2026-10-30T00:12:46",
       "review": {
         "status": "approved",
-        "reviewer": "agent:claude-opus-5.5",
-        "method": "vision",
-        "notes": "Re-rendered at 1280x640 after correcting the link to github.com/AegeanWorks/Modelduck, the repository name AIKit's publish creates. Duck mark, name ModelDuck, label LOCAL AI APP, current description including the settings tuner, three evenly spaced tags, high-contrast text on navy. Reviewed by Claude at the user's delegation.",
-        "score": 86,
-        "reviewed_at": "2026-10-31T12:12:31"
+        "reviewer": "human:owner",
+        "method": "structural",
+        "notes": "Inlined complete standalone yellow ModelDuck mascot vector with navy badge, drop shadow, body, wing, beak, blush, and sparkles directly into SVG; eliminated external image reference so duck renders in all viewers; aligned tag 3 indicator dot to x=830",
+        "score": 96,
+        "reviewed_at": "2026-10-31T14:50:04"
       }
     }
   },
-  "screenshots": []
+  "screenshots": [
+    {
+      "path": "assets/screenshots/2026-10-31-home.png",
+      "alt": "Modelduck interface at 2026-10-31",
+      "caption": "Modelduck interface captured from index.html",
+      "commit": "9f2602c468944f6ecc3d971fa132becc7616cb91",
+      "taken_at": "2026-10-31",
+      "viewport": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "status": "approved",
+      "review": {
+        "status": "approved",
+        "reviewer": "human:owner",
+        "method": "vision",
+        "notes": "ModelDuck 1440x900 studio welcome view: loaded model (qwen2.5-0.5b-instruct), chat history, yellow ModelDuck mascot, prompt suggestions, zero error toasts; perfectly represents local LLM chat studio.",
+        "score": 95,
+        "reviewed_at": "2026-10-31T15:40:04"
+      }
+    }
+  ]
 }
