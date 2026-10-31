@@ -1,9 +1,10 @@
 import { moreBugFixPrompts, moreCodingPrompts } from "./own-items-v9.mjs";
 import { moreMathPrompts, moreRecallPrompts } from "./own-items-v10.mjs";
 import { repoPrompts } from "./repo-items-v10.mjs";
+import { moreRepoPrompts } from "./repo-items-v11.mjs";
 import { publicPrompts } from "./public-items.mjs";
 
-export const SUITE_VERSION = 10;
+export const SUITE_VERSION = 11;
 
 export const SYSTEM_PROMPT =
   "You are a precise assistant. Follow the requested output format exactly. " +
@@ -258,6 +259,7 @@ export const PROMPTS = [
   ...moreCodingPrompts(),
   ...moreBugFixPrompts(),
   ...repoPrompts(),
+  ...moreRepoPrompts(),
   ...comprehensionPrompts(),
   ...recallPrompts(),
   ...moreMathPrompts(),

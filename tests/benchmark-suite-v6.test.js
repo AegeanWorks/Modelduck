@@ -126,7 +126,7 @@ const PUBLIC_REFERENCE = {
 test("public items carry source and license, and translated code cases hold", () => {
   const publicItems = PROMPTS.filter((prompt) => prompt.category.startsWith("public-"));
   assert.equal(publicItems.length, 60);
-  assert.equal(PROMPTS.length - publicItems.length, 196, "ModelDuck's own questions stay in the suite");
+  assert.equal(PROMPTS.length - publicItems.length, 208, "ModelDuck's own questions stay in the suite");
   for (const prompt of publicItems) {
     assert.ok(prompt.source?.dataset && prompt.source?.license, prompt.id);
     for (const check of prompt.checks.filter((item) => item.type === "jsTests")) {

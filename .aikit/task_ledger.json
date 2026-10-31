@@ -1,38 +1,16 @@
 {
   "version": 1,
   "active_task": {
-    "task_id": "suite-v10",
+    "task_id": "suite-v11",
     "last_phase": "verification",
-    "active_phase": 5,
-    "status": "completed",
-    "updated_at": 1793446084.5787516,
+    "active_phase": 4,
+    "status": "in_progress",
+    "updated_at": 1793446792.2011752,
     "owner": "claude-opus-5.5",
     "started_by": "claude-opus-5.5",
-    "continuations": [],
-    "completed_at": 1793446091.2137957
+    "continuations": []
   },
   "checkpoints": [
-    {
-      "task_id": "review-fixes-v1",
-      "phase": "in_progress",
-      "phase_num": 4,
-      "description": "[2/2] M2 fully tuned models show 'Tuned \u2713' with how to re-run instead of a no-op Continue; reviewed in headless Edge by Claude at the user's request; checklists: passed",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793437620.814382,
-      "timestamp_str": "2026-10-31 12:07:00",
-      "agent": "claude-code:20b8d1d8"
-    },
-    {
-      "task_id": "review-fixes-v1",
-      "phase": "completed",
-      "phase_num": 5,
-      "description": "Task 'review-fixes-v1' completed successfully.",
-      "status": "completed",
-      "timestamp": 1793437621.9531784,
-      "timestamp_str": "2026-10-31 12:07:01",
-      "agent": "claude-code:20b8d1d8"
-    },
     {
       "task_id": "suite-v9-v1",
       "phase": "in_progress",
@@ -254,6 +232,34 @@
       "status": "completed",
       "timestamp": 1793446091.2137978,
       "timestamp_str": "2026-10-31 14:28:11",
+      "agent": "claude-opus-5.5"
+    },
+    {
+      "task_id": "suite-v11",
+      "phase": "planning",
+      "phase_num": 2,
+      "description": "[1/1] Suite v11 adds 12 items on three larger codebases (ledger, orders, markdown)",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793446749.971457,
+      "timestamp_str": "2026-10-31 14:39:09",
+      "agent": "claude-opus-5.5",
+      "impact_assessment": {
+        "why": "The user wants a coder that works well in complex codebases; v10 had only 12 codebase items on small projects",
+        "benefits": "24 codebase items across six projects, larger ones with six or seven files",
+        "risks": "contract: SUITE_VERSION 11 marks saved profiles stale with a warning; dependency: none; concurrency: none; state: code task grows to 112 items",
+        "mitigation": "References, shipped-bug failures and culprit probes verified in tests; ADR-039"
+      }
+    },
+    {
+      "task_id": "suite-v11",
+      "phase": "verification",
+      "phase_num": 4,
+      "description": "v11 codebase items in; 308/308 tests, gate 4/4; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793446792.2011752,
+      "timestamp_str": "2026-10-31 14:39:52",
       "agent": "claude-opus-5.5"
     }
   ]

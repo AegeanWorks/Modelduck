@@ -114,7 +114,7 @@ function colorFor(index) {
 ];
 
 /** `files` with one file's text swapped, as the buggy version of a codebase. */
-const withFile = (files, path, from, to) =>
+export const withFile = (files, path, from, to) =>
   files.map(([name, code]) => {
     if (name !== path) return [name, code];
     if (!code.includes(from)) throw new Error(`repo item: ${path} lacks ${from}`);
@@ -126,7 +126,7 @@ const source = (files) => files.map(([, code]) => code).join("\n\n");
 
 const REPO_TOKENS = 1024;
 
-function implement(id, label, files, task, entry, cases) {
+export function implement(id, label, files, task, entry, cases) {
   return {
     id: `repo-${id}`,
     label,
@@ -139,7 +139,7 @@ function implement(id, label, files, task, entry, cases) {
   };
 }
 
-function fix(id, label, files, report, entry, cases) {
+export function fix(id, label, files, report, entry, cases) {
   return {
     id: `repo-${id}`,
     label,
@@ -153,7 +153,7 @@ function fix(id, label, files, report, entry, cases) {
   };
 }
 
-function locate(id, label, files, report, culprit) {
+export function locate(id, label, files, report, culprit) {
   return {
     id: `repo-${id}`,
     label,

@@ -134,7 +134,7 @@ chosen configuration.
 Three small model classes are the default required set: SmolLM2 135M (tiny), Qwen2.5
 0.5B (general) and Qwen2.5 Coder 1.5B (code). `--full-matrix` / `npm run bench:full`
 adds Qwen2.5 1.5B, Llama 3.2 3B and Phi-3.5 Mini plus their KV-cache variants; that
-deeper review takes hours on a CPU and is opt-in. Suite v10 runs 256 items: 196
+deeper review takes hours on a CPU and is opt-in. Suite v11 runs 268 items: 208
 questions ModelDuck authored (code, long code and multi-file codebase tasks, bug fixes,
 math, recall, comprehension, facts and the original set) plus 60 items copied from
 permissively licensed public benchmarks (GSM8K 16, MMLU 12,
@@ -372,12 +372,12 @@ endpoints are loopback-only and start one child benchmark at a time; they refuse
 while a reply is generating so the CPU measurements stay comparable.
 `POST /api/benchmarks/base` saves one model-phase variant as the base the next
 chat-phase run loads. `POST /api/benchmarks/run` with `{"phase":"tune","model":"<id>"}`
-tunes one installed model (optional `tasks` and `force`); a saved profile is reused
-unless `force` is true, and `stages` (device, quality, speed, sampling, prompt) runs only some of them; the
-profile is saved after every finished setting, so a stopped tune is applied as far as it got and resumes later.
+tunes one installed model (optional `tasks`, `force`, and `stages` from device, quality,
+speed, sampling, prompt); a saved profile is reused unless `force` is true. The profile
+is saved after every finished setting, so a stopped tune applies and later resumes.
 `POST /api/tune/start` with `{"models":"all"}` (or a list of model ids) tunes several models
 side by side: device probes first, then 1 CPU lane and 2 GPU lanes by default (`lanes` in
-`tune-grid.json`, set per PC); speed measurements pause the other tunes so they stay clean. `GET /api/profiles/:id` returns the profile with `stale` and
+`tune-grid.json`, set per PC); speed measurements pause the other tunes. `GET /api/profiles/:id` returns the profile with `stale` and
 plain-language `warnings` when the test suite, test items, runtime, CPU or model file
 changed since it was measured; a stale profile is still used until it is re-tuned.
 
@@ -497,6 +497,7 @@ modelduck/
 │   ├── own-items-v9.mjs
 │   ├── own-items-v10.mjs
 │   ├── repo-items-v10.mjs
+│   ├── repo-items-v11.mjs
 │   ├── recommend.mjs
 │   ├── stats.mjs
 │   ├── tasks.mjs        <- chat/code/math/recall items and tuning rungs
@@ -534,6 +535,7 @@ modelduck/
 │   ├── benchmark-suite-v6.test.js
 │   ├── benchmark-suite-v9.test.js
 │   ├── benchmark-suite-v10.test.js
+│   ├── benchmark-suite-v11.test.js
 │   ├── reference-solutions-v9.js
 │   ├── benchmark-test-hash.test.js
 │   ├── benchmark-tasks.test.js
