@@ -526,3 +526,31 @@ test("reasoning on is tried with room to answer, and the preset keeps that room"
   assert.equal(tasks.math.settings.reasoning, "deep");
   assert.equal(tasks.math.settings.maxTokens, 1024, "the preset keeps the room deep needs");
 });
+
+test("system prompts are screened on a quarter of the items, and only clear losers stop early", async () => {
+  const items = ids("math", 48);
+  const asked = new Map();
+  // How many of the first items each prompt gets right; the suite prompt gets the first 30.
+  const solved = { "Be precise.": 30, "Close behind.": 28, "Clearly worse.": 4 };
+  const { sweeps } = await tune({
+    evaluate: async (settings, itemIds) => {
+      asked.set(settings.systemPrompt, [...(asked.get(settings.systemPrompt) ?? []), ...itemIds]);
+      return { prompts: itemIds.map((id) => ({ id, passed: Number(id.split("-")[1]) < solved[settings.systemPrompt] ? 1 : 0, total: 1, ms: 10, outputTokens: 10, digest: id })) };
+    },
+    base: { ...BASE, temperature: 0 },
+    tasks: ["math"],
+    stages: ["prompt"],
+    rungs: { ...RUNGS, math: [items] },
+    hardware: { logicalCores: 12 },
+    ...AXES,
+    promptAxes: [{ name: "systemPrompt", patches: Object.keys(solved).map((systemPrompt) => ({ systemPrompt })), full: true }],
+    options: { seeds: [42], passes: 1 },
+  });
+  const sweep = sweeps.find((entry) => entry.axis === "systemPrompt");
+  assert.deepEqual(sweep.rungs.map((rung) => rung.size), [12, 48], "a 12-item screen, then the full set");
+  assert.deepEqual(sweep.dropped.map((entry) => entry.patch.systemPrompt), ["Clearly worse."]);
+  assert.equal(sweep.dropped[0].behind, 8);
+  assert.equal(new Set(asked.get("Clearly worse.")).size, 12, "a dropped prompt answers only the screen");
+  assert.equal(new Set(asked.get("Close behind.")).size, 48, "a close one is measured on everything");
+  assert.equal(sweep.winner.systemPrompt, "Be precise.");
+});

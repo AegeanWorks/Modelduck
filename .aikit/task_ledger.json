@@ -1,44 +1,16 @@
 {
   "version": 1,
   "active_task": {
-    "task_id": "tune-ux-v2",
+    "task_id": "tune-stats-v1",
     "last_phase": "verification",
-    "active_phase": 5,
-    "status": "completed",
-    "updated_at": 1793456399.7628062,
+    "active_phase": 4,
+    "status": "in_progress",
+    "updated_at": 1793457088.2578228,
     "owner": "claude-opus-5.5",
     "started_by": "claude-opus-5.5",
-    "continuations": [],
-    "completed_at": 1793456720.8108652
+    "continuations": []
   },
   "checkpoints": [
-    {
-      "task_id": "suite-v11",
-      "phase": "completed",
-      "phase_num": 5,
-      "description": "Task 'suite-v11' completed successfully.",
-      "status": "completed",
-      "timestamp": 1793446793.1329255,
-      "timestamp_str": "2026-10-31 14:39:53",
-      "agent": "claude-opus-5.5"
-    },
-    {
-      "task_id": "part-runs",
-      "phase": "planning",
-      "phase_num": 2,
-      "description": "[1/1] Part runs re-measure chosen stages or settings for one or all models on top of the saved rest, with per-part fingerprints",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793447074.2911744,
-      "timestamp_str": "2026-10-31 14:44:34",
-      "agent": "claude-opus-5.5",
-      "impact_assessment": {
-        "why": "The user wants to run one part (device probe, one setting, the prompt stage) for all models; chosen done stages were skipped and Run all wiped stale profiles",
-        "benefits": "Device-only, setting-only or prompt-only runs across all models keep every other result, and warnings name the parts still measured on an older suite",
-        "risks": "contract: planTune returns rerun and allows part runs on stale profiles (ADR-034 refusal lifted); dependency: none; concurrency: none; state: profiles gain an optional measuredUnder map",
-        "mitigation": "Failing-first profile and server tests; real device-only run on a stale profile kept the rest; ADR-040"
-      }
-    },
     {
       "task_id": "part-runs",
       "phase": "verification",
@@ -259,6 +231,34 @@
       "status": "completed",
       "timestamp": 1793456720.810866,
       "timestamp_str": "2026-10-31 17:25:20",
+      "agent": "claude-opus-5.5"
+    },
+    {
+      "task_id": "tune-stats-v1",
+      "phase": "planning",
+      "phase_num": 2,
+      "description": "[1/3] prompt screening on 25% of items; [2/3] a saved record of every tune run with every answer; [3/3] a Statistics section listing runs with full details and raw download",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793457050.592626,
+      "timestamp_str": "2026-10-31 17:30:50",
+      "agent": "claude-opus-5.5",
+      "impact_assessment": {
+        "why": "The prompt stage is the costliest; the user wants every tune's data kept with detailed results",
+        "benefits": "About half the prompt-stage answers; a durable, inspectable history of every run",
+        "risks": "contract: full axes gain a screening rung; new tune-runs folder and API routes; dependency: none; concurrency: one writer per run file; state: run files grow with every run, never deleted automatically",
+        "mitigation": "Failing-first tests; atomic run-file writes; real runs; ADRs"
+      }
+    },
+    {
+      "task_id": "tune-stats-v1",
+      "phase": "verification",
+      "phase_num": 4,
+      "description": "Milestone 1 prompt screening in; tests pass, gate 4/4; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793457088.2578228,
+      "timestamp_str": "2026-10-31 17:31:28",
       "agent": "claude-opus-5.5"
     }
   ]

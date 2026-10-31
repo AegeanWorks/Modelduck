@@ -371,3 +371,10 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
 - **Context**: Tuned profiles held each model's rate per task, but nothing compared models, and the Sampling and Prompt buttons always ran all four tasks.
 - **Decision**: Under the model table, "Best model per task on this PC" ranks the tuned models per task by rate (then the lower end of the 95% range), with the range, device and runner-up. Only models tuned on the current test suite are compared, since rates on other items are not comparable; when none is, the older best is shown and marked "older test suite". In a model's Details, each task has Sampling and Prompt buttons that run that stage for that task only (`tasks: [task]`), on top of the saved results.
 - **Consequences**: Until models are re-tuned on the current suite the table shows older results, marked; overlapping ranges mean the leaders may be equally good.
+
+### ADR-049: System prompts are screened on a quarter of the items
+- **Date**: 2026-10-31
+- **Status**: Accepted
+- **Context**: The system-prompt axis scores every prompt on the task's full set (ADR-030), 22 prompts on 48 items per task and seed, the costliest step of a tune. With the significance rule (ADR-042), a prompt clearly behind early almost never ends up beating the current one.
+- **Decision**: A fully scored axis first answers `screenFraction` (25%) of its items, a prefix of the task's stratified order. A candidate `screenGap` (3) or more items behind the leader there stops; the current setting never does. Survivors answer the rest, and the decision and its statistics use the full set as before. The sweep records each dropped candidate with its screen score. A screen under 8 items is skipped, since a 3-item gap there is noise.
+- **Consequences**: With about six survivors of 22, a task's prompt step asks about 480 answers instead of 1,056. The time-left estimate (ADR-045) still counts the full set, so it stays an upper bound.

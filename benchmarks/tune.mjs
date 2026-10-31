@@ -27,7 +27,14 @@ export const DEFAULT_TUNE_OPTIONS = Object.freeze({
   // A challenger that is better only on quality must beat the current setting in a paired
   // test at this level, divided by the number of challengers, or the current setting stays (ADR-042).
   changeAlpha: 0.2,
+  // A fully scored axis (system prompts) first answers this share of its items; a candidate
+  // `screenGap` items behind the leader there stops, unless it is the current setting (ADR-049).
+  screenFraction: 0.25,
+  screenGap: 3,
 });
+
+// A screen of fewer items cannot tell a 3-item gap from noise, so it is skipped.
+const MIN_SCREEN_ITEMS = 8;
 
 export const STAGES = Object.freeze(["device", "quality", "speed", "sampling", "prompt"]);
 
@@ -76,7 +83,9 @@ function choose(candidates, floor, speedTie, cost) {
 async function sweep(context, { stage, task, axis, current, rungs, forced, cost }) {
   const { measurements, options } = context;
   const { candidates, skipped } = candidatesFor(axis, current, context.valid);
-  const levels = axis.full ? rungs.slice(-1) : rungs;
+  let levels = axis.full ? rungs.slice(-1) : rungs;
+  const screen = axis.full ? Math.ceil(levels[0].length * options.screenFraction) : 0;
+  if (screen >= MIN_SCREEN_ITEMS && screen < levels[0].length) levels = [levels[0].slice(0, screen), levels[0]];
   let survivors = candidates;
   const record = { stage, task, axis: axis.name, skipped, full: Boolean(axis.full), rungs: [] };
   for (const [level, itemIds] of levels.entries()) {
@@ -94,6 +103,15 @@ async function sweep(context, { stage, task, axis, current, rungs, forced, cost 
       return { ...record, aborted: true, winner: null };
     }
     if (level === levels.length - 1) break;
+    if (axis.full) {
+      // Screening: only a clear loser stops early; the decision still uses every item.
+      const solved = (entry) => [...entry.stats.majority.values()].filter(Boolean).length;
+      const leader = Math.max(...survivors.filter((entry) => !entry.stats.failed).map(solved));
+      const dropped = survivors.filter((entry) => !entry.incumbent && leader - solved(entry) >= options.screenGap);
+      record.dropped = dropped.map((entry) => ({ patch: entry.patch, solved: solved(entry), of: itemIds.length, behind: leader - solved(entry) }));
+      survivors = survivors.filter((entry) => !dropped.includes(entry));
+      continue;
+    }
     const keep = Math.max(2, Math.ceil(survivors.length * options.keepFraction));
     const ranked = [...survivors].sort(byQuality(cost));
     survivors = ranked.filter((entry, index) => index < keep || entry.incumbent).sort((left, right) => left.index - right.index);
