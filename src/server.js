@@ -49,36 +49,8 @@ function openFolder(folder, logger) {
   });
 }
 
-function normalizeMessageText(value) {
-  if (typeof value !== "string") {
-    throw new AppError("Message must be text", {
-      code: "invalid_message",
-      why: "ModelDuck expects the message field to be a string.",
-      fix: "Send plain text in the message field.",
-    });
-  }
-  const text = value.trim();
-  if (!text) {
-    throw new AppError("The message is empty", {
-      code: "empty_message",
-      why: "There is nothing for the model to answer.",
-      fix: "Type a message, then press Send.",
-    });
-  }
-  if (text.length > 32_000) {
-    throw new AppError("That message is too long", {
-      code: "message_too_long",
-      status: 413,
-      why: "ModelDuck accepts messages up to 32,000 characters.",
-      fix: "Shorten the message, or split it into smaller parts.",
-    });
-  }
-  return text;
-}
-
 export function createHttpServer({
   settings,
-  chatStore,
   registry,
   engine,
   downloads,
@@ -94,162 +66,8 @@ export function createHttpServer({
   profileFingerprint = currentFingerprint,
   tuneStepsFile = null,
 }) {
-  const activeChats = new Set();
   const tuned = new TunedSettings({ profilesDir, registry, settings, fingerprint: profileFingerprint });
   const tunedInfo = (applied) => applied && { catalogId: applied.catalogId, task: applied.task, speedPreset: applied.speedPreset, stages: applied.stages, systemPrompt: applied.settings.systemPrompt ?? null, rate: applied.rate ?? null, typeWarnings: applied.typeWarnings ?? [], stale: applied.stale, warnings: applied.warnings };
-
-  async function handleChat(req, res) {
-    const body = await readJsonBody(req);
-    const message = normalizeMessageText(body.message);
-    const regenerate = body.regenerate === true;
-    let conversation = null;
-
-    if (body.conversationId) {
-      conversation = chatStore.get(String(body.conversationId));
-      if (!conversation) {
-        throw new AppError("Conversation not found", {
-          code: "conversation_not_found",
-          status: 404,
-          why: "That conversation no longer exists.",
-          fix: "Start a new chat.",
-        });
-      }
-    }
-
-    if (!engine || (await engine.status()).status !== "ready") {
-      throw new AppError("No model is loaded", {
-        code: "model_not_loaded",
-        status: 409,
-        why: "ModelDuck needs a loaded model before it can answer.",
-        fix: "Open Models, load an installed model, then send your message again.",
-      });
-    }
-    if (engine.busy) {
-      throw new AppError("The duck is already answering", {
-        code: "generation_in_progress",
-        status: 409,
-        why: "ModelDuck runs one generation at a time on the CPU.",
-        fix: "Wait for the other reply to finish, or stop it first.",
-      });
-    }
-
-    const loaded = await engine.status();
-    const applied = await tuned.resolve(loaded.model?.id ?? null, body.task ? String(body.task) : "chat");
-    if (!conversation) {
-      conversation = chatStore.create({
-        modelId: loaded.model?.id ?? null,
-        modelName: loaded.model?.name ?? null,
-        title: message,
-      });
-    }
-    if (conversation.modelId !== loaded.model?.id) {
-      chatStore.setModel(conversation.id, {
-        modelId: loaded.model?.id ?? null,
-        modelName: loaded.model?.name ?? null,
-      });
-      conversation = chatStore.get(conversation.id);
-    }
-
-    if (activeChats.has(conversation.id)) {
-      throw new AppError("A reply is already running", {
-        code: "generation_in_progress",
-        status: 409,
-        why: "This conversation is already generating a reply.",
-        fix: "Click Stop, or wait for the reply to finish.",
-      });
-    }
-
-    if (regenerate) {
-      conversation = chatStore.truncateToLastUser(conversation.id);
-    }
-    const last = conversation.messages.at(-1);
-    if (!last || last.role !== "user" || last.content !== message) {
-      chatStore.appendMessage(conversation.id, { role: "user", content: message });
-    }
-    await chatStore.save();
-    conversation = chatStore.get(conversation.id);
-
-    activeChats.add(conversation.id);
-    const controller = new AbortController();
-    let finished = false;
-    let heartbeat = null;
-
-    sseStart(res);
-    sseSend(res, "meta", {
-      conversationId: conversation.id,
-      title: conversation.title,
-      model: loaded.model,
-      startedAt: new Date().toISOString(),
-    });
-
-    const abort = () => {
-      controller.abort();
-      engine.abort(conversation.id);
-    };
-    res.on("close", () => {
-      if (!finished) abort();
-    });
-    heartbeat = setInterval(() => {
-      if (!res.destroyed) sseComment(res);
-    }, 15_000);
-    heartbeat.unref?.();
-
-    try {
-      const result = await engine.chat({
-        conversationId: conversation.id,
-        messages: conversation.messages,
-        systemPrompt: applied?.settings.systemPrompt ?? settings.value.systemPrompt,
-        settings: { ...settings.value, ...(applied?.settings ?? {}) },
-        signal: controller.signal,
-        onToken: (chunk) => {
-          if (res.destroyed) {
-            controller.abort();
-            return;
-          }
-          sseSend(res, "token", { text: chunk });
-        },
-      });
-
-      let assistant = null;
-      const manifest = manifestSummary(result.manifest);
-      if (result.text || !result.aborted) {
-        assistant = chatStore.appendMessage(conversation.id, {
-          role: "assistant",
-          content: result.text,
-          stats: result.stats,
-          manifest,
-          stopped: result.aborted,
-        });
-        await chatStore.save();
-      }
-      conversation = chatStore.get(conversation.id);
-      if (!res.destroyed) {
-        sseSend(res, "done", {
-          conversationId: conversation.id,
-          title: conversation.title,
-          message: assistant,
-          stats: result.stats,
-          manifest,
-          aborted: result.aborted,
-          tuned: tunedInfo(applied),
-        });
-      }
-    } catch (error) {
-      if (!res.destroyed) {
-        sseSend(res, "error", {
-          code: error?.code || "generation_failed",
-          message: error?.message || "The model could not answer",
-          why: error?.why || "Generation failed before a reply was completed.",
-          fix: error?.fix || "Try again, or unload and reload the model.",
-        });
-      }
-    } finally {
-      finished = true;
-      if (heartbeat) clearInterval(heartbeat);
-      activeChats.delete(conversation.id);
-      if (!res.destroyed) res.end();
-    }
-  }
 
   async function route(req, res) {
     applySecurityHeaders(res);
@@ -341,8 +159,6 @@ export function createHttpServer({
         loaded,
         catalog: publicCatalog(),
         downloads: downloads ? downloads.list() : [],
-        conversations: chatStore.list(),
-        archivedConversations: chatStore.listArchived(),
       });
       return;
     }
@@ -878,90 +694,6 @@ export function createHttpServer({
       if (!downloads) throw new AppError("Downloads unavailable", { status: 503 });
       const job = await downloads.cancel(decodeURIComponent(downloadMatch[1]));
       sendJson(res, 200, { download: job });
-      return;
-    }
-
-    if (pathname === "/api/conversations" && method === "GET") {
-      sendJson(res, 200, { conversations: chatStore.list(), archived: chatStore.listArchived() });
-      return;
-    }
-
-    if (pathname === "/api/conversations" && method === "POST") {
-      const body = await readJsonBody(req);
-      const loaded = engine ? await engine.status() : { status: "idle" };
-      const conversation = chatStore.create({
-        modelId: loaded.model?.id ?? null,
-        modelName: loaded.model?.name ?? null,
-        title: body.title || "New chat",
-      });
-      await chatStore.save();
-      sendJson(res, 201, { conversation });
-      return;
-    }
-
-    const conversationMatch = pathname.match(/^\/api\/conversations\/([^/]+)$/);
-    if (conversationMatch && method === "GET") {
-      const id = decodeURIComponent(conversationMatch[1]);
-      let conversation = chatStore.get(id);
-      if (!conversation) {
-        conversation = chatStore.restore(id);
-        if (conversation) await chatStore.save();
-      }
-      if (!conversation) {
-        throw new AppError("Conversation not found", {
-          code: "conversation_not_found",
-          status: 404,
-          why: "That conversation no longer exists.",
-          fix: "Start a new chat.",
-        });
-      }
-      sendJson(res, 200, { conversation });
-      return;
-    }
-
-    if (conversationMatch && method === "PATCH") {
-      const body = await readJsonBody(req);
-      const conversation = chatStore.rename(decodeURIComponent(conversationMatch[1]), body.title);
-      if (!conversation) {
-        throw new AppError("Conversation not found", {
-          code: "conversation_not_found",
-          status: 404,
-          why: "That conversation no longer exists.",
-          fix: "Start a new chat.",
-        });
-      }
-      await chatStore.save();
-      sendJson(res, 200, { conversation });
-      return;
-    }
-
-    if (conversationMatch && method === "DELETE") {
-      const id = decodeURIComponent(conversationMatch[1]);
-      engine?.abort(id);
-      engine?.dropSession(id);
-      const deleted = chatStore.delete(id);
-      if (!deleted) {
-        throw new AppError("Conversation not found", {
-          code: "conversation_not_found",
-          status: 404,
-          why: "That conversation no longer exists.",
-          fix: "Start a new chat.",
-        });
-      }
-      await chatStore.save();
-      sendJson(res, 200, { deleted: true });
-      return;
-    }
-
-    if (pathname === "/api/chat" && method === "POST") {
-      await handleChat(req, res);
-      return;
-    }
-
-    if (pathname === "/api/chat/abort" && method === "POST") {
-      const body = await readJsonBody(req);
-      const aborted = engine?.abort(String(body.conversationId ?? "")) ?? false;
-      sendJson(res, 200, { aborted });
       return;
     }
 

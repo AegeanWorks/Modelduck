@@ -233,7 +233,6 @@ export function resolvePaths({ home, models, env = process.env } = {}) {
     home: resolvedHome,
     models: resolvedModels,
     downloads: path.join(resolvedHome, "downloads"),
-    chats: path.join(resolvedHome, "chats.json"),
     settings: path.join(resolvedHome, "settings.json"),
     serverSettings: path.join(resolvedHome, "server-settings.json"),
     profiles: path.join(resolvedHome, "profiles"),

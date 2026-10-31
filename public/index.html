@@ -6,122 +6,55 @@
     <meta name="color-scheme" content="dark light" />
     <meta
       name="description"
-      content="ModelDuck is a local GGUF chat studio. Load a model, talk to it, and keep everything on your computer."
+      content="ModelDuck is a local GGUF model server and coding-model tuner. Load a model, serve the OpenAI-compatible API, and keep everything on your computer."
     />
-    <title>ModelDuck — local models, zero drama</title>
+    <title>ModelDuck Code — server and tuner</title>
     <link rel="icon" href="/brand/duck.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/styles.css" />
     <script type="module" src="/app.js"></script>
   </head>
   <body>
     <div class="app" id="app">
-      <div class="scrim" id="scrim" hidden></div>
-
-      <aside class="sidebar" id="sidebar" aria-label="Chats and model status">
-        <header class="brand">
-          <img class="brand-mark" src="/brand/duck.svg" alt="" width="44" height="44" />
-          <div class="brand-copy">
-            <span class="brand-name">ModelDuck</span>
-            <span class="brand-tag">local. no drama.</span>
-          </div>
-          <button class="icon-btn sidebar-close" id="sidebar-close" type="button" title="Close sidebar">
-            <span aria-hidden="true">×</span>
+      <header class="app-bar">
+        <div class="brand">
+          <h1>ModelDuck Code</h1>
+          <span class="brand-note">server · tuner</span>
+        </div>
+        <nav class="app-nav" aria-label="ModelDuck">
+          <button class="ghost-btn" id="open-models" type="button">Models</button>
+          <button class="ghost-btn" id="open-benchmarks" type="button">Bench &amp; Tune</button>
+          <button class="ghost-btn" id="open-settings" type="button">Settings</button>
+          <button class="ghost-btn" id="open-server" type="button">Server</button>
+          <button class="icon-btn" id="theme-toggle" type="button" title="Toggle light and dark theme">
+            <span id="theme-icon" aria-hidden="true">☾</span>
           </button>
-        </header>
-
-        <button class="new-chat" id="new-chat" type="button">
-          <span class="new-chat-plus" aria-hidden="true">+</span>
-          <span>New chat</span>
-          <kbd>Ctrl K</kbd>
-        </button>
-
-        <label class="search">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <circle cx="11" cy="11" r="7"></circle>
-            <path d="m20 20-3.5-3.5"></path>
-          </svg>
-          <input id="conversation-search" type="search" placeholder="Search chats" autocomplete="off" />
-        </label>
-
-        <nav class="conversation-list" id="conversation-list" aria-label="Conversations"></nav>
-
-        <footer class="sidebar-footer">
+        </nav>
+      </header>
+      <main class="control">
+        <section class="control-card">
           <button class="status-card" id="status-card" type="button">
             <span class="status-dot" id="status-dot"></span>
             <span class="status-copy">
               <strong id="status-model">No model loaded</strong>
               <small id="status-detail">Open Models to begin</small>
             </span>
-            <span class="chev" aria-hidden="true">›</span>
           </button>
-          <div class="sidebar-actions">
-            <button class="ghost-btn" id="open-models" type="button">Models</button>
-            <button class="ghost-btn" id="open-settings" type="button">Settings</button>
-            <button class="ghost-btn" id="open-server" type="button">Server</button>
-            <button class="ghost-btn" id="open-benchmarks" type="button" title="Benchmark quality gate">Bench</button>
-            <button class="icon-btn" id="theme-toggle" type="button" title="Toggle light and dark theme">
-              <span id="theme-icon" aria-hidden="true">☾</span>
-            </button>
-          </div>
-        </footer>
-      </aside>
-
-      <main class="main">
-        <header class="topbar">
-          <button class="icon-btn mobile-menu" id="menu-toggle" type="button" title="Open sidebar">
-            <span aria-hidden="true">☰</span>
+          <button class="model-pill" id="model-pill" type="button">
+            <span class="dot" id="model-pill-dot"></span>
+            <span id="model-pill-name">No model</span>
           </button>
-          <div class="topbar-title">
-            <h1 id="chat-title">New chat</h1>
-            <span class="local-badge">LOCAL ONLY</span>
-          </div>
-          <div class="topbar-actions">
-            <button class="model-pill" id="model-pill" type="button">
-              <span class="dot" id="model-pill-dot"></span>
-              <span id="model-pill-name">No model</span>
-              <span class="chev" aria-hidden="true">⌄</span>
-            </button>
-            <button class="icon-btn" id="top-settings" type="button" title="Settings">
-              <span aria-hidden="true">⚙</span>
-            </button>
-          </div>
-        </header>
-
-        <section class="chat-scroll" id="chat-scroll">
-          <div class="messages" id="messages"></div>
         </section>
-
-        <footer class="composer-wrap">
-          <form class="composer" id="composer">
-            <textarea
-              id="prompt"
-              rows="1"
-              placeholder="Ask your local model anything…"
-              autocomplete="off"
-              spellcheck="true"
-              aria-label="Message"
-            ></textarea>
-            <div class="composer-actions">
-              <select class="task-picker" id="task-picker" title="What this question is: picks the tuned preset of a tuned model" aria-label="Task">
-                <option value="chat">Chat</option>
-                <option value="code">Code</option>
-                <option value="math">Math</option>
-                <option value="recall">Long context</option>
-              </select>
-              <span class="composer-hint" id="composer-hint">Enter to send · Shift+Enter for a new line</span>
-              <button class="stop-btn" id="stop-btn" type="button" hidden>Stop</button>
-              <button class="send-btn" id="send-btn" type="submit" title="Send message" aria-label="Send message">
-                <span aria-hidden="true">↑</span>
-              </button>
-            </div>
-          </form>
-          <p class="privacy-note">
-            Everything stays on this computer. <span id="context-note">No model loaded.</span>
+        <section class="control-note">
+          <p class="eyebrow">Chat moved to ChatDuck</p>
+          <h2>Server and tuning, without the chat shell.</h2>
+          <p>ModelDuck serves the OpenAI-compatible API and tunes the model. Use ChatDuck, the separate static chat client, against this server.</p>
+          <p class="control-links">
+            <a class="primary-btn" href="http://127.0.0.1:4173" target="_blank" rel="noreferrer">Open ChatDuck</a>
           </p>
-        </footer>
+        </section>
+        <footer class="control-foot" id="context-note">No model loaded.</footer>
       </main>
     </div>
-
     <dialog class="dialog models-dialog" id="models-dialog" aria-labelledby="models-title">
       <div class="dialog-head">
         <div>
@@ -145,7 +78,7 @@
               <h3>Pick a brain</h3>
               <p>Curated GGUF models, downloaded straight from Hugging Face. Sizes are the actual file size.</p>
             </div>
-            <span class="offline-note">Downloads need internet. Chat does not.</span>
+            <span class="offline-note">Downloads need internet. Local inference does not.</span>
           </div>
           <div class="catalog-grid" id="catalog-grid"></div>
         </section>
@@ -218,7 +151,7 @@
             <label class="field">
               <span>Top K</span>
               <input id="setting-topk" type="number" min="0" max="200" />
-              <small>0 disables top-k. Try 20–80 for chat.</small>
+              <small>0 disables top-k. Try 20–80 for general use.</small>
             </label>
             <label class="field">
               <span>Min P</span>
@@ -245,7 +178,7 @@
                 <option value="shift">Shift — drop oldest tokens</option>
                 <option value="strict">Strict — refuse an overflow</option>
               </select>
-              <small>Shift keeps chatting; strict protects the prompt exactly.</small>
+              <small>Shift keeps going; strict protects the prompt exactly.</small>
             </label>
             <label class="field">
               <span>Structured output</span>
@@ -278,7 +211,7 @@
             <label class="field">
               <span>Context size</span>
               <input id="setting-context" type="number" min="512" max="32768" step="512" />
-              <small>How much conversation the model can see. Reload a model to apply.</small>
+              <small>How much context the model can see. Reload a model to apply.</small>
             </label>
             <label class="field">
               <span>CPU threads</span>

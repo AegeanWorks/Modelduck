@@ -6,13 +6,15 @@
 <!-- aegean:media:end -->
 
 
-A local GGUF chat studio: load a model, talk to it, and serve an OpenAI-compatible API.
-Runs on the CPU or a Vulkan GPU; no cloud account, no telemetry. Chats, prompts and settings stay on your
+A local GGUF model server and coding-model tuner: load a model, serve an OpenAI-compatible API, and tune it for code.
+Runs on the CPU or a Vulkan GPU; no cloud account, no telemetry. Weights, prompts and settings stay on your
 computer; the only network requests are model downloads you start (the inference
 runtime is never downloaded or built on demand). The tuner measures quality per
 second and per GB on your machine, so a preset is evidence, not a guess.
 
-![ModelDuck chat](assets/screenshot-chat.png)
+The chat UI lives in [**ChatDuck**](https://github.com/AegeanWorks/Chatduck), a
+separate static client for any OpenAI-compatible server. ModelDuck keeps the
+server and the tuning control panel: Models, Bench & Tune, Settings and Server.
 
 ## Why this exists
 
@@ -54,8 +56,8 @@ happy with a 0.5B–3B Q4 model on a normal laptop.
    browser. Closing that window does not stop the local server; press **Ctrl+C**
    in the terminal to quit.
 3. Click **Models → Discover**, download a starter model, then **Install → Load**.
-4. Ask the duck something. The first load takes a few seconds; replies stream as
-   the CPU produces them.
+4. Open **Bench → Tune** to optimize the model, or **Models → Load** to serve it.
+   Chat lives in ChatDuck; point it at `http://127.0.0.1:4141`.
 
 No model is bundled. A good first pick is **Qwen2.5 0.5B Instruct** (469 MB,
 fast) or **Qwen2.5 1.5B Instruct** (1.1 GB, better answers on a 16 GB machine).
@@ -86,15 +88,13 @@ npm run tune:gate            # re-measure the core models' baseline settings (G-
 ```
 
 `MODELDUCK_GPU=auto npm start` lets `node-llama-cpp` use a detected CUDA/Vulkan/Metal
-device. It is off by default so a missing driver never prevents chat from working.
+device. It is off by default so a missing driver never prevents local inference from working.
 
 ## What you get
 
 - **Model library** — scan a folder, import a GGUF by path, or download a curated
   model from Hugging Face, checked against a pinned SHA-256, with resumable `.part`
   downloads (a repeated start reuses the running download).
-- **Streaming chat** — token-by-token replies, stop, regenerate, copy, searchable
-  history, and a local Markdown renderer (raw HTML is always escaped).
 - **Model controls** - context size, CPU threads and thread pool, batch size,
   context sequences, GPU backend/layers, KV cache, checkpoint interval and max,
   flash attention, mmap, temperature, top-p/top-k/min-p, repeat penalty, max reply tokens, system
@@ -103,6 +103,9 @@ device. It is off by default so a missing driver never prevents chat from workin
 - **OpenAI-compatible API** — `GET /v1/models`, `GET /v1/models/:id`,
   `POST /v1/chat/completions` and `POST /v1/completions`, including SSE
   streaming, so local tools can use ModelDuck as a drop-in backend.
+- **Chat lives in ChatDuck** — the separate static client at
+  https://github.com/AegeanWorks/Chatduck speaks the same `/v1` API. ModelDuck's
+  own page is a control panel for Models, Bench & Tune, Settings and Server.
 - **Benchmark panel** - folded under the tuner: run either phase, read per-test
   rates; older-suite reports show only when asked.
 - **Settings tuner** - **Bench → Tune** finds the best settings for each installed
@@ -117,7 +120,7 @@ device. It is off by default so a missing driver never prevents chat from workin
   **Tune runs** keeps every run and answer; stopped runs continue. **Tune
   settings** edits the values each setting is tried at and the lanes for this PC. **Benchmark** lists each task's question types and checks.
   **Recommended for this PC** ranks installed models by measured answers and speed, then catalog estimates.
-  In chat, the task picker picks the preset and each answer shows it; **Settings** has the tuned on/off switch
+  The client chooses a preset per task with `x-modelduck-task`; **Settings** has the tuned on/off switch
   and Fastest/Light/Quiet. Tune with heavy programs closed.
 - **Small surface area** — Node's HTTP server and a vanilla UI; no build or CDN.
 - **AI benchmark gate** - two phases: model reload/quantization/KV-cache settings,
@@ -204,38 +207,18 @@ settings form. Run both phases for every generation change. A quality
 drop exits 1; a speed drop over 20% only warns. Generated code runs in a
 `node --permission` sandbox (5-second timeout, no file or network access).
 
-Model-phase baseline highlights (v7 core, 31 variants, 1995.2s total):
-
-| Full-suite candidate | Items | Checks | Speed | Memory |
-|---|---:|---:|---:|---:|
-| Qwen2.5 Coder 1.5B Q4 | 76.9% | 85.6% | 16.7 tok/s | 1.4 GB |
-| Qwen2.5 0.5B Q4 | 58.2% | 70.7% | 38.1 tok/s | 0.79 GB |
-| Qwen2.5 0.5B Q4, token-saver preset | 58.2% | 69.6% | 39.2 tok/s | 0.55 GB |
-| Qwen2.5 0.5B Q4, Q8 KV | 56.0% | 67.4% | 21.7 tok/s | 0.78 GB |
-| Qwen2.5 0.5B Q4, balanced preset | 56.0% | 67.4% | 38.4 tok/s | 0.80 GB |
-| Qwen2.5 0.5B Q4, quality preset | 54.9% | 67.4% | 38.5 tok/s | 1.19 GB |
-| SmolLM2 135M Q4 | 11.0% | 23.8% | 114.7 tok/s | 0.25 GB |
-| Qwen2.5 0.5B Q4, Q4 KV | 9.9% | 6.6% | 38.5 tok/s | 0.78 GB |
-
-Q8 KV stayed close to F16 on the 0.5B model, but Q4 KV destroyed quality.
-The token-saver preset stayed at the base item rate with much less memory; balanced
-and quality were slightly below it. Checkpoint interval/max variants use the
-16-item smoke subset, so their 68.8% item rate is not comparable to the full-suite
-rows; among them, `ckpt max 4` was fastest at 36.9 tok/s. Speed figures are
-single-run medians and move with host load; quality is the comparison gate.
 
 ## Screenshots
 
-| Welcome | Models |
+| Control panel | Models |
 |---|---|
-| ![Welcome](assets/screenshot-welcome.png) | ![Models](assets/screenshot-models.png) |
+| ![Control panel](assets/screenshot-control.png) | ![Models](assets/screenshot-models.png) |
 
 ## Where things live
 
 | Item | Default | Override |
 |---|---|---|
 | Models | `~/.modelduck/models` | `--models <folder>` |
-| Chats | `~/.modelduck/chats.json` (200 most recent) and `chats.archive.json` (older, never dropped) | `--home <folder>` |
 | Settings | `~/.modelduck/settings.json` | `--home <folder>` |
 | Server settings + key hashes | `~/.modelduck/server-settings.json` | `--home <folder>` |
 | Tuned model profiles | `~/.modelduck/profiles/<model>.json` (load settings and per-task presets) | `--home <folder>` |
@@ -372,7 +355,7 @@ key once and keeps it in session storage.
 
 ## GPU backends
 
-CPU is the default, so a missing driver never blocks chat. In **Settings → GPU
+CPU is the default, so a missing driver never blocks local inference. In **Settings → GPU
 backend** choose:
 
 - **CUDA** for NVIDIA cards with a working CUDA runtime.
@@ -414,7 +397,7 @@ Context memory grows with the window, not with the model file alone.
 **Replies are very slow.**
 CPU inference is limited by memory bandwidth. Try a smaller quantization or
 model, set **CPU threads** to physical cores (not every logical thread), and keep
-the context near 2048–4096 for chat.
+the context near 2048–4096 for coding tasks.
 
 **A model is listed but marked “Unreadable.”**
 The GGUF header is damaged or incomplete. Re-download it; the loader will also
@@ -436,11 +419,11 @@ generation-affecting change.
 modelduck/
 ├── src/
 │   ├── main.js <- CLI, startup, browser window, graceful shutdown
-│   ├── server.js <- routes, SSE chat, static files, security checks
+│   ├── server.js <- routes, SSE tune stream, static files, security checks
 │   ├── engine.js <- node-llama-cpp session lifecycle and statistics
 │   ├── memory-fit.js <- pre-load memory estimate and fit verdict
 │   ├── model-profiles.js <- tuned per-model, per-task settings store
-│   ├── tuned-settings.js <- applies a profile at load, chat and JIT time
+│   ├── tuned-settings.js <- applies a profile at load and OpenAI/JIT time
 │   ├── tune-steps.js    <- the user's tune step lists
 │   ├── tune-scheduler.js <- tunes several models in CPU and GPU lanes
 │   ├── tune-lock.js     <- pauses other tunes while one times answers
@@ -449,12 +432,11 @@ modelduck/
 │   ├── model-registry.js <- GGUF scan/import/delete and metadata
 │   ├── gguf-guard.js <- bounded GGUF header check before any parser runs
 │   ├── downloader.js <- resumable Hugging Face downloads
-│   ├── chat-store.js <- atomic, quarantine-safe conversation storage
 │   ├── settings.js <- validated persisted settings
 │   ├── generation-manifest.js <- prompt/history/template fingerprints
 │   ├── benchmark-report.js <- report summary for the Bench panel
 │   ├── benchmark-runner.js <- one benchmark child, JSON progress
-│   ├── benchmark-base.js <- chat-run base choice
+│   ├── benchmark-base.js <- benchmark base choice
 │   ├── openai.js <- OpenAI-compatible models/chat endpoints
 │   ├── http.js <- JSON, SSE, static serving, loopback guard
 │   ├── jit.js <- just-in-time loading and idle unload
@@ -466,9 +448,8 @@ modelduck/
 │   ├── recommend.js <- what to run on this PC: measured models and estimates
 │   └── system.js <- CPU, memory and platform snapshot
 ├── public/
-│   ├── index.html <- the whole UI
+│   ├── index.html <- the control panel
 │   ├── app.js <- state and interactions, no framework
-│   ├── markdown.js <- small escaping-first Markdown renderer
 │   ├── styles.css <- dark/light responsive theme
 │   └── brand/
 │       └── duck.svg <- the ModelDuck mascot and favicon
@@ -487,7 +468,7 @@ modelduck/
 │   ├── own-items-v13.mjs
 │   ├── recommend.mjs
 │   ├── stats.mjs
-│   ├── tasks.mjs        <- chat/code/math/recall items and tuning rungs
+│   ├── tasks.mjs        <- suite items and tuning rungs
 │   ├── tune.mjs         <- staged, resumable settings search
 │   ├── tune-measure.mjs <- candidate scoring, statistics, run cache
 │   ├── tune-speed.mjs   <- speed stage, Fastest and Light presets
@@ -513,10 +494,8 @@ modelduck/
 │   ├── helpers.js
 │   ├── config.test.js
 │   ├── fs-atomic.test.js
-│   ├── chat-store.test.js
 │   ├── model-registry.test.js
 │   ├── model-profiles.test.js
-│   ├── markdown.test.js
 │   ├── downloader.test.js
 │   ├── benchmark-suite.test.js
 │   ├── benchmark-suite-v6.test.js
@@ -562,11 +541,8 @@ modelduck/
 ├── assets/
 │   ├── logo.svg
 │   ├── social-preview.svg
-│   ├── screenshot-welcome.png
-│   ├── screenshot-chat.png
-│   ├── screenshot-models.png
-│   └── screenshots/
-│       └── 2026-10-31-home.png
+│   ├── screenshot-control.png
+│   └── screenshot-models.png
 ├── .aikit/ <- project memory: map, ADRs, ledger
 ├── .gitignore
 ├── start.bat
@@ -588,24 +564,24 @@ npm start -- --no-open --port 4141
 curl http://127.0.0.1:4141/health
 ```
 
-Then send a message in the UI and confirm tokens stream, Stop keeps the partial
-reply, Regenerate replaces the last answer, and `curl /v1/models` lists the
-model.
+Open `http://127.0.0.1:4141`, load the model in **Models**, open **Bench & Tune**
+and **Settings**/**Server**, and confirm `curl /v1/models` lists it. ChatDuck
+can point at the same `/v1` URL for a conversation.
 
 ## Design notes
 
 - **One model at a time.** A single llama.cpp context keeps RAM predictable. The
-  engine disposes the old model before loading a new one and keeps one chat
-  session's KV cache; switching chats rebuilds history from the store.
+  engine disposes the old model before loading a new one and keeps the active
+  session's KV cache; each OpenAI request rebuilds its history.
 - **State is boring on purpose.** JSON files are written through a synced temp
   file and an atomic replace; a damaged file is moved to `*.corrupt-<timestamp>`
   instead of being overwritten. A lock file with a heartbeat stops two processes
   from sharing one home folder.
 - **Failures are actionable.** API errors carry `message`, `why`, and `fix`, and
-  the UI shows all three. The process exits 0 on normal shutdown and 1 on a
+  the control panel shows all three. The process exits 0 on normal shutdown and 1 on a
   startup failure.
-- **The UI cannot execute model output.** Markdown is escaped first; only the
-  renderer's own tags and `http(s)` links survive. The CSP forbids inline script.
+- **The control panel never executes model output.** Tune and benchmark text is
+  escaped before it reaches the DOM; the CSP forbids inline script.
 
 <!-- aegean:brand-assets:start -->
 ## 🎨 Brand Assets

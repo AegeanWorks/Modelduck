@@ -6,7 +6,6 @@ import { APP_NAME, VERSION, isLoopbackHost, parseArgs, resolvePaths } from "./co
 import { BenchmarkRunner } from "./benchmark-runner.js";
 import { TunedSettings } from "./tuned-settings.js";
 import { TuneScheduler } from "./tune-scheduler.js";
-import { ChatStore } from "./chat-store.js";
 import { DownloadManager } from "./downloader.js";
 import { LlamaEngine } from "./engine.js";
 import { AppError } from "./errors.js";
@@ -110,9 +109,7 @@ async function main() {
   }
 
   const settings = new SettingsStore({ file: paths.settings });
-  const chatStore = new ChatStore({ file: paths.chats });
   await settings.load();
-  await chatStore.load();
 
   const registry = createModelRegistry({ modelsDir: paths.models });
   const downloads = new DownloadManager({ modelsDir: paths.models });
@@ -125,7 +122,6 @@ async function main() {
 
   const server = createHttpServer({
     settings,
-    chatStore,
     registry,
     engine,
     downloads,

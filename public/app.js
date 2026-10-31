@@ -1,20 +1,7 @@
-import { escapeHtml, renderMarkdown } from "./markdown.js";
 
 const $ = (id) => document.getElementById(id);
 
 const els = {
-  sidebar: $("sidebar"),
-  scrim: $("scrim"),
-  conversationList: $("conversation-list"),
-  search: $("conversation-search"),
-  chatTitle: $("chat-title"),
-  messages: $("messages"),
-  chatScroll: $("chat-scroll"),
-  prompt: $("prompt"),
-  composer: $("composer"),
-  sendBtn: $("send-btn"),
-  stopBtn: $("stop-btn"),
-  composerHint: $("composer-hint"),
   contextNote: $("context-note"),
   modelPill: $("model-pill"),
   modelPillName: $("model-pill-name"),
@@ -34,7 +21,6 @@ const els = {
   importBtn: $("import-btn"),
   settingsDialog: $("settings-dialog"),
   settingsForm: $("settings-form"),
-  taskPicker: $("task-picker"),
   settingTuned: $("setting-tuned"),
   settingSpeedPreset: $("setting-speed-preset"),
   settingSystem: $("setting-system"),
@@ -139,19 +125,9 @@ const state = {
   models: [],
   catalog: [],
   downloads: [],
-  conversations: [],
-  archivedConversations: [],
   presets: [],
   serverSettings: null,
   loaded: { status: "idle", model: null },
-  activeId: null,
-  conversation: null,
-  streaming: false,
-  stopRequested: false,
-  streamText: "",
-  streamMessageId: null,
-  fetchAbort: null,
-  search: "",
   theme: localStorage.getItem("modelduck.theme") || "dark",
   pollTimer: null,
   polling: false,
@@ -165,12 +141,6 @@ const state = {
   chatBase: null,
   completedDownloads: new Set(),
 };
-
-const SUGGESTIONS = [
-  "Explain how a CPU runs a language model, simply.",
-  "Write a haiku about a duck who loves local AI.",
-  "Help me plan a small weekend project.",
-];
 
 /* API ---------------------------------------------------------------------- */
 
@@ -225,55 +195,6 @@ async function request(path, { method = "GET", body } = {}) {
   return data ?? {};
 }
 
-async function responseError(response) {
-  let data = null;
-  try {
-    data = await response.json();
-  } catch {
-    data = null;
-  }
-  const info = data?.error ?? {};
-  const error = new Error(info.message || `Request failed (${response.status})`);
-  error.info = info;
-  error.status = response.status;
-  return error;
-}
-
-async function readSse(response, handlers) {
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    let boundary = buffer.indexOf("\n\n");
-    while (boundary >= 0) {
-      const frame = buffer.slice(0, boundary);
-      buffer = buffer.slice(boundary + 2);
-      let event = "message";
-      let payload = "";
-      for (const line of frame.split("\n")) {
-        if (line.startsWith("event:")) event = line.slice(6).trim();
-        else if (line.startsWith("data:")) payload += line.slice(5).trimStart();
-      }
-      if (payload) {
-        let data;
-        try {
-          data = JSON.parse(payload);
-        } catch {
-          data = payload;
-        }
-        await handlers[event]?.(data);
-      }
-      boundary = buffer.indexOf("\n\n");
-    }
-  }
-}
-
-/* Formatting --------------------------------------------------------------- */
-
 function formatBytes(bytes) {
   const value = Number(bytes) || 0;
   if (value < 1024) return `${value} B`;
@@ -299,23 +220,14 @@ function formatRelative(iso) {
   return new Date(timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-function formatTime(iso) {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const HTML_ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (character) => HTML_ESCAPES[character]);
 }
 
 function escapeAttribute(value) {
   return escapeHtml(value);
-}
-
-function statsText(stats) {
-  if (!stats) return "";
-  const pieces = [];
-  if (stats.outputTokens) pieces.push(`${stats.outputTokens} tokens`);
-  if (stats.tokensPerSecond) pieces.push(`${stats.tokensPerSecond} tok/s`);
-  if (stats.ms) pieces.push(`${(stats.ms / 1000).toFixed(1)}s`);
-  return pieces.join(" · ");
 }
 
 /* Toasts ------------------------------------------------------------------- */
@@ -369,89 +281,10 @@ function applyTheme() {
   localStorage.setItem("modelduck.theme", state.theme);
 }
 
-/* Sidebar ------------------------------------------------------------------ */
-
-function groupLabel(iso) {
-  const date = new Date(iso);
-  const now = new Date();
-  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const time = date.getTime();
-  if (time >= startToday) return "Today";
-  if (time >= startToday - 86400000) return "Yesterday";
-  if (time >= startToday - 7 * 86400000) return "Previous 7 days";
-  return "Older";
-}
-
-function renderSidebar() {
-  const query = state.search.trim().toLowerCase();
-  const matches = (conversation) =>
-    !query ||
-    conversation.title.toLowerCase().includes(query) ||
-    conversation.preview?.toLowerCase().includes(query);
-  // Chats past the active limit are archived, never dropped; opening one restores it.
-  const conversations = [
-    ...state.conversations.filter(matches),
-    ...state.archivedConversations.filter(matches).map((conversation) => ({ ...conversation, archived: true })),
-  ];
-
-  els.conversationList.replaceChildren();
-  if (!conversations.length) {
-    const empty = document.createElement("p");
-    empty.className = "conversation-empty";
-    empty.textContent = query
-      ? "No chats match that search."
-      : "No chats yet. Your first question starts a conversation.";
-    els.conversationList.appendChild(empty);
-    return;
-  }
-
-  let currentGroup = "";
-  for (const conversation of conversations) {
-    const group = conversation.archived ? "Archived" : groupLabel(conversation.updatedAt);
-    if (group !== currentGroup) {
-      currentGroup = group;
-      const heading = document.createElement("div");
-      heading.className = "conversation-group";
-      heading.textContent = group;
-      els.conversationList.appendChild(heading);
-    }
-
-    const row = document.createElement("div");
-    row.className = `conversation ${conversation.id === state.activeId ? "active" : ""}`;
-    row.dataset.id = conversation.id;
-
-    const main = document.createElement("button");
-    main.type = "button";
-    main.className = "conversation-main";
-    main.dataset.openConversation = conversation.id;
-    const title = document.createElement("span");
-    title.className = "conversation-title";
-    title.textContent = conversation.title;
-    const meta = document.createElement("span");
-    meta.className = "conversation-meta";
-    meta.textContent = `${conversation.modelName || "No model"} · ${formatRelative(conversation.updatedAt)}`;
-    main.append(title, meta);
-
-    const remove = document.createElement("button");
-    remove.type = "button";
-    remove.className = "conversation-delete";
-    remove.dataset.deleteConversation = conversation.id;
-    remove.title = "Delete chat";
-    remove.setAttribute("aria-label", `Delete ${conversation.title}`);
-    remove.textContent = "×";
-
-    row.append(main, remove);
-    els.conversationList.appendChild(row);
-  }
-}
-
 /* Header and status -------------------------------------------------------- */
 
 function renderHeader() {
-  const title = state.conversation?.title || "New chat";
-  els.chatTitle.textContent = title;
-  document.title = state.conversation ? `${title} — ModelDuck` : "ModelDuck — local models, zero drama";
-
+  document.title = "ModelDuck Code — server and tuner";
   const loaded = state.loaded;
   els.modelPillName.textContent = loaded.model?.name || "No model";
   els.modelPillDot.className = `dot ${loaded.status === "ready" ? "ready" : loaded.status === "loading" ? "loading" : ""}`;
@@ -485,480 +318,6 @@ function renderStatus() {
     els.contextNote.textContent = "No model loaded.";
   }
 }
-
-function renderComposer() {
-  const ready = state.loaded.status === "ready";
-  const canSend = ready && !state.streaming && els.prompt.value.trim().length > 0;
-  els.sendBtn.disabled = !canSend;
-  els.stopBtn.hidden = !state.streaming;
-  els.sendBtn.hidden = state.streaming;
-  els.prompt.placeholder = ready
-    ? "Ask your local model anything…"
-    : "Load a model to start chatting…";
-  els.composerHint.textContent = state.streaming
-    ? state.stopRequested
-      ? "Stopping after the current token…"
-      : "Generating locally · Stop to keep a partial reply"
-    : "Enter to send · Shift+Enter for a new line";
-}
-
-/* Welcome ------------------------------------------------------------------ */
-
-function welcomeFeatures() {
-  return `
-    <div class="welcome-features">
-      <div class="feature"><strong>Private by default</strong><span>Prompts and replies never leave this computer.</span></div>
-      <div class="feature"><strong>CPU friendly</strong><span>Small GGUF models run without a GPU.</span></div>
-      <div class="feature"><strong>OpenAI compatible</strong><span>Point local tools at /v1/chat/completions.</span></div>
-    </div>`;
-}
-
-function renderWelcome() {
-  const models = state.models;
-  const loaded = state.loaded;
-  let headline = "A local brain, no cloud required.";
-  let lede = "Download a small GGUF model and talk to it right here. ModelDuck keeps every token on this machine.";
-  let actions = `
-    <button class="primary-btn" type="button" data-open-models="discover">Get a starter model</button>
-    <button class="small-btn" type="button" data-open-models="installed">I already have a GGUF</button>`;
-  let note = "";
-
-  if (models.length > 0 && loaded.status !== "ready") {
-    headline = "Load a model to wake the duck.";
-    lede = `You have ${models.length} model${models.length === 1 ? "" : "s"} ready. Pick one and ModelDuck will load it into memory.`;
-    actions = `<button class="primary-btn" type="button" data-open-models="installed">Choose a model</button>`;
-    note = `<span class="welcome-model-note"><span class="status-dot"></span>${escapeHtml(models[0].name)} is installed</span>`;
-  }
-
-  if (loaded.status === "ready" && loaded.model) {
-    headline = "What should we ask your local model?";
-    lede = `Talking to ${escapeHtml(loaded.model.name)}. Everything stays on this machine.`;
-    actions = "";
-    const details = [loaded.model.params, loaded.model.quant, `${loaded.contextSize || "?"} context`]
-      .filter(Boolean)
-      .join(" · ");
-    note = `<span class="welcome-model-note"><span class="status-dot ready"></span>${escapeHtml(
-      loaded.model.name,
-    )}${details ? ` · ${escapeHtml(details)}` : ""}</span>`;
-  }
-
-  const suggestions = loaded.status === "ready"
-    ? `<div class="welcome-suggestions">${SUGGESTIONS.map(
-        (suggestion) =>
-          `<button class="suggestion" type="button" data-suggestion="${escapeAttribute(suggestion)}">${escapeHtml(suggestion)}</button>`,
-      ).join("")}</div>`
-    : "";
-
-  els.messages.innerHTML = `
-    <div class="welcome">
-      <img class="welcome-duck" src="/brand/duck.svg" alt="ModelDuck mascot" />
-      <p class="eyebrow">ModelDuck · local AI</p>
-      <h2>${headline}</h2>
-      <p class="lede">${lede}</p>
-      ${actions ? `<div class="welcome-actions">${actions}</div>` : ""}
-      ${note}
-      ${suggestions}
-      ${welcomeFeatures()}
-    </div>`;
-  els.messages.querySelectorAll("[data-suggestion]").forEach((button) => {
-    button.addEventListener("click", () => {
-      els.prompt.value = button.dataset.suggestion || "";
-      resizePrompt();
-      renderComposer();
-      els.prompt.focus();
-    });
-  });
-  els.messages.querySelectorAll("[data-open-models]").forEach((button) => {
-    button.addEventListener("click", () => openModels(button.dataset.openModels || "discover"));
-  });
-}
-
-/* Chat rendering ----------------------------------------------------------- */
-
-function appendMessage(message, index, total) {
-  const isUser = message.role === "user";
-  const row = document.createElement("article");
-  row.className = `msg ${isUser ? "user" : "assistant"}`;
-  row.dataset.messageId = message.id;
-  if (message.pending) row.classList.add("streaming");
-  if (message.stopped) row.classList.add("stopped");
-
-  if (!isUser) {
-    const avatar = document.createElement("img");
-    avatar.className = "msg-avatar";
-    avatar.src = "/brand/duck.svg";
-    avatar.alt = "";
-    row.appendChild(avatar);
-  }
-
-  const body = document.createElement("div");
-  body.className = "msg-body";
-
-  if (isUser) {
-    const bubble = document.createElement("div");
-    bubble.className = "bubble";
-    bubble.textContent = message.content;
-    body.appendChild(bubble);
-  } else {
-    const name = document.createElement("div");
-    name.className = "msg-name";
-    name.textContent = "ModelDuck";
-    const markdown = document.createElement("div");
-    markdown.className = "markdown";
-    markdown.innerHTML = message.content ? renderMarkdown(message.content) : "";
-    body.append(name, markdown);
-  }
-
-  const foot = document.createElement("div");
-  foot.className = "msg-foot";
-  const label = document.createElement("span");
-  const fingerprint =
-    !isUser && message.manifest?.shortDigest ? ` · fp ${message.manifest.shortDigest}` : "";
-  label.textContent =
-    (isUser
-      ? formatTime(message.createdAt)
-      : message.stopped
-        ? `Stopped · ${statsText(message.stats)}`
-        : statsText(message.stats) || "local reply") + fingerprint;
-  if (!isUser && message.manifest?.digest) label.title = `Generation fingerprint ${message.manifest.digest}`;
-  if (!isUser && message.tuned) {
-    const tuned = message.tuned;
-    const worse = tuned.typeWarnings ?? [];
-    label.textContent += ` · tuned: ${tuned.task ?? "load only"} · ${tuned.speedPreset}${Number.isFinite(tuned.rate) ? ` · ${tuned.rate}%` : ""}${tuned.warnings?.length || worse.length ? " ⚠" : ""}`;
-    label.title = [label.title, `Profile ${tuned.catalogId}`, tuned.systemPrompt ? `System prompt: ${tuned.systemPrompt}` : "", ...(tuned.warnings ?? []), ...worse.map((entry) => `Clearly worse on ${TYPE_NAMES[entry.type] ?? entry.type} (${entry.right}/${entry.items} vs ${entry.defaultRight}/${entry.items}, p=${entry.p})`)].filter(Boolean).join("\n");
-  }
-  foot.appendChild(label);
-
-  const actions = document.createElement("div");
-  actions.className = "msg-actions";
-  const copy = document.createElement("button");
-  copy.type = "button";
-  copy.className = "msg-action";
-  copy.dataset.copyMessage = message.id;
-  copy.textContent = "Copy";
-  actions.appendChild(copy);
-
-  if (!isUser && message.role === "assistant" && index === total - 1 && !message.pending) {
-    const regenerate = document.createElement("button");
-    regenerate.type = "button";
-    regenerate.className = "msg-action";
-    regenerate.dataset.regenerate = "true";
-    regenerate.textContent = "Regenerate";
-    actions.appendChild(regenerate);
-  }
-  foot.appendChild(actions);
-  body.appendChild(foot);
-  row.appendChild(body);
-  els.messages.appendChild(row);
-}
-
-function renderChat(forceScroll = false) {
-  const messages = state.conversation?.messages ?? [];
-  if (!messages.length) {
-    renderWelcome();
-    return;
-  }
-  els.messages.replaceChildren();
-  messages.forEach((message, index) => appendMessage(message, index, messages.length));
-  scrollToBottom(forceScroll);
-}
-
-function updateStreamingMessage() {
-  if (!state.streamMessageId) return;
-  const node = els.messages.querySelector(
-    `[data-message-id="${state.streamMessageId}"] .markdown`,
-  );
-  if (!node) return;
-  node.innerHTML = renderMarkdown(state.streamText);
-  scrollToBottom(false);
-}
-
-let streamFrame = null;
-function scheduleStreamingUpdate() {
-  if (streamFrame) return;
-  streamFrame = requestAnimationFrame(() => {
-    streamFrame = null;
-    updateStreamingMessage();
-  });
-}
-
-function scrollToBottom(force) {
-  const element = els.chatScroll;
-  const nearBottom =
-    element.scrollHeight - element.scrollTop - element.clientHeight < 140;
-  if (!force && !nearBottom) return;
-  requestAnimationFrame(() => {
-    element.scrollTop = element.scrollHeight;
-  });
-}
-
-/* Conversations ------------------------------------------------------------ */
-
-async function refreshConversations() {
-  try {
-    const data = await request("/api/conversations");
-    state.conversations = data.conversations;
-    state.archivedConversations = data.archived ?? [];
-    renderSidebar();
-  } catch {
-    // A stale sidebar is less important than the reply in progress.
-  }
-}
-
-async function ensureConversation(title) {
-  if (state.conversation?.id) return;
-  const data = await request("/api/conversations", {
-    method: "POST",
-    body: { title },
-  });
-  state.conversation = data.conversation;
-  state.activeId = data.conversation.id;
-  renderHeader();
-  await refreshConversations();
-}
-
-async function openConversation(id) {
-  if (state.streaming) {
-    showToast("Finish the current reply first", {
-      message: "Stop the reply or wait for it to finish before switching chats.",
-    });
-    return;
-  }
-  try {
-    const data = await request(`/api/conversations/${encodeURIComponent(id)}`);
-    state.conversation = data.conversation;
-    state.activeId = data.conversation.id;
-    renderHeader();
-    renderChat(true);
-    if (state.archivedConversations.some((item) => item.id === id)) await refreshConversations();
-    closeSidebar();
-    els.prompt.focus();
-  } catch (error) {
-    showError(error);
-    await refreshConversations();
-  }
-}
-
-function newChat() {
-  if (state.streaming) {
-    showToast("Finish the current reply first", {
-      message: "Stop the reply or wait for it to finish before starting a new chat.",
-    });
-    return;
-  }
-  state.activeId = null;
-  state.conversation = null;
-  renderHeader();
-  renderChat();
-  closeSidebar();
-  els.prompt.focus();
-}
-
-async function deleteConversation(id) {
-  if (id === state.activeId && state.streaming) {
-    showToast("Stop the reply first", { message: "A running reply cannot be deleted." });
-    return;
-  }
-  const conversation = state.conversations.find((item) => item.id === id);
-  const confirmed = await askConfirm(
-    "Delete this chat?",
-    conversation ? `"${conversation.title}" and its messages will be removed from this computer.` : "This chat will be removed.",
-    "Delete chat",
-  );
-  if (!confirmed) return;
-  try {
-    await request(`/api/conversations/${encodeURIComponent(id)}`, { method: "DELETE" });
-    if (id === state.activeId) newChat();
-    await refreshConversations();
-    showToast("Chat deleted");
-  } catch (error) {
-    showError(error);
-  }
-}
-
-/* Chat streaming ----------------------------------------------------------- */
-
-async function sendMessage(rawText, { regenerate = false } = {}) {
-  const text = String(rawText ?? "").trim();
-  if (!text || state.streaming) return;
-  if (state.loaded.status !== "ready") {
-    openModels("installed");
-    showToast("Load a model first", {
-      message: "Choose an installed model, then send your message again.",
-      fix: "Open Models → Installed → Load.",
-    });
-    return;
-  }
-
-  try {
-    await ensureConversation(text);
-  } catch (error) {
-    showError(error);
-    return;
-  }
-
-  if (regenerate) {
-    if (!state.conversation) return;
-    while (state.conversation.messages.at(-1)?.role === "assistant") {
-      state.conversation.messages.pop();
-    }
-    if (!state.conversation.messages.length) return;
-  } else {
-    state.conversation.messages.push({
-      id: `local-user-${Date.now()}`,
-      role: "user",
-      content: text,
-      createdAt: new Date().toISOString(),
-    });
-  }
-
-  const assistantId = `local-assistant-${Date.now()}`;
-  state.conversation.messages.push({
-    id: assistantId,
-    role: "assistant",
-    content: "",
-    createdAt: new Date().toISOString(),
-    pending: true,
-  });
-  state.streamText = "";
-  state.streamMessageId = assistantId;
-  state.streaming = true;
-  state.stopRequested = false;
-  renderChat(true);
-  renderComposer();
-  els.prompt.value = "";
-  resizePrompt();
-
-  const controller = new AbortController();
-  state.fetchAbort = controller;
-  let streamedError = null;
-  let doneMessage = null;
-
-  try {
-    const response = await apiFetch("/api/chat", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        conversationId: state.activeId,
-        message: text,
-        regenerate,
-        task: els.taskPicker.value,
-      }),
-      signal: controller.signal,
-    });
-    if (!response.ok) throw await responseError(response);
-
-    await readSse(response, {
-      meta: async (data) => {
-        state.activeId = data.conversationId;
-        if (state.conversation) {
-          state.conversation.id = data.conversationId;
-          state.conversation.title = data.title;
-        }
-        renderHeader();
-        await refreshConversations();
-      },
-      token: (data) => {
-        state.streamText += data.text ?? "";
-        const message = state.conversation?.messages.find((item) => item.id === assistantId);
-        if (message) message.content = state.streamText;
-        scheduleStreamingUpdate();
-      },
-      done: (data) => {
-        doneMessage = data;
-        if (data.message) {
-          const message = state.conversation?.messages.find((item) => item.id === assistantId);
-          if (message) {
-            Object.assign(message, data.message, { tuned: data.tuned ?? null });
-            delete message.pending;
-          }
-        }
-        if (data.title && state.conversation) state.conversation.title = data.title;
-      },
-      error: (data) => {
-        streamedError = new Error(data.message || "Generation failed");
-        streamedError.info = data;
-      },
-    });
-  } catch (error) {
-    if (error.name !== "AbortError") streamedError = streamedError || error;
-  } finally {
-    state.streaming = false;
-    state.stopRequested = false;
-    state.fetchAbort = null;
-    state.streamMessageId = null;
-
-    if (streamedError) {
-      const message = state.conversation?.messages.find((item) => item.id === assistantId);
-      if (message && !message.content) {
-        state.conversation.messages = state.conversation.messages.filter(
-          (item) => item.id !== assistantId,
-        );
-      }
-      showError(streamedError);
-    }
-
-    const pending = state.conversation?.messages.find((item) => item.id === assistantId);
-    if (pending) {
-      if (!pending.content && !doneMessage?.message) {
-        state.conversation.messages = state.conversation.messages.filter(
-          (item) => item.id !== assistantId,
-        );
-      } else {
-        delete pending.pending;
-      }
-    }
-
-    if (state.activeId && !doneMessage) {
-      try {
-        const data = await request(`/api/conversations/${encodeURIComponent(state.activeId)}`);
-        state.conversation = data.conversation;
-      } catch {
-        // Keep the local copy when the server is unreachable.
-      }
-    }
-
-    renderHeader();
-    renderChat(true);
-    renderComposer();
-    renderStatus();
-    await refreshConversations();
-    els.prompt.focus();
-  }
-}
-
-async function stopGeneration() {
-  if (!state.streaming) return;
-  state.stopRequested = true;
-  renderComposer();
-  if (!state.activeId) {
-    state.fetchAbort?.abort();
-    return;
-  }
-  const currentAbort = state.fetchAbort;
-  setTimeout(() => {
-    if (state.streaming && state.stopRequested && state.fetchAbort === currentAbort) {
-      state.fetchAbort?.abort();
-    }
-  }, 10_000);
-  try {
-    await request("/api/chat/abort", {
-      method: "POST",
-      body: { conversationId: state.activeId },
-    });
-  } catch (error) {
-    showError(error);
-  }
-}
-
-async function regenerateLast() {
-  if (state.streaming || !state.conversation) return;
-  const lastUser = [...state.conversation.messages].reverse().find((message) => message.role === "user");
-  if (!lastUser) return;
-  await sendMessage(lastUser.content, { regenerate: true });
-}
-
-/* Models ------------------------------------------------------------------- */
 
 function hasActiveDownloads() {
   return state.downloads.some((job) => job.status === "queued" || job.status === "downloading");
@@ -1017,14 +376,9 @@ async function refreshModels() {
       renderCatalog();
     }
     renderStatus();
-    renderWelcomeIfEmpty();
   } catch (error) {
     showError(error);
   }
-}
-
-function renderWelcomeIfEmpty() {
-  if (!state.conversation || !state.conversation.messages.length) renderChat();
 }
 
 function latestDownload(catalogId) {
@@ -1130,12 +484,6 @@ function renderInstalled() {
 }
 
 function openModels(tab = "discover") {
-  if (state.streaming) {
-    showToast("Finish the current reply first", {
-      message: "Loading or switching models would stop the current generation.",
-    });
-    return;
-  }
   switchTab(tab);
   if (!els.modelsDialog.open) els.modelsDialog.showModal();
   refreshCatalog();
@@ -1198,7 +546,6 @@ async function loadModel(id, { force = false } = {}) {
     state.loaded = data.loaded;
     renderHeader();
     renderStatus();
-    renderChat();
     if (els.modelsDialog.open) els.modelsDialog.close();
     showToast("Model loaded", {
       message: `${model.name} is ready on ${data.loaded.threads} CPU thread${data.loaded.threads === 1 ? "" : "s"}.`,
@@ -1214,7 +561,6 @@ async function loadModel(id, { force = false } = {}) {
         message: "This model and context use most of the free memory; other programs may slow it down.",
       });
     }
-    els.prompt.focus();
   } catch (error) {
     state.loaded = { status: "error", model, error: error.message };
     renderStatus();
@@ -1239,7 +585,6 @@ async function unloadModel() {
     state.loaded = data.loaded;
     renderHeader();
     renderStatus();
-    renderChat();
     if (els.modelsDialog.open) renderInstalled();
     showToast("Model unloaded", { message: "Memory is free again." });
   } catch (error) {
@@ -3284,22 +2629,7 @@ function askConfirm(title, message, confirmLabel = "Delete") {
   });
 }
 
-/* Sidebar / composer helpers ----------------------------------------------- */
-
-function openSidebar() {
-  els.sidebar.classList.add("open");
-  els.scrim.hidden = false;
-}
-
-function closeSidebar() {
-  els.sidebar.classList.remove("open");
-  els.scrim.hidden = true;
-}
-
-function resizePrompt() {
-  els.prompt.style.height = "auto";
-  els.prompt.style.height = `${Math.min(els.prompt.scrollHeight, 200)}px`;
-}
+/* Clipboard ---------------------------------------------------------------- */
 
 async function copyText(text) {
   try {
@@ -3321,12 +2651,10 @@ async function copyText(text) {
 /* Events ------------------------------------------------------------------- */
 
 function bindEvents() {
-  $("new-chat").addEventListener("click", newChat);
   $("open-models").addEventListener("click", () => openModels("installed"));
   $("status-card").addEventListener("click", () => openModels("installed"));
   $("model-pill").addEventListener("click", () => openModels("installed"));
   $("open-settings").addEventListener("click", openSettings);
-  $("top-settings").addEventListener("click", openSettings);
   $("open-server").addEventListener("click", openServerSettings);
   $("open-benchmarks").addEventListener("click", openBenchmarks);
   els.benchmarkStart.addEventListener("click", startBenchmark);
@@ -3398,75 +2726,6 @@ function bindEvents() {
     state.theme = state.theme === "dark" ? "light" : "dark";
     applyTheme();
   });
-  $("menu-toggle").addEventListener("click", openSidebar);
-  $("sidebar-close").addEventListener("click", closeSidebar);
-  els.scrim.addEventListener("click", closeSidebar);
-  $("sidebar").addEventListener("click", (event) => {
-    const open = event.target.closest("[data-open-conversation]");
-    if (open) {
-      openConversation(open.dataset.openConversation);
-      return;
-    }
-    const remove = event.target.closest("[data-delete-conversation]");
-    if (remove) deleteConversation(remove.dataset.deleteConversation);
-  });
-
-  els.search.addEventListener("input", () => {
-    state.search = els.search.value;
-    renderSidebar();
-  });
-
-  els.composer.addEventListener("submit", (event) => {
-    event.preventDefault();
-    if (state.streaming) return;
-    sendMessage(els.prompt.value);
-  });
-
-  els.prompt.addEventListener("input", () => {
-    resizePrompt();
-    renderComposer();
-  });
-
-  els.prompt.addEventListener("keydown", (event) => {
-    if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
-      event.preventDefault();
-      if (state.streaming) return;
-      sendMessage(els.prompt.value);
-    }
-  });
-
-  els.stopBtn.addEventListener("click", stopGeneration);
-
-  els.messages.addEventListener("click", async (event) => {
-    const codeCopy = event.target.closest(".code-copy");
-    if (codeCopy) {
-      const code = decodeURIComponent(codeCopy.dataset.copy || "");
-      if (await copyText(code)) {
-        const original = codeCopy.textContent;
-        codeCopy.textContent = "Copied";
-        setTimeout(() => {
-          codeCopy.textContent = original;
-        }, 1200);
-      }
-      return;
-    }
-
-    const copyButton = event.target.closest("[data-copy-message]");
-    if (copyButton) {
-      const message = state.conversation?.messages.find(
-        (item) => item.id === copyButton.dataset.copyMessage,
-      );
-      if (message && (await copyText(message.content))) showToast("Copied to clipboard");
-      return;
-    }
-
-    const regenerate = event.target.closest("[data-regenerate]");
-    if (regenerate) {
-      await regenerateLast();
-      return;
-    }
-  });
-
   document.querySelectorAll("[data-close-dialog]").forEach((button) => {
     button.addEventListener("click", () => {
       document.getElementById(button.dataset.closeDialog)?.close();
@@ -3531,20 +2790,6 @@ function bindEvents() {
   });
 
   els.settingsForm.addEventListener("submit", saveSettings);
-  // The task choice is a per-viewer convenience; storage can be unavailable.
-  try {
-    const savedTask = localStorage.getItem("modelduck.task");
-    if ([...els.taskPicker.options].some((option) => option.value === savedTask)) els.taskPicker.value = savedTask;
-  } catch {
-    // Keep the default task.
-  }
-  els.taskPicker.addEventListener("change", () => {
-    try {
-      localStorage.setItem("modelduck.task", els.taskPicker.value);
-    } catch {
-      // Not remembered this time.
-    }
-  });
   els.settingTemp.addEventListener("input", updateSettingsOutputs);
   els.settingTopp.addEventListener("input", updateSettingsOutputs);
 
@@ -3557,20 +2802,11 @@ function bindEvents() {
 
   document.addEventListener("keydown", (event) => {
     const modifier = event.ctrlKey || event.metaKey;
-    if (modifier && event.key.toLowerCase() === "k") {
-      event.preventDefault();
-      newChat();
-    }
     if (modifier && event.key === ",") {
       event.preventDefault();
       openSettings();
     }
-    if (event.key === "Escape") {
-      if (els.sidebar.classList.contains("open")) closeSidebar();
-    }
   });
-
-  window.addEventListener("beforeunload", () => state.fetchAbort?.abort());
 
   els.modelsDialog.addEventListener("click", (event) => {
     if (event.target === els.modelsDialog) els.modelsDialog.close();
@@ -3588,7 +2824,6 @@ function bindEvents() {
 async function boot() {
   applyTheme();
   bindEvents();
-  resizePrompt();
 
   try {
     const data = await request("/api/state");
@@ -3598,8 +2833,6 @@ async function boot() {
     state.models = data.models ?? [];
     state.catalog = data.catalog ?? [];
     state.downloads = data.downloads ?? [];
-    state.conversations = data.conversations ?? [];
-    state.archivedConversations = data.archivedConversations ?? [];
     state.presets = data.presets ?? [];
     state.serverSettings = data.serverSettings ?? null;
     state.loaded = data.loaded ?? { status: "idle", model: null };
@@ -3609,15 +2842,11 @@ async function boot() {
   }
 
   document.body.classList.add("ready");
-  renderSidebar();
   renderHeader();
   renderStatus();
-  renderComposer();
-  renderChat();
   renderCatalog();
   renderInstalled();
   if (hasActiveDownloads()) startDownloadPolling();
-  els.prompt.focus();
 }
 
 boot();

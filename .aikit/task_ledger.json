@@ -1,65 +1,17 @@
 {
   "version": 1,
   "active_task": {
-    "task_id": "tune-smarter",
+    "task_id": "split-chat-control-panel",
     "last_phase": "phase 4",
-    "active_phase": 4,
-    "status": "in_progress",
-    "updated_at": 1793486586.075829,
+    "active_phase": 5,
+    "status": "completed",
+    "updated_at": 1793490092.2860563,
     "owner": "commandcode:1",
-    "started_by": "claude-opus-5.5",
-    "continuations": [
-      {
-        "agent": "commandcode:1",
-        "from": "claude-opus-5.5",
-        "at": 1793484083.4045372
-      }
-    ]
+    "started_by": "commandcode:1",
+    "continuations": [],
+    "completed_at": 1793490100.4153755
   },
   "checkpoints": [
-    {
-      "task_id": "bench-types",
-      "phase": "verification",
-      "phase_num": 4,
-      "description": "Milestone 2 per-task quality check in; tests pass, gate 4/4, Edge review; checklists: passed",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793475150.0065262,
-      "timestamp_str": "2026-10-31 22:32:30",
-      "agent": "claude-opus-5.5"
-    },
-    {
-      "task_id": "bench-types",
-      "phase": "phase 4",
-      "phase_num": 4,
-      "description": "[3/3] suiteSummary describes each task's question types, sources, checks and held-back items (ADR-058); route and Benchmark tab follow in the UI task. checklists: passed",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793475339.0431433,
-      "timestamp_str": "2026-10-31 22:35:39",
-      "agent": "claude-opus-5.5"
-    },
-    {
-      "task_id": "bench-types",
-      "phase": "phase 4",
-      "phase_num": 4,
-      "description": "[3/3] GET /api/benchmarks/suite and a Benchmark tab show the suite per task and question type (ADR-058); Edge-reviewed. checklists: passed",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793475640.0080183,
-      "timestamp_str": "2026-10-31 22:40:40",
-      "agent": "claude-opus-5.5"
-    },
-    {
-      "task_id": "bench-types",
-      "phase": "completed",
-      "phase_num": 5,
-      "description": "Task 'bench-types' completed successfully.",
-      "status": "completed",
-      "timestamp": 1793475670.7122195,
-      "timestamp_str": "2026-10-31 22:41:10",
-      "agent": "claude-opus-5.5"
-    },
     {
       "task_id": "suite-v13",
       "phase": "phase 2",
@@ -264,6 +216,54 @@
       "status": "in_progress",
       "timestamp": 1793486586.075829,
       "timestamp_str": "2026-11-01 01:43:06",
+      "agent": "commandcode:1"
+    },
+    {
+      "task_id": "split-chat-control-panel",
+      "phase": "phase 2",
+      "phase_num": 2,
+      "description": "[1/1] keep the Bench/tune/server/settings panel and move chat to ChatDuck",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793490088.0352075,
+      "timestamp_str": "2026-11-01 02:41:28",
+      "agent": "commandcode:1",
+      "impact_assessment": {
+        "why": "ChatDuck owns the chat surface; ModelDuck should expose only the server, models, tuning and settings, without a second conversation store or chat renderer",
+        "benefits": "One chat implementation, smaller server surface, no duplicate conversation storage, and the tuning panel stays intact",
+        "risks": "contract: UI shell and API routes change; dependency: none; concurrency: no chat stream set; state: chat store/routes removed, model/tune state untouched",
+        "mitigation": "369 tests pass, DOM id validation, headless control-panel smoke and a control-panel screenshot"
+      }
+    },
+    {
+      "task_id": "tune-smarter",
+      "phase": "superseded",
+      "phase_num": 4,
+      "description": "Superseded by 'split-chat-control-panel' without --complete or --reset",
+      "status": "superseded",
+      "timestamp": 1793490088.0352075,
+      "timestamp_str": "2026-11-01 02:41:28",
+      "agent": "commandcode:1"
+    },
+    {
+      "task_id": "split-chat-control-panel",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "Chat store, routes and UI removed; Models/Bench/Settings/Server control panel in; 369 tests pass; DOM ids validated; headless smoke; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793490092.2860563,
+      "timestamp_str": "2026-11-01 02:41:32",
+      "agent": "commandcode:1"
+    },
+    {
+      "task_id": "split-chat-control-panel",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'split-chat-control-panel' completed successfully.",
+      "status": "completed",
+      "timestamp": 1793490100.415377,
+      "timestamp_str": "2026-11-01 02:41:40",
       "agent": "commandcode:1"
     }
   ]

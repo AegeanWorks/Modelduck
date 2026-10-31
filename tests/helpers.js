@@ -2,7 +2,6 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-import { ChatStore } from "../src/chat-store.js";
 import { DownloadManager } from "../src/downloader.js";
 import { ensureDirectory } from "../src/fs-atomic.js";
 import { JitManager } from "../src/jit.js";
@@ -183,10 +182,8 @@ export async function makeHarness(
 
   const settings = new SettingsStore({ file: paths.settings, logger: SILENT_LOGGER });
   const serverSettings = new ServerSettingsStore({ file: paths.serverSettings, logger: SILENT_LOGGER });
-  const chatStore = new ChatStore({ file: paths.chats, logger: SILENT_LOGGER });
   await settings.load();
   await serverSettings.load();
-  await chatStore.load();
 
   const registry = createModelRegistry({
     modelsDir: paths.models,
@@ -206,7 +203,6 @@ export async function makeHarness(
   const jit = new JitManager({ engine, registry, settings, serverSettings, logger: SILENT_LOGGER });
   const server = createHttpServer({
     settings,
-    chatStore,
     registry,
     engine,
     downloads,
@@ -237,7 +233,6 @@ export async function makeHarness(
     paths,
     settings,
     serverSettings,
-    chatStore,
     registry,
     downloads,
     engine,

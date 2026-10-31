@@ -177,20 +177,11 @@ test("LAN mode refuses cross-site simple requests but keeps the same-origin UI",
   const harness = await makeHarness(t);
   await harness.serverSettings.update({ requireAuth: true, serveOnLocalNetwork: true });
 
-  const planted = await fetch(`${harness.base}/api/conversations`, {
-    method: "POST",
-    headers: { origin: FOREIGN_ORIGIN, "content-type": "text/plain" },
-    body: JSON.stringify({ title: "planted" }),
-  });
+  const planted = await fetch(`${harness.base}/api/state`, { headers: { origin: FOREIGN_ORIGIN } });
   assert.equal(planted.status, 403);
-  assert.equal(harness.chatStore.list().length, 0);
 
-  const sameOrigin = await fetch(`${harness.base}/api/conversations`, {
-    method: "POST",
-    headers: { origin: harness.base, "content-type": "application/json" },
-    body: JSON.stringify({ title: "mine" }),
-  });
-  assert.equal(sameOrigin.status, 201);
+  const sameOrigin = await fetch(`${harness.base}/api/state`, { headers: { origin: harness.base } });
+  assert.equal(sameOrigin.status, 200);
 
   const v1 = await fetch(`${harness.base}/v1/models`, { headers: { origin: FOREIGN_ORIGIN } });
   assert.equal(v1.status, 403, "without CORS a foreign page cannot reach /v1 either");

@@ -255,93 +255,6 @@ test("settings updates are validated and persisted", async (t) => {
   assert.equal(persisted.settings.temperature, 2);
 });
 
-test("conversation create, rename and delete round-trip", async (t) => {
-  const harness = await makeHarness(t);
-  const created = await fetch(`${harness.base}/api/conversations`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ title: "A tiny chat" }),
-  }).then((response) => response.json());
-
-  const id = created.conversation.id;
-  assert.ok(id);
-
-  const renamed = await fetch(`${harness.base}/api/conversations/${id}`, {
-    method: "PATCH",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ title: "Renamed chat" }),
-  }).then((response) => response.json());
-  assert.equal(renamed.conversation.title, "Renamed chat");
-
-  const deleted = await fetch(`${harness.base}/api/conversations/${id}`, { method: "DELETE" });
-  assert.equal(deleted.status, 200);
-  const missing = await fetch(`${harness.base}/api/conversations/${id}`);
-  assert.equal(missing.status, 404);
-});
-
-test("chat streams tokens and persists both messages", async (t) => {
-  const harness = await makeHarness(t);
-  const response = await fetch(`${harness.base}/api/chat`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ message: "Say quack" }),
-  });
-  assert.equal(response.status, 200);
-  const events = parseSse(await response.text());
-  assert.equal(events[0].event, "meta");
-  assert.equal(events[0].data.title, "Say quack");
-  assert.deepEqual(
-    events.filter((event) => event.event === "token").map((event) => event.data.text),
-    ["Quack", "!"],
-  );
-  const done = events.find((event) => event.event === "done");
-  assert.equal(done.data.message.content, "Quack!");
-  assert.equal(done.data.stats.outputTokens, 2);
-  assert.equal(done.data.manifest.shortDigest, "a".repeat(16));
-
-  const conversation = harness.chatStore.get(events[0].data.conversationId);
-  assert.equal(conversation.messages.length, 2);
-  assert.equal(conversation.messages[0].role, "user");
-  assert.equal(conversation.messages[1].role, "assistant");
-  assert.equal(conversation.messages[1].manifest.shortDigest, "a".repeat(16));
-});
-
-test("regenerate replaces the trailing assistant instead of duplicating the user", async (t) => {
-  const harness = await makeHarness(t);
-  const first = parseSse(
-    await fetch(`${harness.base}/api/chat`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ message: "Again please" }),
-    }).then((response) => response.text()),
-  );
-  const id = first[0].data.conversationId;
-
-  const second = parseSse(
-    await fetch(`${harness.base}/api/chat`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ conversationId: id, message: "Again please", regenerate: true }),
-    }).then((response) => response.text()),
-  );
-  assert.equal(second.find((event) => event.event === "done").data.message.content, "Quack!");
-  const conversation = harness.chatStore.get(id);
-  assert.equal(conversation.messages.length, 2);
-});
-
-test("chat refuses to run without a loaded model", async (t) => {
-  const harness = await makeHarness(t);
-  await harness.engine.unload();
-  const response = await fetch(`${harness.base}/api/chat`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ message: "hello" }),
-  });
-  assert.equal(response.status, 409);
-  const data = await response.json();
-  assert.equal(data.error.code, "model_not_loaded");
-});
-
 test("model load and unload routes use the engine", async (t) => {
   const harness = await makeHarness(t);
   const loaded = await fetch(`${harness.base}/api/models/${harness.modelId}/load`, {
@@ -356,24 +269,6 @@ test("model load and unload routes use the engine", async (t) => {
     (response) => response.json(),
   );
   assert.equal(unloaded.loaded.status, "idle");
-});
-
-test("abort reports whether a conversation was running", async (t) => {
-  const harness = await makeHarness(t);
-  harness.engine.activeIds.add("conversation-1");
-  const aborted = await fetch(`${harness.base}/api/chat/abort`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ conversationId: "conversation-1" }),
-  }).then((response) => response.json());
-  assert.equal(aborted.aborted, true);
-
-  const missing = await fetch(`${harness.base}/api/chat/abort`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ conversationId: "nope" }),
-  }).then((response) => response.json());
-  assert.equal(missing.aborted, false);
 });
 
 test("OpenAI model list and lookup expose one model", async (t) => {
@@ -479,25 +374,6 @@ test("missing routes return an actionable 404", async (t) => {
   assert.ok(data.error.fix);
 });
 
-test("archived chats are listed and opening one restores it", async (t) => {
-  const harness = await makeHarness(t);
-  const first = harness.chatStore.create({ title: "first question" });
-  for (let index = 0; index < 200; index += 1) harness.chatStore.create({ title: `chat ${index}` });
-  await harness.chatStore.save();
-
-  const listed = await fetch(`${harness.base}/api/conversations`).then((item) => item.json());
-  assert.equal(listed.conversations.length, 200);
-  assert.deepEqual(listed.archived.map((item) => item.id), [first.id]);
-
-  const opened = await fetch(`${harness.base}/api/conversations/${first.id}`);
-  assert.equal(opened.status, 200);
-  assert.equal((await opened.json()).conversation.id, first.id);
-  const after = await fetch(`${harness.base}/api/conversations`).then((item) => item.json());
-  assert.ok(after.conversations.some((item) => item.id === first.id));
-  assert.equal(after.archived.length, 1);
-  assert.notEqual(after.archived[0].id, first.id);
-});
-
 test("tuned profiles are listed and read with what changed since they were measured", async (t) => {
   const harness = await makeHarness(t);
   const empty = await fetch(`${harness.base}/api/profiles`);
@@ -578,7 +454,7 @@ test("a profile recipe exports as a file and imports for an installed model", as
   assert.equal((await missing.json()).error.code, "profile_model_missing");
 });
 
-test("loading and chatting apply the model's tuned profile for the chosen task", async (t) => {
+test("loading applies the model's tuned profile for the chosen task", async (t) => {
   const harness = await makeHarness(t);
   const [installed] = harness.registry.listPublic();
   await saveProfile(harness.paths.profiles, profileFromTune(
@@ -592,10 +468,8 @@ test("loading and chatting apply the model's tuned profile for the chosen task",
     { catalogId: profileIdFor(installed.fileName), fingerprint: await currentFingerprint(installed, { nodeLlamaCpp: "test" }) },
   ));
   const loads = [];
-  const chats = [];
-  const { load, chat } = harness.engine;
+  const { load } = harness.engine;
   harness.engine.load = (options) => (loads.push(options), load.call(harness.engine, options));
-  harness.engine.chat = (request) => (chats.push(request), chat.call(harness.engine, request));
 
   const loaded = await fetch(`${harness.base}/api/models/${encodeURIComponent(installed.id)}/load`, {
     method: "POST",
@@ -607,23 +481,6 @@ test("loading and chatting apply the model's tuned profile for the chosen task",
   assert.equal(loads[0].threads, 6);
   assert.equal(loadBody.tuned.catalogId, profileIdFor(installed.fileName));
 
-  const response = await fetch(`${harness.base}/api/chat`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ message: "Write a function", task: "code" }),
-  });
-  const done = parseSse(await response.text()).find((event) => event.event === "done");
-  assert.equal(chats[0].settings.temperature, 0.15);
-  assert.equal(chats[0].settings.maxTokens, 900);
-  assert.deepEqual(done.data.tuned, { catalogId: profileIdFor(installed.fileName), task: "code", speedPreset: "fastest", stages: null, systemPrompt: null, rate: null, typeWarnings: [], stale: [], warnings: [] });
-
-  await harness.settings.update({ useTunedProfile: false });
-  await fetch(`${harness.base}/api/chat`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ message: "Again", task: "code" }),
-  }).then((reply) => reply.text());
-  assert.equal(chats[1].settings.temperature, harness.settings.value.temperature, "switched off: the user's own settings");
 });
 
 test("tune steps can be read, edited and estimated through the API", async (t) => {

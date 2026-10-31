@@ -130,6 +130,5 @@ test("resolvePaths puts all state under the chosen home", () => {
   const models = path.join(os.tmpdir(), "duck-models");
   const paths = resolvePaths({ home, models });
   assert.equal(paths.models, path.resolve(models));
-  assert.equal(paths.chats, path.join(path.resolve(home), "chats.json"));
   assert.equal(paths.settings, path.join(path.resolve(home), "settings.json"));
 });

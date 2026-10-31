@@ -25,7 +25,7 @@ test("writeJsonAtomic replaces a file without leaving temp files", async (t) => 
 test("a damaged JSON file is quarantined and the previous backup is restored", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "modelduck-corrupt-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
-  const file = path.join(directory, "chats.json");
+  const file = path.join(directory, "state.json");
   await writeJsonAtomic(file, { version: 1, value: "first" });
   await writeJsonAtomic(file, { version: 1, value: "second" });
   await writeFile(file, "{not json", "utf8");
@@ -35,13 +35,13 @@ test("a damaged JSON file is quarantined and the previous backup is restored", a
 
   const { readdir } = await import("node:fs/promises");
   const names = await readdir(directory);
-  assert.ok(names.some((name) => name.startsWith("chats.json.corrupt-")));
+  assert.ok(names.some((name) => name.startsWith("state.json.corrupt-")));
 });
 
 test("a damaged JSON file with no backup falls back safely", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "modelduck-corrupt-"));
   t.after(() => rm(directory, { recursive: true, force: true }));
-  const file = path.join(directory, "chats.json");
+  const file = path.join(directory, "state.json");
   await writeFile(file, "{not json", "utf8");
 
   const fallback = await readJsonWithQuarantine(file, { conversations: [] }, { logger });
