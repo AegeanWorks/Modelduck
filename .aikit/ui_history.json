@@ -166,5 +166,19 @@
     "final_snapshot_digest": "",
     "final_snapshot_entries": 0,
     "surface_digest": "1083c13bc5b59c3eae1d8c39dc2570a5d2b82308409f53ab23efeba9faef628f"
+  },
+  {
+    "schema": 1,
+    "surface": "app",
+    "baseline_commit": "a23dc772f26c885b103ef959bb5be12fed46aad7",
+    "contract_hash": "c6a291e913a9c8f174aadf7fb264b0941c55e9f4999a9a43152f1fb616845d11",
+    "started_at": 1793451206.6172595,
+    "finished_at": 1793451489.5480037,
+    "strikes": 0,
+    "reviewer": "Claude (AI; headless Edge review: Details lists what each setting tried with final-round results and the decision, flags pre-ADR-042 changes that were not significant; no console errors; delegated by the user on 2026-10-31)",
+    "allowed_removals": [],
+    "final_snapshot_digest": "",
+    "final_snapshot_entries": 0,
+    "surface_digest": "4d63d7095d9c433c92a62ff27a787c76b4a211ffe37eacf687fd713da74919a0"
   }
 ]

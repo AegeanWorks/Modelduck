@@ -121,8 +121,9 @@ const els = {
 };
 
 const state = {
-  // Models whose tune details are expanded in the Bench dialog.
+  // Models whose tune details are expanded in the Bench dialog, and their sweep logs once loaded.
   tuneOpen: new Set(),
+  tuneSweeps: new Map(),
   app: null,
   settings: null,
   modelsDir: null,
@@ -2129,7 +2130,69 @@ function tuneDetails(model) {
     );
   }
   box.appendChild(table);
+  const sweeps = state.tuneSweeps.get(model.profileId);
+  box.appendChild(sweeps ? tuneTried(sweeps) : Object.assign(document.createElement("p"), { textContent: "Loading what was tried…" }));
   return box;
+}
+
+const patchText = (patch) => {
+  const entries = Object.entries(patch ?? {});
+  return entries.length === 1 ? shownValue(entries[0][1]) : entries.map(([key, value]) => `${key} ${shownValue(value)}`).join(", ");
+};
+
+/** Every setting the tune tried, with each value's result on the final round and why the winner won or the setting was kept. */
+function tuneTried(sweeps) {
+  const box = document.createElement("details");
+  box.className = "tune-tried";
+  box.appendChild(Object.assign(document.createElement("summary"), { textContent: "What was tried, and why each setting was chosen" }));
+  // The last pass's sweep per setting is the decision that stands.
+  const latest = new Map();
+  for (const sweep of sweeps) if (sweep.rungs?.length) latest.set(`${sweep.task ?? "load"}|${sweep.stage}|${sweep.axis}`, sweep);
+  const groups = [["load", "Load settings (all tasks)"], ...TUNE_TASKS.map((task) => [task, TASK_NAMES[task]])];
+  for (const [group, title] of groups) {
+    const rows = [...latest.values()].filter((sweep) => (sweep.task ?? "load") === group);
+    if (!rows.length) continue;
+    box.appendChild(Object.assign(document.createElement("h5"), { textContent: title }));
+    const table = document.createElement("table");
+    table.className = "benchmark-table";
+    const head = table.createTHead().insertRow();
+    for (const label of ["Setting", "Values tried (final round)", "Decision"]) head.appendChild(Object.assign(document.createElement("th"), { textContent: label }));
+    const body = table.createTBody();
+    for (const sweep of rows) {
+      const last = sweep.rungs.at(-1);
+      const timed = sweep.stage === "speed";
+      const tried = document.createElement("td");
+      for (const candidate of last.candidates) {
+        const won = JSON.stringify(candidate.patch) === JSON.stringify(sweep.winner);
+        const result = candidate.failed ? "failed to load" : timed ? `${candidate.latencyMs ?? "–"} ms` : `${candidate.rate}%`;
+        const chip = Object.assign(document.createElement("span"), { className: `tune-chip${won ? " done" : ""}`, textContent: `${patchText(candidate.patch)}: ${result}` });
+        chip.title = Object.entries(candidate.patch).map(([key, value]) => `${key}: ${value}`).join("\n");
+        tried.append(chip, " ");
+      }
+      const decision = sweep.kept
+        ? sweep.kept
+        : sweep.changed
+          ? `Changed from ${patchText(sweep.previous)} to ${patchText(sweep.winner)}${Number.isFinite(sweep.pValue) && !timed ? ` (paired p=${sweep.pValue})` : ""}.` +
+            // Profiles tuned before ADR-042 could move on noise; say so instead of presenting it as a finding.
+            (!timed && !sweep.kept && sweep.pValue > 0.2 && sweep.c > sweep.b ? ` Not significant: today's tuner would have kept ${patchText(sweep.previous)}.` : "")
+          : `Kept ${patchText(sweep.winner)}: nothing did better.`;
+      const skipped = sweep.skipped?.length ? ` Skipped: ${sweep.skipped.map((entry) => patchText(entry.patch ?? entry)).join(", ")}.` : "";
+      body.insertRow().append(tuneCell(SETTING_GUIDE[sweep.axis]?.[1] ?? sweep.axis, SETTING_GUIDE[sweep.axis]?.[2] ?? ""), tried, tuneCell(`${decision}${skipped}`));
+    }
+    box.appendChild(table);
+  }
+  return box;
+}
+
+async function loadTuneSweeps(model) {
+  try {
+    const { profile } = await request(`/api/profiles/${encodeURIComponent(model.profileId)}`);
+    state.tuneSweeps.set(model.profileId, profile.sweeps ?? []);
+  } catch (error) {
+    state.tuneSweeps.set(model.profileId, []);
+    showError(error);
+  }
+  renderTuneModels();
 }
 
 function tuneCell(text, title = "") {
@@ -2238,6 +2301,9 @@ function startTunePolling() {
 async function loadTuneOverview() {
   const [overview, status] = await Promise.all([request("/api/tune/overview"), request("/api/tune/status").catch(() => ({ job: null }))]);
   state.tuneOverview = overview.models ?? [];
+  // A finished tune changes the sweep logs; reload those whose details are open.
+  state.tuneSweeps.clear();
+  for (const model of state.tuneOverview.filter((item) => state.tuneOpen.has(item.id) && item.profile)) void loadTuneSweeps(model);
   state.tuneJob = status.job ?? null;
   renderTuneJob();
   if (state.tuneJob?.status === "running") startTunePolling();
@@ -2675,6 +2741,8 @@ function bindEvents() {
       const id = details.dataset.tuneDetails;
       if (!state.tuneOpen.delete(id)) state.tuneOpen.add(id);
       renderTuneModels();
+      const model = (state.tuneOverview ?? []).find((item) => item.id === id);
+      if (model && state.tuneOpen.has(id) && !state.tuneSweeps.has(model.profileId)) void loadTuneSweeps(model);
       return;
     }
     const button = event.target.closest("[data-tune-model]");

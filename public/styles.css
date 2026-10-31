@@ -2749,3 +2749,33 @@ a:focus-visible {
 .benchmark-metric small {
   overflow-wrap: anywhere;
 }
+
+/* What the tune tried, inside a model's details */
+.tune-tried {
+  margin-top: 10px;
+}
+
+.tune-tried summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.tune-tried h5 {
+  margin: 12px 0 4px;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.tune-tried .tune-chip {
+  display: inline-block;
+  margin: 2px 0;
+  white-space: normal;
+}
+
+.tune-tried .benchmark-table td:last-child {
+  min-width: 260px;
+  text-align: left;
+  white-space: normal;
+}
