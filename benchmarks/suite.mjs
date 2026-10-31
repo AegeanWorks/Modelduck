@@ -2,9 +2,10 @@ import { moreBugFixPrompts, moreCodingPrompts } from "./own-items-v9.mjs";
 import { moreMathPrompts, moreRecallPrompts } from "./own-items-v10.mjs";
 import { repoPrompts } from "./repo-items-v10.mjs";
 import { moreRepoPrompts } from "./repo-items-v11.mjs";
+import { moreChatPrompts, moreContextPrompts } from "./own-items-v12.mjs";
 import { publicPrompts } from "./public-items.mjs";
 
-export const SUITE_VERSION = 11;
+export const SUITE_VERSION = 12;
 
 export const SYSTEM_PROMPT =
   "You are a precise assistant. Follow the requested output format exactly. " +
@@ -264,6 +265,8 @@ export const PROMPTS = [
   ...recallPrompts(),
   ...moreMathPrompts(),
   ...moreRecallPrompts(),
+  ...moreChatPrompts(),
+  ...moreContextPrompts(),
   ...factPrompts(),
   ...publicPrompts(),
 ];
@@ -602,6 +605,19 @@ export function evaluateTextCheck(check, text) {
   if (check.type === "oneOf") {
     const candidates = answerCandidates(text);
     return { passed: check.values.some((value) => candidates.includes(normalizeAnswer(value))), unreadable: false, detail: `answer: ${candidates[0]?.slice(0, 40) ?? ""}` };
+  }
+  if (check.type === "bulletCount") {
+    const bullets = stripFence(text).split("\n").filter((line) => /^\s*(?:[-*+]|\d+[.)])\s+\S/.test(line)).length;
+    return { passed: bullets === check.count, detail: `${bullets} bullets` };
+  }
+  if (check.type === "maxWords") {
+    const words = stripFence(text).split(/\s+/).filter(Boolean).length;
+    return { passed: words <= check.count, detail: `${words} words` };
+  }
+  if (check.type === "containsAll") {
+    const lower = stripFence(text).toLowerCase();
+    const missing = check.values.filter((value) => !lower.includes(value.toLowerCase()));
+    return { passed: missing.length === 0, detail: missing.length ? `missing ${missing.join(", ")}` : "contains all" };
   }
   if (check.type === "containsAny") {
     const lower = stripFence(text).toLowerCase();

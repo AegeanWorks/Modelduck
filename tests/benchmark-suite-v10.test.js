@@ -70,8 +70,8 @@ test("suite v10 gives math and recall at least 51 items each", () => {
   assert.ok(SUITE_VERSION >= 10);
   assert.ok(PROMPTS.length >= 256);
   assert.equal(new Set(PROMPTS.map((prompt) => prompt.id)).size, PROMPTS.length, "ids stay unique");
-  assert.equal(taskPrompts("math").length, 51);
-  assert.equal(taskPrompts("recall").length, 51);
+  assert.ok(taskPrompts("math").length >= 51);
+  assert.ok(taskPrompts("recall").length >= 51);
 });
 
 test("every new math answer matches an independent calculation", () => {

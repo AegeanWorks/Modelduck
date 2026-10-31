@@ -82,8 +82,8 @@ const run = (setup, answer, entry, args) => {
 const items = moreRepoPrompts();
 
 test("suite v11 adds twelve items on three larger codebases, all in the code task", () => {
-  assert.equal(SUITE_VERSION, 11);
-  assert.equal(PROMPTS.length, 268);
+  assert.ok(SUITE_VERSION >= 11);
+  assert.ok(PROMPTS.length >= 268);
   assert.equal(items.length, 12);
   assert.equal(new Set(PROMPTS.map((prompt) => prompt.id)).size, PROMPTS.length, "ids stay unique");
   const code = new Set(taskPrompts("code").map((prompt) => prompt.id));

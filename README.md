@@ -134,9 +134,9 @@ chosen configuration.
 Three small model classes are the default required set: SmolLM2 135M (tiny), Qwen2.5
 0.5B (general) and Qwen2.5 Coder 1.5B (code). `--full-matrix` / `npm run bench:full`
 adds Qwen2.5 1.5B, Llama 3.2 3B and Phi-3.5 Mini plus their KV-cache variants; that
-deeper review takes hours on a CPU and is opt-in. Suite v11 runs 268 items: 208
-questions ModelDuck authored (code, long code and multi-file codebase tasks, bug fixes,
-math, recall, comprehension, facts and the original set) plus 60 items copied from
+deeper review takes hours on a CPU and is opt-in. Suite v12 runs 310 items: 250
+questions ModelDuck authored (code, multi-file codebases, bug fixes, chat, math,
+long context, comprehension, facts) plus 60 items copied from
 permissively licensed public benchmarks (GSM8K 16, MMLU 12,
 HumanEval 12, MBPP 8 and TruthfulQA 12) with source and licence recorded per item;
 see [benchmarks/NOTICE-benchmarks.md](benchmarks/NOTICE-benchmarks.md). Public items
@@ -203,10 +203,9 @@ Baseline files are `benchmarks/baseline-model.json` and
 in ModelDuck starts either phase with live progress and shows every test
 percentage, runtime, suite/test hash and the linked commit; four recommendation
 cards (best quality, overall, coding, fastest within 5 points) only fill the
-settings form. Run both phases for every generation-affecting change. A quality
-drop exits 1; a speed drop over 20% is only a warning. Generated code runs in a
-`node --permission` sandbox with a 5-second timeout, never with file or network
-access.
+settings form. Run both phases for every generation change. A quality
+drop exits 1; a speed drop over 20% only warns. Generated code runs in a
+`node --permission` sandbox (5-second timeout, no file or network access).
 
 Model-phase baseline highlights (v7 core, 31 variants, 1995.2s total):
 
@@ -498,6 +497,7 @@ modelduck/
 │   ├── own-items-v10.mjs
 │   ├── repo-items-v10.mjs
 │   ├── repo-items-v11.mjs
+│   ├── own-items-v12.mjs
 │   ├── recommend.mjs
 │   ├── stats.mjs
 │   ├── tasks.mjs        <- chat/code/math/recall items and tuning rungs
@@ -536,6 +536,7 @@ modelduck/
 │   ├── benchmark-suite-v9.test.js
 │   ├── benchmark-suite-v10.test.js
 │   ├── benchmark-suite-v11.test.js
+│   ├── benchmark-suite-v12.test.js
 │   ├── reference-solutions-v9.js
 │   ├── benchmark-test-hash.test.js
 │   ├── benchmark-tasks.test.js

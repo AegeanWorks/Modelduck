@@ -28,7 +28,7 @@ npm run bench:link            # after commit: run once per pending phase
 The required gate runs SmolLM2 135M, Qwen2.5 0.5B and Qwen2.5 Coder 1.5B.
 `--full-matrix` adds Qwen2.5 1.5B, Llama 3.2 3B and Phi-3.5 Mini plus their KV
 variants; on a CPU that deeper review takes hours, so it is opt-in.
-Suite v11 has 268 items in eighteen categories:
+Suite v12 has 310 items in eighteen categories:
 
 | Category | Items | What is measured |
 |---|---:|---|
@@ -41,7 +41,7 @@ Suite v11 has 268 items in eighteen categories:
 | comprehension | 10 | Who/what, event order, negation, time arithmetic, two-step inference, main idea, close distractor, counting, temporal negation and abstaining when the answer is absent |
 | recall | 48 | Locker-register lookups at the start, second, middle and end, a reverse lookup, two needles, list position, latest value wins; v10 adds 40 generated from a fixed seed: PIN lookups at four depths in 20/50/80-row registers, reverse lookups, the latest status in a delivery log, the sum of two balances and colour counts |
 | facts | 11 | Capitals, a chemical symbol, a planet, an author, a year, a boiling point, continents, photosynthesis and Italy |
-| instruction, reasoning, knowledge, format, context | 47 | The original v1–v2 tasks plus exact-prefix, three-way comparison, largest-ocean, JSON-array and long-context code checks; v10 adds 30 own word problems (rates, percentages, ages, time, averages) scored on the last number |
+| instruction, reasoning, knowledge, format, context | 89 | The original v1–v2 tasks plus exact-prefix, three-way comparison, largest-ocean, JSON-array and long-context code checks; v10 adds 30 own word problems (rates, percentages, ages, time, averages) scored on the last number; v12 adds 30 chat items that follow an instruction or a format (bullets, JSON, YAML, a table, word limits, lowercase, no digits, a start or end word) and 12 long-context items (two-step lookups, event order from a shuffled log, absence, a definition used far below) |
 | public-math | 16 | GSM8K word problems; the check reads the last number in the reply |
 | public-knowledge | 12 | MMLU multiple-choice items across subjects |
 | public-code | 20 | HumanEval (12) and MBPP (8) tasks translated from Python to JavaScript, checked by their original cases |
