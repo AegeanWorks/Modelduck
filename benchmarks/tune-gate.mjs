@@ -19,11 +19,13 @@ const BASELINE = path.join(HERE, "baseline-profiles.json");
 const LATEST = path.join(HERE, "results", "latest-tune-gate.json");
 const TASK_IDS = TASKS.map((task) => task.id);
 
-const USAGE = `Usage: npm run tune:gate [-- --update-baseline] [--models-dir <dir>] [--max-runs <n>]
+const USAGE = `Usage: npm run tune:gate [-- --update-baseline [--models <ids>] [--passes <n>]] [--models-dir <dir>] [--max-runs <n>]
 
 Re-measures each core model's baseline settings per task and fails when a task's
 pass rate drops by more than one item (G-001). --update-baseline re-tunes the
-three core models and replaces benchmarks/baseline-profiles.json deliberately (G-003).
+three core models and replaces benchmarks/baseline-profiles.json deliberately (G-003);
+--models (comma-separated core model ids) tunes only those, and --passes limits the
+descent's passes, for a quicker baseline. The gate checks the models the baseline has.
 `;
 
 function parseArgs(argv) {
@@ -34,6 +36,8 @@ function parseArgs(argv) {
     else if (arg === "--update-baseline") options.updateBaseline = true;
     else if (arg === "--models-dir") options.modelsDir = argv[++index];
     else if (arg === "--max-runs") options.maxRuns = Number(argv[++index]);
+    else if (arg === "--models") options.models = String(argv[++index] ?? "").split(",").map((id) => id.trim()).filter(Boolean);
+    else if (arg === "--passes") options.passes = Number(argv[++index]);
     else throw new AppError("Unknown option", { code: "bad_option", why: `${arg} is not a tune:gate option.`, fix: USAGE });
   }
   return options;
@@ -45,10 +49,19 @@ const identityOf = (fingerprint) => ({ suiteVersion: fingerprint.suiteVersion, t
 async function updateBaseline(options, home) {
   const models = {};
   let identity = null;
-  for (const catalogId of CORE_MODEL_IDS) {
+  const chosen = options.models?.length ? options.models : CORE_MODEL_IDS;
+  const unknown = chosen.filter((catalogId) => !CORE_MODEL_IDS.includes(catalogId));
+  if (unknown.length) {
+    throw new AppError("Not a core model", { code: "bad_option", why: `${unknown.join(", ")} is not one of the core models.`, fix: `Use any of: ${CORE_MODEL_IDS.join(", ")}.` });
+  }
+  for (const catalogId of chosen) {
     const target = await openTarget({ model: fileOf(catalogId), home, modelsDir: options.modelsDir });
     process.stdout.write(`Tuning ${catalogId} for the baseline…\n`);
-    const { profile } = await runTune(target, { tasks: TASK_IDS, force: true, maxRuns: options.maxRuns });
+    // One line per finished setting, so a run of hours shows where it is.
+    const onEvent = (event) => {
+      if (event.type === "sweep") process.stdout.write(`  ${event.stage}${event.task ? `:${event.task}` : ""} ${event.axis} -> ${JSON.stringify(event.winner)} · ${event.runs} answers\n`);
+    };
+    const { profile } = await runTune(target, { tasks: TASK_IDS, force: true, maxRuns: options.maxRuns, passes: options.passes, onEvent });
     models[catalogId] = baselineEntry(profile);
     identity = identityOf(target.fingerprint);
   }
