@@ -3,8 +3,8 @@
   "active_task": {
     "task_id": "reasoning-steps",
     "last_phase": "verification",
-    "active_phase": 4,
-    "status": "in_progress",
+    "active_phase": 5,
+    "status": "completed",
     "updated_at": 1793447254.1990058,
     "owner": "claude-opus-5.5",
     "started_by": "claude-opus-5.5",
@@ -14,20 +14,10 @@
       "benefits": "The tune compares no reasoning with a real think-first directive",
       "risks": "contract: default reasoning steps change, saved grids keep theirs; dependency: none; concurrency: none; state: saved profiles keep their choice",
       "mitigation": "Failing-first step test; ADR-041"
-    }
+    },
+    "completed_at": 1793447260.677105
   },
   "checkpoints": [
-    {
-      "task_id": "polish-v1",
-      "phase": "in_progress",
-      "phase_num": 3,
-      "description": "[2/2] M2 UI Re-tune forces stale model, Run all sends forceStale: opening UI task",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793439241.2563972,
-      "timestamp_str": "2026-10-31 12:34:01",
-      "agent": "claude-code:20b8d1d8"
-    },
     {
       "task_id": "polish-v1",
       "phase": "in_progress",
@@ -266,6 +256,16 @@
         "risks": "contract: default reasoning steps change, saved grids keep theirs; dependency: none; concurrency: none; state: saved profiles keep their choice",
         "mitigation": "Failing-first step test; ADR-041"
       }
+    },
+    {
+      "task_id": "reasoning-steps",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'reasoning-steps' completed successfully.",
+      "status": "completed",
+      "timestamp": 1793447260.6771069,
+      "timestamp_str": "2026-10-31 14:47:40",
+      "agent": "claude-opus-5.5"
     }
   ]
 }
