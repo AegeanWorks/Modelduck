@@ -5,22 +5,12 @@
     "last_phase": "verification",
     "active_phase": 4,
     "status": "in_progress",
-    "updated_at": 1793472201.0177805,
+    "updated_at": 1793472497.6567514,
     "owner": "claude-opus-5.5",
     "started_by": "claude-opus-5.5",
     "continuations": []
   },
   "checkpoints": [
-    {
-      "task_id": "tune-evidence",
-      "phase": "completed",
-      "phase_num": 5,
-      "description": "Task 'tune-evidence' completed successfully.",
-      "status": "completed",
-      "timestamp": 1793451148.3258665,
-      "timestamp_str": "2026-10-31 15:52:28",
-      "agent": "claude-opus-5.5"
-    },
     {
       "task_id": "tune-budget-v1",
       "phase": "verification",
@@ -254,6 +244,17 @@
       "status": "in_progress",
       "timestamp": 1793472201.0177805,
       "timestamp_str": "2026-10-31 21:43:21",
+      "agent": "claude-opus-5.5"
+    },
+    {
+      "task_id": "answer-reading",
+      "phase": "verification",
+      "phase_num": 4,
+      "description": "Milestone 2 answer text and wrong vs unreadable in; tests pass, gate 4/4, real run 115 wrong 7 unreadable; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793472497.6567514,
+      "timestamp_str": "2026-10-31 21:48:17",
       "agent": "claude-opus-5.5"
     }
   ]

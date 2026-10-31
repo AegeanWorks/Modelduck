@@ -2210,6 +2210,7 @@ function runRequestText(request = {}) {
   const parts = [request.only?.length ? `only ${request.only.map((name) => SETTING_GUIDE[name]?.[1] ?? name).join(", ")}` : (request.stages ?? []).map((stage) => STAGE_NAMES[stage] ?? stage).join(", ")];
   if (request.tasks?.length && request.tasks.length < TUNE_TASKS.length) parts.push(`for ${request.tasks.map((task) => TASK_NAMES[task] ?? task).join(", ")}`);
   if (request.force) parts.push("from scratch");
+  if (request.continueRun) parts.push("(continued)");
   return parts.filter(Boolean).join(" ");
 }
 
@@ -2340,7 +2341,17 @@ function renderTuneRunDetail({ run, answers }) {
   if (answers?.answers) {
     const times = answers.ms ? `; answers took ${answers.ms.median} ms typically, ${answers.ms.p90} ms for the slowest tenth` : "";
     const tokens = answers.outputTokens ? `; ${answers.outputTokens.mean} tokens per answer on average` : "";
-    line("Answers", `${answers.answers}${run.expectedAnswers ? ` of up to ${run.expectedAnswers}` : ""}; ${answers.right}% of checks passed; ${answers.errors} errors${times}${tokens}`);
+    // Wrong answers apart from replies nothing could be read from (ADR-052).
+    const failures = answers.wrong === undefined ? `${answers.errors} errors` : `${answers.wrong} wrong, ${answers.unreadable} could not be read, ${answers.errors} errors`;
+    line("Answers", `${answers.answers}${run.expectedAnswers ? ` of up to ${run.expectedAnswers}` : ""}; ${answers.right}% of checks passed; ${failures}${times}${tokens}`);
+    if (answers.unreadableExamples?.length) {
+      const examples = document.createElement("details");
+      examples.appendChild(Object.assign(document.createElement("summary"), { textContent: `Replies that could not be read (first ${answers.unreadableExamples.length})` }));
+      const list = document.createElement("ul");
+      for (const example of answers.unreadableExamples) list.appendChild(Object.assign(document.createElement("li"), { textContent: `${example.item}: ${example.text || "(empty reply)"}` }));
+      examples.appendChild(list);
+      box.appendChild(examples);
+    }
   }
   const backend = run.result?.load?.settings?.gpuBackend;
   if (backend) line("Device", backend === "cpu" ? "CPU" : `${backend} GPU`);

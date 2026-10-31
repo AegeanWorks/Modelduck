@@ -320,5 +320,19 @@
     "final_snapshot_digest": "",
     "final_snapshot_entries": 0,
     "surface_digest": "34ba425f49e200a10d8eded197e074a31671ba03cfd7faef340ddb3b8458a246"
+  },
+  {
+    "schema": 1,
+    "surface": "app",
+    "baseline_commit": "809653f2b7e1812aa0c28129175d1040682bb7f4",
+    "contract_hash": "c6a291e913a9c8f174aadf7fb264b0941c55e9f4999a9a43152f1fb616845d11",
+    "started_at": 1793472329.196114,
+    "finished_at": 1793472492.5551088,
+    "strikes": 0,
+    "reviewer": "Claude (AI; headless Edge review with a real SmolLM2 run: the run detail counts wrong and unreadable answers apart and lists the unreadable replies; continued runs are marked; no console errors; delegated by the user on 2026-10-31)",
+    "allowed_removals": [],
+    "final_snapshot_digest": "",
+    "final_snapshot_entries": 0,
+    "surface_digest": "7be12d4fe062b78d691d26226703936233dd70f18e46a61be574f3101b425582"
   }
 ]
