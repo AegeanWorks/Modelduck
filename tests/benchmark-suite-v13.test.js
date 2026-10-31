@@ -19,7 +19,7 @@ const count = (category) => PROMPTS.filter((prompt) => prompt.category === categ
 
 test("suite v13 brings every thin question type to at least twelve items and math to 64", () => {
   assert.equal(SUITE_VERSION, 13);
-  assert.equal(PROMPTS.length, 310 + 34);
+  assert.equal(PROMPTS.length, 310 + 34 + 12, "34 own items and 12 codebase items");
   assert.equal(new Set(PROMPTS.map((prompt) => prompt.id)).size, PROMPTS.length, "ids stay unique");
   for (const category of ["knowledge", "code-long", "bugfix-long"]) assert.equal(count(category), 12, category);
   assert.equal(taskPrompts("math").length, 64);

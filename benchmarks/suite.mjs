@@ -4,6 +4,7 @@ import { repoPrompts } from "./repo-items-v10.mjs";
 import { moreRepoPrompts } from "./repo-items-v11.mjs";
 import { moreChatPrompts, moreContextPrompts } from "./own-items-v12.mjs";
 import { moreKnowledgePrompts, moreLongBugPrompts, moreLongCodePrompts, moreMathPromptsV13 } from "./own-items-v13.mjs";
+import { changeAndTracePrompts } from "./repo-items-v13.mjs";
 import { publicPrompts } from "./public-items.mjs";
 
 export const SUITE_VERSION = 13;
@@ -272,6 +273,7 @@ export const PROMPTS = [
   ...moreLongCodePrompts(),
   ...moreLongBugPrompts(),
   ...moreMathPromptsV13(),
+  ...changeAndTracePrompts(),
   ...factPrompts(),
   ...publicPrompts(),
 ];
@@ -703,6 +705,14 @@ export function extractCode(text, entry = null) {
   return (chosen ?? stripFence(String(text ?? ""))).trim();
 }
 
+/** Every fenced code block of a reply in order, or the whole reply when it has none. */
+export function allCode(text) {
+  const blocks = [...String(text ?? "").matchAll(/```[\w-]*\s*\n([\s\S]*?)```/g)].map((match) => match[1]);
+  return (blocks.length ? blocks.join("\n;\n") : stripFence(String(text ?? ""))).trim();
+}
+
+const DEFINES_ANY = /\bfunction\s+\w+|\b(?:const|let|var)\s+\w+\s*=/;
+
 const RESULT_MARKER = "__MODELDUCK_TEST_RESULTS__";
 
 /**
@@ -714,14 +724,17 @@ const RESULT_MARKER = "__MODELDUCK_TEST_RESULTS__";
 export async function runJavaScriptTests(text, check, { timeoutMs = 5000 } = {}) {
   const { execFile } = await import("node:child_process");
   const cases = check.cases ?? [];
-  const code = extractCode(text, check.entry);
-  const named = new RegExp(`\\b${check.entry}\\b`).test(code);
+  // A change that may touch several functions keeps every code block and runs through a hidden scenario (ADR-061).
+  const code = check.harness ? allCode(text) : extractCode(text, check.entry);
+  const named = check.harness ? DEFINES_ANY.test(code) : new RegExp(`\\b${check.entry}\\b`).test(code);
   const harness = [
     // The rest of a codebase item's files; the answer comes after, so its functions replace theirs.
     check.setup ?? "",
     ";",
     // `-e` runs CommonJS, so ESM export keywords would be a syntax error.
     code.replace(/^\s*export\s+(default\s+)?/gm, ""),
+    ";",
+    check.harness ?? "",
     ";",
     `const __cases = ${JSON.stringify(cases)};`,
     `const __fn = typeof ${check.entry} === "function" ? ${check.entry} : null;`,

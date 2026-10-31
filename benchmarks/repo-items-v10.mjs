@@ -121,10 +121,10 @@ export const withFile = (files, path, from, to) =>
     return [name, code.replace(from, to)];
   });
 
-const shown = (files) => files.map(([name, code]) => `// file: ${name}\n${code}`).join("\n\n");
-const source = (files) => files.map(([, code]) => code).join("\n\n");
+export const shown = (files) => files.map(([name, code]) => `// file: ${name}\n${code}`).join("\n\n");
+export const source = (files) => files.map(([, code]) => code).join("\n\n");
 
-const REPO_TOKENS = 1024;
+export const REPO_TOKENS = 1024;
 
 export function implement(id, label, files, task, entry, cases) {
   return {

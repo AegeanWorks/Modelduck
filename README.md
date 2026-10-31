@@ -118,8 +118,7 @@ device. It is off by default so a missing driver never prevents chat from workin
   and Fastest/Light. Tune with heavy programs closed.
 - **Small surface area** — Node's HTTP server and a vanilla UI; no build or CDN.
 - **AI benchmark gate** - two phases: model reload/quantization/KV-cache settings,
-  then sampling/prompting settings, with test hashes so result changes are not
-  confused with test edits.
+  then sampling/prompting settings, with test hashes so test edits show.
 
 ## AI benchmark gate
 
@@ -130,14 +129,14 @@ phase (`npm run bench`) changes one load setting at a time across models, and th
 chosen configuration.
 
 The default set is SmolLM2 135M, Qwen2.5 0.5B and Qwen2.5 Coder 1.5B. `--full-matrix` / `npm run bench:full`
-adds Qwen2.5 1.5B, Llama 3.2 3B and Phi-3.5 Mini with KV-cache variants (hours on a CPU). Suite v13 runs 344 items: 284
+adds Qwen2.5 1.5B, Llama 3.2 3B and Phi-3.5 Mini with KV-cache variants (hours on a CPU). Suite v13 runs 356 items: 296
 questions ModelDuck authored (code, multi-file codebases, bug fixes, chat, math,
 long context, comprehension, facts) plus 60 items copied from
 permissively licensed public benchmarks (GSM8K 16, MMLU 12,
 HumanEval 12, MBPP 8 and TruthfulQA 12) with source and licence recorded per item;
 see [benchmarks/NOTICE-benchmarks.md](benchmarks/NOTICE-benchmarks.md). Public items
 may be in a model's training data, so the report shows **own questions** and
-**public benchmarks** as separate origins, with public results per dataset.
+**public benchmarks** apart, with public results per dataset.
 
 ```bash
 npm run bench -- --download        # first run: fetch missing models, core phase
@@ -154,8 +153,7 @@ npm run verify:manifest -- --models-dir ..\models
 
 `verify:manifest` is an opt-in real-model check that does not write history or
 change baselines. It proves session reuse, 40-message truncation, prompt
-repetition, a completion after a chat session, chat-template identity and runtime
-identity on an installed GGUF.
+repetition, completion after chat, and template and runtime identity on a GGUF.
 
 The chat phase only changes sampling and prompting, so run it when those change; a
 model-only baseline update leaves the chat baseline on its previous suite. Run
@@ -493,6 +491,7 @@ modelduck/
 │   ├── own-items-v10.mjs
 │   ├── repo-items-v10.mjs
 │   ├── repo-items-v11.mjs
+│   ├── repo-items-v13.mjs
 │   ├── own-items-v12.mjs
 │   ├── own-items-v13.mjs
 │   ├── recommend.mjs
@@ -535,6 +534,7 @@ modelduck/
 │   ├── benchmark-suite-v11.test.js
 │   ├── benchmark-suite-v12.test.js
 │   ├── benchmark-suite-v13.test.js
+│   ├── benchmark-suite-v13-repo.test.js
 │   ├── reference-solutions-v9.js
 │   ├── reference-solutions-v13.js
 │   ├── benchmark-test-hash.test.js

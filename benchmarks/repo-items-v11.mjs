@@ -6,7 +6,7 @@ import { fix, implement, locate, withFile } from "./repo-items-v10.mjs";
  * reproductions live in tests/benchmark-suite-v11.test.js.
  */
 
-const LEDGER = [
+export const LEDGER = [
   ["src/money.js", String.raw`function toMinor(amount) {
   return Math.round(amount * 100);
 }
@@ -55,7 +55,7 @@ function canWithdraw(account, minor) {
 }`],
 ];
 
-const ORDERS = [
+export const ORDERS = [
   ["src/units.js", String.raw`function gramsToKg(grams) {
   return grams / 1000;
 }`],
@@ -106,7 +106,7 @@ function itemsTotal(lines) {
 }`],
 ];
 
-const MARKDOWN = [
+export const MARKDOWN = [
   ["src/escape.js", String.raw`function escapeHtml(text) {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }`],
