@@ -557,6 +557,7 @@ modelduck/
 │   ├── gguf-guard.test.js
 │   ├── memory-fit.test.js
 │   ├── server-settings.test.js
+│   ├── recommend.test.js
 │   └── server.test.js
 ├── assets/
 │   ├── logo.svg
