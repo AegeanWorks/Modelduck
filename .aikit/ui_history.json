@@ -446,5 +446,19 @@
     "final_snapshot_digest": "",
     "final_snapshot_entries": 0,
     "surface_digest": "f2dddbf99520c73559e72b538c3f55fca622cc03530890c1aab1b207f6b53126"
+  },
+  {
+    "schema": 1,
+    "surface": "app",
+    "baseline_commit": "920568cb9fd8bd14636e879377d6c910465e6206",
+    "contract_hash": "c6a291e913a9c8f174aadf7fb264b0941c55e9f4999a9a43152f1fb616845d11",
+    "started_at": 1793487115.927704,
+    "finished_at": 1793487125.8243096,
+    "strikes": 0,
+    "reviewer": "Command Code (AI; headless Edge smoke review: app shell, Settings Quiet option, Bench recommendations panel; no console errors)",
+    "allowed_removals": [],
+    "final_snapshot_digest": "",
+    "final_snapshot_entries": 0,
+    "surface_digest": "299b00fa81aa94658599e3288c62c4ca0129b0d1120b87852ade9a72af5b7856"
   }
 ]
