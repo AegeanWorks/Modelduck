@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "name": "modelduck",
+  "test_command": "npm test",
+  "topics": [
+    "aikit",
+    "aikit-integrated",
+    "source-available",
+    "aegean-license",
+    "commercial-license",
+    "local-llm",
+    "gguf",
+    "desktop"
+  ],
+  "gates": {},
+  "ui_required": true,
+  "mechanics_required": false,
+  "created": "2026-10-30",
+  "has_ui": true,
+  "ui_kind": "web",
+  "ui_evidence": [
+    "public/index.html"
+  ],
+  "ui_checked_at": "2026-10-30",
+  "ui_source": "detected"
+}

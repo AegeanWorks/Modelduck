@@ -1,0 +1,260 @@
+{
+  "version": 1,
+  "active_task": {
+    "task_id": "system-prompt-fix",
+    "last_phase": "verification",
+    "active_phase": 5,
+    "status": "completed",
+    "updated_at": 1793443770.5635805,
+    "owner": "claude-opus-5.5",
+    "started_by": "claude-opus-5.5",
+    "continuations": [],
+    "completed_at": 1793443798.722656
+  },
+  "checkpoints": [
+    {
+      "task_id": "tune-only-settings-v1",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'tune-only-settings-v1' completed successfully.",
+      "status": "completed",
+      "timestamp": 1793436177.7243598,
+      "timestamp_str": "2026-10-31 11:42:57",
+      "agent": "claude-code:20b8d1d8"
+    },
+    {
+      "task_id": "review-fixes-v1",
+      "phase": "in_progress",
+      "phase_num": 2,
+      "description": "[1/2] Pre-publish review fixes: M1 backend - atomic rename retried 5x on EPERM/EBUSY/EACCES (PRINCIPLE-013; likely cause of the Llama tune failure), loopback guards on tune cancel and steps PUT, TunedSettings caches profiles by mtime and taskSubsetHash memoized; M2 UI - fully tuned models show 'Tuned' instead of a no-op Continue; then publish private",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793437413.5573454,
+      "timestamp_str": "2026-10-31 12:03:33",
+      "agent": "claude-code:20b8d1d8",
+      "impact_assessment": {
+        "why": "Review before first push found a principle gap and three defects",
+        "benefits": "Tunes survive transient Windows file locks, remote clients cannot cancel tunes or rewrite steps, chat stops re-parsing large profiles",
+        "risks": "contract: tune cancel and steps PUT now 403 from other machines; dependency: none; concurrency: rename retry adds up to ~1.5s on persistent failure; state: none",
+        "mitigation": "Tests first for each; failure after retries still surfaces"
+      }
+    },
+    {
+      "task_id": "review-fixes-v1",
+      "phase": "in_progress",
+      "phase_num": 4,
+      "description": "[1/2] M1 atomic replace retries transient EPERM/EBUSY/EACCES 5x (PRINCIPLE-013); tune cancel and steps PUT local-only, proven over a real LAN socket with a key; profile caching dropped after measuring 1.08 ms per chat message; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793437523.6364827,
+      "timestamp_str": "2026-10-31 12:05:23",
+      "agent": "claude-code:20b8d1d8"
+    },
+    {
+      "task_id": "review-fixes-v1",
+      "phase": "in_progress",
+      "phase_num": 3,
+      "description": "[2/2] M2 UI Tuned label: opening UI task",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793437534.9056327,
+      "timestamp_str": "2026-10-31 12:05:34",
+      "agent": "claude-code:20b8d1d8"
+    },
+    {
+      "task_id": "review-fixes-v1",
+      "phase": "in_progress",
+      "phase_num": 4,
+      "description": "[2/2] M2 fully tuned models show 'Tuned \u2713' with how to re-run instead of a no-op Continue; reviewed in headless Edge by Claude at the user's request; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793437620.814382,
+      "timestamp_str": "2026-10-31 12:07:00",
+      "agent": "claude-code:20b8d1d8"
+    },
+    {
+      "task_id": "review-fixes-v1",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'review-fixes-v1' completed successfully.",
+      "status": "completed",
+      "timestamp": 1793437621.9531784,
+      "timestamp_str": "2026-10-31 12:07:01",
+      "agent": "claude-code:20b8d1d8"
+    },
+    {
+      "task_id": "suite-v9-v1",
+      "phase": "in_progress",
+      "phase_num": 2,
+      "description": "[1/1] Suite v9: 44 new own items - 16 code, 6 long code (code-long, 1024 tokens), 16 bug-fix, 6 long multi-bug fixes (bugfix-long); every case checked by a reference solution, every buggy function proven to fail its tests; categories joined to the code task and CODING_CATEGORIES; SUITE_VERSION 9, CHANGELOG, README, ADR-035; saved tune profiles become stale with a warning (ADR-028)",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793438156.1492338,
+      "timestamp_str": "2026-10-31 12:15:56",
+      "agent": "claude-code:20b8d1d8",
+      "impact_assessment": {
+        "why": "User asked for many more of our own coding and bug-fix questions, including long ones",
+        "benefits": "Code task tuning judged on 74 own coding items instead of 24, including long multi-step work",
+        "risks": "contract: suite v9 test hash; dependency: none; concurrency: none; state: existing tune profiles marked stale, cross-model baseline lags further",
+        "mitigation": "Reference solutions and failing-buggy checks in tests; stale profiles keep working with warnings"
+      }
+    },
+    {
+      "task_id": "suite-v9-v1",
+      "phase": "in_progress",
+      "phase_num": 4,
+      "description": "[1/1] Suite v9: 44 new own items (16 code, 6 long code, 16 bug-fix, 6 long multi-bug fixes), every case verified by reference solutions, every buggy function fails its tests, long categories in the code task and coding rate, docs, CHANGELOG, ADR-035; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793438428.214221,
+      "timestamp_str": "2026-10-31 12:20:28",
+      "agent": "claude-code:20b8d1d8"
+    },
+    {
+      "task_id": "suite-v9-v1",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'suite-v9-v1' completed successfully.",
+      "status": "completed",
+      "timestamp": 1793438428.946876,
+      "timestamp_str": "2026-10-31 12:20:28",
+      "agent": "claude-code:20b8d1d8"
+    },
+    {
+      "task_id": "polish-v1",
+      "phase": "in_progress",
+      "phase_num": 2,
+      "description": "[1/2] Polish: M1 OpenAI chat completions apply the loaded model's tuned task preset as defaults (client values win; task via x-modelduck-task header or modelduck_task, default chat, unknown task 400) and pass reasoning/promptRepeat that the API silently dropped; M2 UI 'Re-tune' button on a stale profile forces a re-tune instead of being skipped or refused; then publish",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793439071.8772483,
+      "timestamp_str": "2026-10-31 12:31:11",
+      "agent": "claude-code:20b8d1d8",
+      "impact_assessment": {
+        "why": "API clients got untuned sampling and ignored reasoning settings; the stale-profile button did nothing useful",
+        "benefits": "Tuned presets reach every client; the warning button does what it says",
+        "risks": "contract: API defaults now follow the tuned preset and the reasoning setting; dependency: none; concurrency: none; state: none",
+        "mitigation": "Client-sent values keep priority; tuned settings switch still turns it off; tests first"
+      }
+    },
+    {
+      "task_id": "polish-v1",
+      "phase": "in_progress",
+      "phase_num": 4,
+      "description": "[1/2] M1 OpenAI chat completions apply the tuned task preset as defaults (client values win, x-modelduck-task/modelduck_task, unknown task 400) and now pass the reasoning and prompt-repeat settings the API used to drop; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793439178.8491879,
+      "timestamp_str": "2026-10-31 12:32:58",
+      "agent": "claude-code:20b8d1d8"
+    },
+    {
+      "task_id": "polish-v1",
+      "phase": "in_progress",
+      "phase_num": 3,
+      "description": "[2/2] M2 UI Re-tune forces stale model, Run all sends forceStale: opening UI task",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793439241.2563972,
+      "timestamp_str": "2026-10-31 12:34:01",
+      "agent": "claude-code:20b8d1d8"
+    },
+    {
+      "task_id": "polish-v1",
+      "phase": "in_progress",
+      "phase_num": 4,
+      "description": "[2/2] M2 Re-tune on a stale profile forces that model, Run all sends forceStale, table buttons stay on one line; reviewed in headless Edge by Claude (requests intercepted: force true for the stale model, forceStale true for Run all; no console errors); checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793439446.5079522,
+      "timestamp_str": "2026-10-31 12:37:26",
+      "agent": "claude-code:20b8d1d8"
+    },
+    {
+      "task_id": "polish-v1",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'polish-v1' completed successfully.",
+      "status": "completed",
+      "timestamp": 1793439447.4620068,
+      "timestamp_str": "2026-10-31 12:37:27",
+      "agent": "claude-code:20b8d1d8"
+    },
+    {
+      "task_id": "directive-prompts-v1",
+      "phase": "planning",
+      "phase_num": 2,
+      "description": "[1/1] Replace the default thinking prompts with one-sentence directive prompts in the prompt stage",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793440951.3519282,
+      "timestamp_str": "2026-10-31 13:02:31",
+      "agent": "claude-opus-5.5",
+      "impact_assessment": {
+        "why": "Coder 1.5B tune: none of the 21 thinking prompts beat the format-directive baseline; the user asked for directive-style prompts",
+        "benefits": "The prompt stage tries instructions small models can act on",
+        "risks": "contract: default prompt step list changes, saved tune-grid.json files keep their own lists; dependency: none; concurrency: none; state: existing profiles keep their chosen prompt",
+        "mitigation": "THINKING_PROMPTS stays exported; tests pin the new list; ADR-036 records it"
+      }
+    },
+    {
+      "task_id": "directive-prompts-v1",
+      "phase": "verification",
+      "phase_num": 4,
+      "description": "Directive prompts in; 290/290 tests, gate 4/4; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793441024.282243,
+      "timestamp_str": "2026-10-31 13:03:44",
+      "agent": "claude-opus-5.5"
+    },
+    {
+      "task_id": "directive-prompts-v1",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'directive-prompts-v1' completed successfully.",
+      "status": "completed",
+      "timestamp": 1793441055.2057865,
+      "timestamp_str": "2026-10-31 13:04:15",
+      "agent": "claude-opus-5.5"
+    },
+    {
+      "task_id": "system-prompt-fix",
+      "phase": "planning",
+      "phase_num": 2,
+      "description": "[1/1] Keep the system message when the engine sets a session's chat history",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793443749.712907,
+      "timestamp_str": "2026-10-31 13:49:09",
+      "agent": "claude-opus-5.5",
+      "impact_assessment": {
+        "why": "setChatHistory replaced the constructor's system message, so no system prompt ever reached the model; every tuned prompt tied",
+        "benefits": "Chat, benchmark and tune answers use the chosen system prompt",
+        "risks": "contract: none, chat API unchanged; dependency: relies on node-llama-cpp getChatHistory; concurrency: none; state: profiles tuned before measured without a system prompt and should be re-tuned",
+        "mitigation": "Failing-first engine test mirroring node-llama-cpp; real-model check; ADR-037 tells to re-tune"
+      }
+    },
+    {
+      "task_id": "system-prompt-fix",
+      "phase": "verification",
+      "phase_num": 4,
+      "description": "Fix in; 292/292 tests, gate 4/4, real-model check; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793443770.5635805,
+      "timestamp_str": "2026-10-31 13:49:30",
+      "agent": "claude-opus-5.5"
+    },
+    {
+      "task_id": "system-prompt-fix",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'system-prompt-fix' completed successfully.",
+      "status": "completed",
+      "timestamp": 1793443798.7226577,
+      "timestamp_str": "2026-10-31 13:49:58",
+      "agent": "claude-opus-5.5"
+    }
+  ]
+}

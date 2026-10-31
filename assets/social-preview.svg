@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="title desc">
+  <title id="title">ModelDuck social preview</title>
+  <desc id="desc">ModelDuck is a local GGUF chat studio that tunes each model's settings on your own PC: CPU or GPU, speed, sampling and prompts per task. OpenAI-compatible API, no cloud account.</desc>
+  <defs>
+    <linearGradient id="page" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#121d33"/>
+      <stop offset="1" stop-color="#070b13"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.22" cy="0.5" r="0.45">
+      <stop offset="0" stop-color="#ffd447" stop-opacity=".16"/>
+      <stop offset="1" stop-color="#ffd447" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1280" height="640" fill="url(#page)"/>
+  <rect width="1280" height="640" fill="url(#glow)"/>
+  <g stroke="#ffffff" stroke-opacity=".05">
+    <path d="M0 160H1280M0 320H1280M0 480H1280M320 0V640M640 0V640M960 0V640"/>
+  </g>
+
+  <image href="logo.svg" xlink:href="logo.svg" x="70" y="150" width="320" height="320"/>
+
+  <text x="450" y="250" fill="#ffffff" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="78" font-weight="700">ModelDuck</text>
+  <text x="454" y="296" fill="#ffd447" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="21" letter-spacing="5">AEGEANWORKS · LOCAL AI APP</text>
+  <text fill="#d5dbe7" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="28">
+    <tspan x="452" y="352">A local GGUF chat studio that tunes each model</tspan>
+    <tspan x="452" y="390">on your own PC: CPU or GPU, speed, sampling and</tspan>
+    <tspan x="452" y="428">prompts per task. OpenAI-compatible API, no cloud.</tspan>
+  </text>
+
+  <g font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17" fill="#e6ebf5" text-anchor="middle">
+    <rect x="452" y="470" width="150" height="38" rx="19" fill="#1a2640" stroke="#ffffff" stroke-opacity=".12"/>
+    <text x="527" y="495">runs locally</text>
+    <rect x="618" y="470" width="170" height="38" rx="19" fill="#1a2640" stroke="#ffffff" stroke-opacity=".12"/>
+    <text x="703" y="495">settings tuner</text>
+    <rect x="804" y="470" width="150" height="38" rx="19" fill="#1a2640" stroke="#ffffff" stroke-opacity=".12"/>
+    <text x="879" y="495">OpenAI API</text>
+  </g>
+
+  <text x="76" y="590" fill="#8a96ad" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="18" letter-spacing="6">AEGEANWORKS</text>
+  <text x="1204" y="590" fill="#ffb52e" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="22" text-anchor="end">github.com/AegeanWorks/Modelduck</text>
+</svg>

@@ -1,0 +1,134 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { SYSTEM_PROMPT } from "../benchmarks/suite.mjs";
+import {
+  DEFAULT_STEPS,
+  DIRECTIVE_PROMPTS,
+  THINKING_PROMPTS,
+  estimateTune,
+  isValidCombination,
+  normalizeSteps,
+  promptAxes,
+  qualityAxes,
+  samplingAxes,
+  settingNames,
+  speedAxes,
+  threadSteps,
+} from "../benchmarks/tune-grid.mjs";
+
+const values = (axes, name) => axes.find((axis) => axis.name === name)?.patches.map((patch) => Object.values(patch)[0]);
+
+test("quality axes are the load settings that can change answers", () => {
+  const axes = qualityAxes();
+  assert.deepEqual(axes.map((axis) => axis.name), ["contextSize", "kvCache"]);
+  assert.deepEqual(values(axes, "contextSize"), [2048, 4096, 8192, 16384]);
+  assert.deepEqual(values(axes, "kvCache"), ["f16", "q8_0", "q4_0"]);
+});
+
+test("speed axes are the load settings that only change speed", () => {
+  const axes = speedAxes({ logicalCores: 16 });
+  assert.deepEqual(axes.map((axis) => axis.name), ["flashAttention", "useMmap", "batchSize", "threads"]);
+  assert.deepEqual(values(axes, "batchSize"), [64, 128, 256, 512, 1024, 2048]);
+  assert.deepEqual(values(axes, "threads"), [1, 2, 4, 6, 8, 10, 12]);
+});
+
+test("thread steps never use more than three quarters of the logical threads", () => {
+  assert.deepEqual(threadSteps([1, 2, 4, 6, 8, 10, 12], { logicalCores: 16 }), [1, 2, 4, 6, 8, 10, 12]);
+  assert.deepEqual(threadSteps([1, 2, 4, 6, 8, 10, 12], { logicalCores: 8 }), [1, 2, 4, 6]);
+  assert.deepEqual(threadSteps([8, 12], { logicalCores: 2 }), [1]);
+});
+
+test("checkpointing can be switched on as one speed axis of interval × max", () => {
+  const steps = normalizeSteps({ load: { checkpointing: { enabled: true, interval: [512, 1024], max: [4, 8] } } }).steps;
+  const axis = speedAxes({ logicalCores: 16 }, steps.load).find((item) => item.name === "checkpointing");
+  assert.equal(axis.patches.length, 1 + 2 * 2);
+  assert.deepEqual(axis.patches[1], { checkpoints: true, checkpointInterval: 512, checkpointMax: 4 });
+});
+
+test("the sampling steps are the user's, and truncation axes are marked as no-ops when greedy", () => {
+  const axes = samplingAxes("math");
+  assert.deepEqual(axes.map((axis) => axis.name), ["temperature", "maxTokens", "repeatPenalty", "minP", "topP", "topK"]);
+  assert.deepEqual(values(axes, "temperature"), [0, 0.2, 0.4, 0.6, 0.8, 1]);
+  assert.deepEqual(values(axes, "maxTokens"), [64, 128, 256, 512, 1024, 2048]);
+  assert.deepEqual(values(axes, "repeatPenalty"), [1, 1.05, 1.1, 1.15, 1.2]);
+  assert.deepEqual(values(axes, "minP"), [0, 0.05, 0.1, 0.15, 0.2]);
+  assert.deepEqual(values(axes, "topP"), [0.8, 0.85, 0.9, 0.95, 1]);
+  assert.deepEqual(values(axes, "topK"), [0, 20, 40]);
+  assert.deepEqual(axes.filter((axis) => axis.greedyNoop).map((axis) => axis.name), ["minP", "topP", "topK"]);
+});
+
+test("the prompt stage tries the baseline and all 21 directives, fully scored, then reasoning and repetition", () => {
+  assert.equal(DIRECTIVE_PROMPTS.length, 21);
+  assert.equal(new Set(DIRECTIVE_PROMPTS).size, 21, "no directive twice");
+  assert.ok(!DIRECTIVE_PROMPTS.includes(SYSTEM_PROMPT), "the baseline is not repeated");
+  assert.equal(THINKING_PROMPTS.length, 21, "the earlier prompts stay available for a saved grid");
+  const axes = promptAxes();
+  assert.deepEqual(axes.map((axis) => axis.name), ["systemPrompt", "reasoning", "promptRepeat"]);
+  const prompts = values(axes, "systemPrompt");
+  assert.equal(prompts[0], SYSTEM_PROMPT);
+  assert.deepEqual(prompts.slice(1), DIRECTIVE_PROMPTS);
+  assert.equal(axes[0].full, true, "every prompt gets a full score, no elimination");
+  assert.deepEqual(values(axes, "reasoning"), ["off", "auto"]);
+  assert.deepEqual(values(axes, "promptRepeat"), [1, 2]);
+});
+
+test("a quantized KV cache with flash attention off is not a real combination", () => {
+  assert.equal(isValidCombination({ kvCache: "q8_0", flashAttention: "off" }), false);
+  assert.equal(isValidCombination({ kvCache: "f16", flashAttention: "off" }), true);
+  assert.equal(isValidCombination({ kvCache: "q8_0", flashAttention: "auto" }), true);
+});
+
+test("user steps are checked against the settings ranges; bad values are reported, not clamped", () => {
+  const { steps, problems } = normalizeSteps({
+    load: { contextSize: [256, 4096, 4096, "big", 8192], kvCache: ["f16", "q2_k"], threads: [] },
+    sampling: { temperature: [0, 0.5, 3], repeatPenalty: [0.9, 1.1], maxTokens: { code: [512, 8] } },
+    prompt: { systemPrompt: ["Be brief.", "", "Be brief."], reasoning: ["off", "loud"], promptRepeat: [1, 4] },
+  });
+  assert.deepEqual(steps.load.contextSize, [4096, 8192]);
+  assert.deepEqual(steps.load.kvCache, ["f16"]);
+  assert.deepEqual(steps.load.threads, DEFAULT_STEPS.load.threads, "an emptied axis falls back to its defaults");
+  assert.deepEqual(steps.sampling.temperature, [0, 0.5]);
+  assert.deepEqual(steps.sampling.repeatPenalty, [1.1]);
+  assert.deepEqual(steps.sampling.maxTokens.code, [512]);
+  assert.deepEqual(steps.prompt.systemPrompt, ["Be brief."]);
+  assert.deepEqual(steps.prompt.reasoning, ["off"]);
+  assert.deepEqual(steps.prompt.promptRepeat, [1]);
+  for (const text of ["contextSize 256", "kvCache q2_k", "temperature 3", "repeatPenalty 0.9", "maxTokens.code 8", "reasoning loud", "promptRepeat 4", "threads"]) {
+    assert.ok(problems.some((problem) => problem.includes(text)), `no problem reported for ${text}`);
+  }
+});
+
+test("the estimate covers all four stages and the worst case of two passes", () => {
+  const estimate = estimateTune(DEFAULT_STEPS, { logicalCores: 16, tasks: ["chat"], secondsPerAnswer: 3, reloadSeconds: 5 });
+  assert.equal(estimate.quality.configs, 4 + 3);
+  assert.equal(estimate.speed.configs, 2 + 2 + 6 + 7);
+  assert.equal(estimate.sampling.chat.configs, 6 + 6 + 5 + 5 + 5 + 3);
+  assert.equal(estimate.prompt.chat.configs, 22 + 2 + 2);
+  assert.ok(estimate.onePassSeconds > 0);
+  assert.equal(estimate.worstCaseSeconds, estimate.onePassSeconds * 2);
+});
+
+test("stage 0 probes the CPU and Vulkan by default, and the CPU is always kept as the reference", () => {
+  assert.deepEqual(DEFAULT_STEPS.device.backends, ["cpu", "vulkan"]);
+  const { steps, problems } = normalizeSteps({ device: { backends: ["vulkan", "opencl"] } });
+  assert.deepEqual(steps.device.backends, ["cpu", "vulkan"]);
+  assert.ok(problems.some((problem) => problem.includes("backends opencl")));
+  assert.equal(estimateTune(DEFAULT_STEPS, { tasks: ["chat"] }).device.configs, 2);
+});
+
+test("lane counts are settings, since every PC has different CPU and GPU", () => {
+  assert.deepEqual(DEFAULT_STEPS.lanes, { cpu: 1, gpu: 2 });
+  const { steps, problems } = normalizeSteps({ lanes: { cpu: 0, gpu: 9 } });
+  assert.deepEqual(steps.lanes, { cpu: 1, gpu: 2 }, "out-of-range lanes fall back to the defaults");
+  assert.ok(problems.some((problem) => problem.includes("lanes.cpu 0")));
+  assert.ok(problems.some((problem) => problem.includes("lanes.gpu 9")));
+  assert.deepEqual(normalizeSteps({ lanes: { cpu: 2, gpu: 0 } }).steps.lanes, { cpu: 2, gpu: 0 }, "0 GPU lanes: GPU models tune one after another");
+});
+
+test("every setting a tune can run on its own has a name, in stage order", () => {
+  const names = settingNames();
+  assert.equal(names[0], "device");
+  for (const name of ["contextSize", "kvCache", "threads", "batchSize", "checkpointing", "temperature", "maxTokens", "systemPrompt", "promptRepeat"]) assert.ok(names.includes(name), name);
+  assert.ok(names.indexOf("contextSize") < names.indexOf("threads") && names.indexOf("threads") < names.indexOf("temperature"));
+});

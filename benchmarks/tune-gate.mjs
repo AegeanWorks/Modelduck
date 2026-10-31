@@ -1,0 +1,123 @@
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { AppError } from "../src/errors.js";
+import { ensureDirectory } from "../src/fs-atomic.js";
+import { currentGitInfo, recordRun } from "./history.mjs";
+import { CORE_MODEL_IDS } from "./matrix.mjs";
+import { BENCHMARK_MODELS } from "./suite.mjs";
+import { TASKS, tuneRungs } from "./tasks.mjs";
+import { measurePresets } from "./tune.mjs";
+import { BASELINE_SCHEMA, baselineEntry, comparability, compareToBaseline } from "./tune-baseline.mjs";
+import { createEvaluator } from "./tune-evaluate.mjs";
+import { openTarget, runTune, tuneBase, withEngine } from "./tune-job.mjs";
+
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const BASELINE = path.join(HERE, "baseline-profiles.json");
+const LATEST = path.join(HERE, "results", "latest-tune-gate.json");
+const TASK_IDS = TASKS.map((task) => task.id);
+
+const USAGE = `Usage: npm run tune:gate [-- --update-baseline] [--models-dir <dir>] [--max-runs <n>]
+
+Re-measures each core model's baseline settings per task and fails when a task's
+pass rate drops by more than one item (G-001). --update-baseline re-tunes the
+three core models and replaces benchmarks/baseline-profiles.json deliberately (G-003).
+`;
+
+function parseArgs(argv) {
+  const options = {};
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === "--help" || arg === "-h") options.help = true;
+    else if (arg === "--update-baseline") options.updateBaseline = true;
+    else if (arg === "--models-dir") options.modelsDir = argv[++index];
+    else if (arg === "--max-runs") options.maxRuns = Number(argv[++index]);
+    else throw new AppError("Unknown option", { code: "bad_option", why: `${arg} is not a tune:gate option.`, fix: USAGE });
+  }
+  return options;
+}
+
+const fileOf = (catalogId) => BENCHMARK_MODELS.find((model) => model.catalogId === catalogId)?.fileName ?? catalogId;
+const identityOf = (fingerprint) => ({ suiteVersion: fingerprint.suiteVersion, taskHash: fingerprint.taskHash, nodeLlamaCpp: fingerprint.nodeLlamaCpp });
+
+async function updateBaseline(options, home) {
+  const models = {};
+  let identity = null;
+  for (const catalogId of CORE_MODEL_IDS) {
+    const target = await openTarget({ model: fileOf(catalogId), home, modelsDir: options.modelsDir });
+    process.stdout.write(`Tuning ${catalogId} for the baseline…\n`);
+    const { profile } = await runTune(target, { tasks: TASK_IDS, force: true, maxRuns: options.maxRuns });
+    models[catalogId] = baselineEntry(profile);
+    identity = identityOf(target.fingerprint);
+  }
+  const baseline = { schema: BASELINE_SCHEMA, ...identity, createdAt: new Date().toISOString(), models };
+  await writeFile(BASELINE, `${JSON.stringify(baseline, null, 2)}\n`);
+  process.stdout.write(`Wrote ${BASELINE}\n`);
+}
+
+async function gate(options, home) {
+  let baseline;
+  try {
+    baseline = JSON.parse(await readFile(BASELINE, "utf8"));
+  } catch {
+    throw new AppError("No tune baseline yet", { code: "tune_baseline_missing", why: `${BASELINE} is missing or unreadable.`, fix: "Run npm run tune:gate -- --update-baseline once, deliberately." });
+  }
+  const current = {};
+  let identity = null;
+  for (const [catalogId, entry] of Object.entries(baseline.models)) {
+    const target = await openTarget({ model: fileOf(catalogId), home, modelsDir: options.modelsDir });
+    identity = identityOf(target.fingerprint);
+    const changed = comparability(baseline, identity);
+    if (changed.length) {
+      throw new AppError("The tune baseline is not comparable", {
+        code: "tune_baseline_incomparable",
+        why: `It was recorded with a different ${changed.join(", ")} (G-003).`,
+        fix: "Update it deliberately with npm run tune:gate -- --update-baseline, and note why in benchmarks/CHANGELOG.md.",
+      });
+    }
+    const presets = Object.fromEntries(Object.entries(entry.tasks).map(([task, saved]) => [task, saved.settings]));
+    process.stdout.write(`Measuring ${catalogId} on its baseline settings…\n`);
+    current[catalogId] = await withEngine(target, (engine) => measurePresets({
+      evaluate: createEvaluator({ engine, modelId: target.entry.id }),
+      load: { ...tuneBase(), ...entry.load },
+      presets,
+      rungs: tuneRungs(Object.keys(presets)),
+    }));
+  }
+  const comparison = compareToBaseline(baseline, current);
+  for (const row of comparison.rows) {
+    const verdict = row.missing ? "MISSING" : row.regression ? "FAIL" : "ok";
+    const latency = row.latencyDeltaMs === null || row.latencyDeltaMs === undefined ? "" : ` · latency ${row.latencyDeltaMs >= 0 ? "+" : ""}${row.latencyDeltaMs} ms`;
+    process.stdout.write(`${verdict.padEnd(7)} ${row.model} ${row.task}: ${row.missing ? "not measured" : `${row.baselineRate}% → ${row.rate}% (${row.delta >= 0 ? "+" : ""}${row.delta}, tolerance ${row.tolerance})${latency}`}\n`);
+  }
+  const finishedAt = new Date().toISOString();
+  const result = { schema: 3, phase: "tune-gate", suiteVersion: identity.suiteVersion, testHash: identity.taskHash, runtime: { nodeLlamaCpp: identity.nodeLlamaCpp }, createdAt: finishedAt, finishedAt, tuneGate: { ...comparison, current } };
+  await ensureDirectory(path.dirname(LATEST));
+  await writeFile(LATEST, `${JSON.stringify(result, null, 2)}\n`);
+  await recordRun({ dbPath: path.join(HERE, "history.sqlite"), historyPath: path.join(HERE, "history.jsonl"), result, git: currentGitInfo(HERE) });
+  process.stdout.write(comparison.passed ? "Tune gate passed.\n" : "Tune gate failed: a task lost more than one item.\n");
+  return comparison.passed;
+}
+
+async function main() {
+  const options = parseArgs(process.argv.slice(2));
+  if (options.help) {
+    process.stdout.write(USAGE);
+    return;
+  }
+  // Gate tunes never touch the user's saved profiles.
+  const home = await mkdtemp(path.join(os.tmpdir(), "modelduck-tune-gate-"));
+  try {
+    if (options.updateBaseline) await updateBaseline(options, home);
+    else if (!(await gate(options, home))) process.exitCode = 1;
+  } finally {
+    await rm(home, { recursive: true, force: true });
+  }
+}
+
+main().catch((error) => {
+  process.stderr.write(`${error.message}\n${error.why ? `Why: ${error.why}\n` : ""}${error.fix ? `Fix: ${error.fix}\n` : ""}`);
+  process.exitCode = error.code === "bad_option" ? 2 : 1;
+});

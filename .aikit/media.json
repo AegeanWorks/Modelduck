@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "name": "modelduck",
+  "repo": "Modelduck",
+  "has_ui": true,
+  "ui_kind": "web",
+  "palette": [
+    "#101a2e",
+    "#070b13",
+    "#ffe27a",
+    "#f08a12"
+  ],
+  "motif": "terminal",
+  "layout": "wave",
+  "assets": {
+    "logo": {
+      "path": "assets/logo.svg",
+      "status": "approved",
+      "commit": "",
+      "generated_at": "2026-10-30T00:12:46",
+      "review": {
+        "status": "approved",
+        "reviewer": "agent:claude-opus-5.5",
+        "method": "vision",
+        "notes": "Rendered at 512px in Edge and inspected: the app's own duck mark (public/brand/duck.svg) on a navy rounded badge, glow circles now clipped to the badge, reads clearly at small sizes and matches the in-app icon; replaces a generic terminal mark with unclear 'MO' initials. Reviewed by Claude at the user's delegation.",
+        "score": 88,
+        "reviewed_at": "2026-10-31T12:11:19"
+      }
+    },
+    "social_preview": {
+      "path": "assets/social-preview.svg",
+      "status": "approved",
+      "commit": "",
+      "generated_at": "2026-10-30T00:12:46",
+      "review": {
+        "status": "approved",
+        "reviewer": "agent:claude-opus-5.5",
+        "method": "vision",
+        "notes": "Re-rendered at 1280x640 after correcting the link to github.com/AegeanWorks/Modelduck, the repository name AIKit's publish creates. Duck mark, name ModelDuck, label LOCAL AI APP, current description including the settings tuner, three evenly spaced tags, high-contrast text on navy. Reviewed by Claude at the user's delegation.",
+        "score": 86,
+        "reviewed_at": "2026-10-31T12:12:31"
+      }
+    }
+  },
+  "screenshots": []
+}

@@ -1,0 +1,149 @@
+import assert from "node:assert/strict";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import test from "node:test";
+
+import {
+  importHistory,
+  linkRun,
+  listRuns,
+  modelProgress,
+  openDatabase,
+  rebuildDatabase,
+  recordRun,
+} from "../benchmarks/history.mjs";
+
+const RESULT = {
+  schema: 1,
+  suiteVersion: 1,
+  appVersion: "0.1.0",
+  createdAt: "2026-10-30T10:00:00.000Z",
+  finishedAt: "2026-10-30T10:01:00.000Z",
+  machine: { cpu: "Test CPU", platform: "test" },
+  settings: { contextSize: 2048, threads: 4 },
+  overall: {
+    score: 50,
+    checksPassed: 1,
+    checksTotal: 2,
+    byCategory: { reasoning: { passed: 1, total: 2, score: 50 } },
+    tokensPerSecond: 10,
+    firstTokenMs: 100,
+  },
+  models: [
+    {
+      key: "test-model",
+      label: "Test Model",
+      kind: "tiny",
+      fileName: "test.gguf",
+      size: 1234,
+      params: "1B",
+      quant: "Q4",
+      score: 50,
+      checksPassed: 1,
+      checksTotal: 2,
+      tokensPerSecond: 10,
+      firstTokenMs: 100,
+      memoryBytes: 2048,
+      byCategory: { reasoning: { passed: 1, total: 2, score: 50 } },
+      prompts: [
+        {
+          id: "prompt-1",
+          category: "reasoning",
+          passed: 1,
+          total: 2,
+          text: "answer",
+          stats: { tokensPerSecond: 10, firstTokenMs: 100 },
+        },
+      ],
+    },
+  ],
+};
+
+async function tempPaths(t) {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "modelduck-history-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  return {
+    directory,
+    dbPath: path.join(directory, "history.sqlite"),
+    historyPath: path.join(directory, "history.jsonl"),
+  };
+}
+
+test("a run is recorded in SQLite and append-only JSONL, then linked to a commit", async (t) => {
+  const paths = await tempPaths(t);
+  const recorded = await recordRun({
+    ...paths,
+    result: RESULT,
+    git: { hash: "abc123", subject: "parent", branch: "main", dirty: true },
+    baseline: true,
+    pending: true,
+  });
+  assert.ok(recorded.uid);
+
+  let db = await openDatabase(paths.dbPath);
+  try {
+    const imported = await importHistory(db, paths.historyPath);
+    assert.equal(imported.runs, 0); // recordRun already inserted it
+    const runs = listRuns(db, 5);
+    assert.equal(runs.length, 1);
+    assert.equal(runs[0].commit_hash, "abc123");
+    assert.equal(runs[0].commit_pending, true);
+    assert.equal(runs[0].baseline, true);
+    assert.equal(runs[0].models[0].model_key, "test-model");
+    assert.equal(runs[0].models[0].by_category.reasoning.score, 50);
+    assert.equal(modelProgress(db, "test-model", 5).length, 1);
+  } finally {
+    db.close();
+  }
+
+  const linked = await linkRun({
+    ...paths,
+    commit: { hash: "def456", subject: "the change", branch: "main", dirty: false },
+  });
+  assert.equal(linked.linked, true);
+
+  db = await openDatabase(paths.dbPath);
+  try {
+    const runs = listRuns(db, 5);
+    assert.equal(runs[0].commit_hash, "def456");
+    assert.equal(runs[0].commit_subject, "the change");
+    assert.equal(runs[0].commit_pending, false);
+  } finally {
+    db.close();
+  }
+
+  const lines = (await readFile(paths.historyPath, "utf8")).trim().split("\n").map(JSON.parse);
+  assert.equal(lines[0].type, "run");
+  assert.equal(lines[1].type, "link");
+  assert.equal(lines[1].commit.hash, "def456");
+});
+
+test("history.sqlite can be rebuilt from the append-only log", async (t) => {
+  const paths = await tempPaths(t);
+  await recordRun({
+    ...paths,
+    result: RESULT,
+    git: { hash: "abc123", subject: "parent", branch: "main", dirty: true },
+    pending: true,
+  });
+  await linkRun({
+    ...paths,
+    commit: { hash: "def456", subject: "linked", branch: "main", dirty: false },
+  });
+
+  const db = await openDatabase(paths.dbPath);
+  try {
+    const rebuilt = await rebuildDatabase(db, paths.historyPath);
+    assert.equal(rebuilt.runs, 1);
+    assert.equal(rebuilt.links, 1);
+    const runs = listRuns(db, 5);
+    assert.equal(runs.length, 1);
+    assert.equal(runs[0].commit_hash, "def456");
+    const again = await importHistory(db, paths.historyPath);
+    assert.equal(again.runs, 0);
+    assert.equal(listRuns(db, 5).length, 1);
+  } finally {
+    db.close();
+  }
+});
