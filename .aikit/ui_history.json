@@ -432,5 +432,19 @@
     "final_snapshot_digest": "",
     "final_snapshot_entries": 0,
     "surface_digest": "929e5774cb98186ec55fba4ae8de88c6f0d70e145777dd2024aa41a349f56240"
+  },
+  {
+    "schema": 1,
+    "surface": "app",
+    "baseline_commit": "da51d820f3c6ab3975d495a41bb185410eb85607",
+    "contract_hash": "c6a291e913a9c8f174aadf7fb264b0941c55e9f4999a9a43152f1fb616845d11",
+    "started_at": 1793476301.7012796,
+    "finished_at": 1793476572.9377034,
+    "strikes": 0,
+    "reviewer": "Claude (AI; headless Edge review of By question type with seeded p values in a scratch profile: clearly worse is marked, clearly better, too few to tell and same are stated, older rows show a dash; no console errors; delegated by the user on 2026-11-01)",
+    "allowed_removals": [],
+    "final_snapshot_digest": "",
+    "final_snapshot_entries": 0,
+    "surface_digest": "f2dddbf99520c73559e72b538c3f55fca622cc03530890c1aab1b207f6b53126"
   }
 ]

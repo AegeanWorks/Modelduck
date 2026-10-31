@@ -2165,6 +2165,14 @@ function renderBenchSuite(suite) {
   }
 }
 
+/** Whether a type's difference stands out from noise (ADR-059); older profiles have no p. */
+function typeDifference(entry) {
+  if (typeof entry?.p !== "number") return "–";
+  if (entry.right === entry.defaultRight) return "same";
+  if (entry.p >= 0.05) return "too few to tell";
+  return entry.right > entry.defaultRight ? "clearly better" : "clearly worse";
+}
+
 const rightOf = (entry, key) => (entry ? `${entry[key]} of ${entry.items}` : "–");
 
 /** Right answers per question type for every task: preset against defaults, tuned and unseen (ADR-056). */
@@ -2178,13 +2186,14 @@ function byTypeSection(tasks) {
   const table = document.createElement("table");
   table.className = "benchmark-table";
   const head = table.createTHead().insertRow();
-  for (const text of ["Task", "Question type", "Preset", "Defaults", "Unseen: preset", "Unseen: defaults"]) head.appendChild(Object.assign(document.createElement("th"), { textContent: text }));
+  for (const text of ["Task", "Question type", "Preset", "Defaults", "Difference", "Unseen: preset", "Unseen: defaults"]) head.appendChild(Object.assign(document.createElement("th"), { textContent: text }));
   const body = table.createTBody();
   for (const { task, type, entry, unseen } of rows) {
     const row = body.insertRow();
-    // A type the preset answers worse than the defaults stands out.
-    if (entry.right < entry.defaultRight) row.className = "tune-type-worse";
-    row.append(tuneCell(TASK_NAMES[task] ?? task), tuneCell(TYPE_NAMES[type] ?? type), tuneCell(rightOf(entry, "right")), tuneCell(rightOf(entry, "defaultRight")), tuneCell(rightOf(unseen, "right")), tuneCell(rightOf(unseen, "defaultRight")));
+    const difference = typeDifference(entry);
+    // Only a type clearly worse than the defaults stands out; profiles without p keep the old marking.
+    if (difference === "clearly worse" || (difference === "–" && entry.right < entry.defaultRight)) row.className = "tune-type-worse";
+    row.append(tuneCell(TASK_NAMES[task] ?? task), tuneCell(TYPE_NAMES[type] ?? type), tuneCell(rightOf(entry, "right")), tuneCell(rightOf(entry, "defaultRight")), tuneCell(difference), tuneCell(rightOf(unseen, "right")), tuneCell(rightOf(unseen, "defaultRight")));
   }
   section.appendChild(table);
   return section;
