@@ -376,5 +376,19 @@
     "final_snapshot_digest": "",
     "final_snapshot_entries": 0,
     "surface_digest": "940fbc817890b8f5a090aa0d2f27cc588d84d3d6fad41b0b79b287e820ee3bb0"
+  },
+  {
+    "schema": 1,
+    "surface": "app",
+    "baseline_commit": "30008e7b3cf65605d29faadc5ebd4dde55b6e599",
+    "contract_hash": "c6a291e913a9c8f174aadf7fb264b0941c55e9f4999a9a43152f1fb616845d11",
+    "started_at": 1793474622.3802414,
+    "finished_at": 1793474735.6268837,
+    "strikes": 0,
+    "reviewer": "Claude (AI; headless Edge review of the five Bench tabs: each shows only its panel, the run list loads on its tab, the last tab is remembered, no tab is longer than about two screens; no console errors; delegated by the user on 2026-11-01)",
+    "allowed_removals": [],
+    "final_snapshot_digest": "",
+    "final_snapshot_entries": 0,
+    "surface_digest": "c513956d10ec970d63a9ec6d146d11e2fe64d821b3f787628b2fbacf27124027"
   }
 ]

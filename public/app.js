@@ -104,6 +104,8 @@ const els = {
   tuneModels: $("tune-models"),
   tuneBest: $("tune-best"),
   tuneRuns: $("tune-runs"),
+  benchTabs: document.querySelector(".bench-tabs"),
+  benchTabDot: $("bench-tab-dot"),
   tuneContinue: $("tune-continue"),
   tuneLive: $("tune-live"),
   tuneRunsList: $("tune-runs-list"),
@@ -2230,7 +2232,7 @@ async function loadTuneRuns() {
     const { runs } = await request("/api/tune/runs");
     state.tuneRuns = runs ?? [];
     renderTuneContinue();
-    if (els.tuneRuns.open) renderTuneRuns(state.tuneRuns);
+    if (benchTab() === "runs") renderTuneRuns(state.tuneRuns);
   } catch (error) {
     showError(error);
   }
@@ -2598,8 +2600,38 @@ function liveCard(item) {
   return card;
 }
 
+const BENCH_TAB_KEY = "modelduck.benchTab";
+
+/** The Bench dialog's tab that is showing. */
+function benchTab() {
+  return els.benchTabs.querySelector('[aria-selected="true"]')?.dataset.benchTab ?? "tune";
+}
+
+function savedBenchTab() {
+  try {
+    return localStorage.getItem(BENCH_TAB_KEY) || "tune";
+  } catch {
+    return "tune";
+  }
+}
+
+/** Show one tab of the Bench dialog and remember it; the run list loads when its tab opens. */
+function showBenchTab(name) {
+  const tabs = [...els.benchTabs.querySelectorAll("[data-bench-tab]")];
+  const chosen = tabs.some((tab) => tab.dataset.benchTab === name) ? name : "tune";
+  for (const tab of tabs) tab.setAttribute("aria-selected", String(tab.dataset.benchTab === chosen));
+  for (const panel of document.querySelectorAll("[data-bench-panel]")) panel.hidden = panel.dataset.benchPanel !== chosen;
+  try {
+    localStorage.setItem(BENCH_TAB_KEY, chosen);
+  } catch {
+    // A private window keeps the tab for this visit only.
+  }
+  if (chosen === "runs") void loadTuneRuns();
+}
+
 function renderTuneLive(job) {
   const running = job?.status === "running";
+  els.benchTabDot.hidden = !running;
   els.tuneLive.hidden = !running;
   if (!running) return;
   els.tuneLive.replaceChildren(Object.assign(document.createElement("h4"), { textContent: "Running now" }));
@@ -2706,6 +2738,8 @@ async function startTune(models, { force = false, forceStale = false, stage = nu
   try {
     const { job } = await request("/api/tune/start", { method: "POST", body: { models, ...(tasks && { tasks }), ...(continueRun && { continue: true }), stages, settings: settings.length ? settings : null, force: !continueRun && ((force && !partRun) || (!stage && els.tuneForce.checked)), forceStale } });
     state.tuneJob = job;
+    // A started tune is followed on the Tune tab.
+    showBenchTab("tune");
     renderTuneJob();
     startTuneLive();
   } catch (error) {
@@ -3096,9 +3130,11 @@ function bindEvents() {
     if (state.benchmarkReport) renderBenchmarkReport(state.benchmarkReport);
     if (state.benchmarkAdvice) renderRecommendations(state.benchmarkAdvice.advice, state.benchmarkAdvice.headerTitle);
   });
-  els.tuneRuns.addEventListener("toggle", () => {
-    if (els.tuneRuns.open) void loadTuneRuns();
+  els.benchTabs.addEventListener("click", (event) => {
+    const tab = event.target.closest("[data-bench-tab]");
+    if (tab) showBenchTab(tab.dataset.benchTab);
   });
+  showBenchTab(savedBenchTab());
   els.tuneRunsList.addEventListener("click", (event) => {
     const resume = event.target.closest("[data-tune-continue]");
     if (resume) {

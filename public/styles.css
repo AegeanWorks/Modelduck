@@ -2497,11 +2497,6 @@ a:focus-visible {
   margin-top: 14px;
 }
 
-.tune-settings summary {
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-}
 
 .tune-settings-form {
   display: grid;
@@ -2721,16 +2716,7 @@ a:focus-visible {
   border-radius: 14px;
 }
 
-.benchmark-reports > summary {
-  cursor: pointer;
-}
 
-.benchmark-reports > summary small {
-  display: block;
-  margin-top: 2px;
-  color: var(--muted);
-  font-size: 12px;
-}
 
 .benchmark-show-old {
   margin: 12px 0;
@@ -2829,18 +2815,7 @@ button.tune-chip.running {
   margin-top: 14px;
 }
 
-.tune-runs > summary {
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-}
 
-.tune-runs > summary small {
-  display: block;
-  margin-top: 2px;
-  color: var(--muted);
-  font-weight: 400;
-}
 
 .tune-run-detail {
   margin-top: 12px;
@@ -2938,4 +2913,49 @@ button.tune-chip.running {
   margin-top: 12px;
   padding-top: 10px;
   border-top: 1px solid var(--line);
+}
+
+/* Tabs of the Tune & benchmark dialog */
+.bench-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.bench-tab {
+  position: relative;
+  padding: 8px 14px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.bench-tab:hover {
+  color: var(--text);
+}
+
+.bench-tab[aria-selected="true"] {
+  border-bottom-color: var(--accent);
+  color: var(--text);
+}
+
+.bench-tab-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: middle;
+}
+
+.bench-tab-dot[hidden] {
+  display: none;
 }
