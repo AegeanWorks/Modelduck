@@ -180,5 +180,19 @@
     "final_snapshot_digest": "",
     "final_snapshot_entries": 0,
     "surface_digest": "4d63d7095d9c433c92a62ff27a787c76b4a211ffe37eacf687fd713da74919a0"
+  },
+  {
+    "schema": 1,
+    "surface": "app",
+    "baseline_commit": "3a8c09f5848695b393fb87d6ce76baa645695407",
+    "contract_hash": "c6a291e913a9c8f174aadf7fb264b0941c55e9f4999a9a43152f1fb616845d11",
+    "started_at": 1793451518.335431,
+    "finished_at": 1793452215.0340595,
+    "strikes": 0,
+    "reviewer": "Claude (AI; headless Edge review: stage chips are buttons that run one stage for one model with force off and the boxes ignored, disabled with the running stage highlighted during a tune; no console errors; delegated by the user on 2026-10-31)",
+    "allowed_removals": [],
+    "final_snapshot_digest": "",
+    "final_snapshot_entries": 0,
+    "surface_digest": "567e18bc67baa3b5014da502c8127519998edd4efd6245ec4f22db591305d7ef"
   }
 ]

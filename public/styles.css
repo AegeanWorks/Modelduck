@@ -2779,3 +2779,26 @@ a:focus-visible {
   text-align: left;
   white-space: normal;
 }
+
+/* Stage chips are buttons: click one to run that stage for the model */
+button.tune-chip {
+  background: transparent;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+button.tune-chip:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+button.tune-chip:disabled {
+  cursor: default;
+}
+
+button.tune-chip.running {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+}

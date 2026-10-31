@@ -93,32 +93,32 @@ device. It is off by default so a missing driver never prevents chat from workin
   model from Hugging Face, checked against a pinned SHA-256 before use, with resumable `.part` downloads
   (starting a model that is already downloading reuses that download).
 - **Streaming chat** — token-by-token replies, stop, regenerate, copy, searchable
-  conversation history, and a local Markdown renderer (raw HTML is always escaped).
+  history, and a local Markdown renderer (raw HTML is always escaped).
 - **Model controls** - context size, CPU threads and thread pool, batch size,
   context sequences, GPU backend/layers, KV cache, checkpoint interval and max,
-  flash attention,
-  mmap, temperature, top-p/top-k/min-p, repeat penalty, max reply tokens, system
-  prompt, reasoning mode, context overflow, structured output and prompt repetition.
-  Settings live in `settings.json`.
+  flash attention, mmap, temperature, top-p/top-k/min-p, repeat penalty, max reply tokens, system
+  prompt, reasoning, context overflow, structured output and prompt repetition,
+  saved in `settings.json`.
 - **OpenAI-compatible API** — `GET /v1/models`, `GET /v1/models/:id`,
   `POST /v1/chat/completions` and `POST /v1/completions`, including SSE
   streaming, so local tools can use ModelDuck as a drop-in backend.
-- **Benchmark panel** - under the tuner, folded: run either phase, read quality,
-  speed and per-test rates; reports from older suites show only when asked.
+- **Benchmark panel** - folded under the tuner: run either phase, read per-test
+  rates; reports from older suites show only when asked.
 - **Settings tuner** - **Bench → Tune** finds the best settings for each installed
   model on this PC, in order: device (CPU or GPU, measured), quality load settings
   (context, KV cache), speed settings (threads, batch, flash, mmap; Fastest/Light
   presets), then sampling and system prompt for each task (chat, code, math, long
   context). A setting changes only on a significant paired gain; a model that
   cannot load stops the tune. Each finished step is saved and applied at once, so a
-  tune can stop anywhere; **Run all** tunes models side by side in CPU and GPU lanes. **Tune
+  tune can stop anywhere; a stage in a model's row runs just that stage again, and
+  **Run all** tunes models side by side in CPU and GPU lanes. **Tune
   settings** edits the values each setting is tried at and the lanes for this PC.
   In chat, the task picker chooses which tuned preset applies, and each answer
   shows what was applied; **Settings** has the tuned on/off switch
   and Fastest/Light. Tune with heavy programs closed: CPU timings swing with load,
   and a small model's CPU-or-GPU choice can flip with them.
-- **Small surface area** — Node's standard HTTP server and a vanilla UI. No build
-  step, no framework, no CDN, no account.
+- **Small surface area** — Node's HTTP server and a vanilla UI. No build step,
+  framework, CDN or account.
 - **AI benchmark gate** - two phases: model reload/quantization/KV-cache settings,
   then sampling/prompting settings, with test hashes so result changes are not
   confused with test edits.

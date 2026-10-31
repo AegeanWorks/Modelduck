@@ -2075,22 +2075,35 @@ const SETTING_GUIDE = {
 const STAGE_NAMES = { device: "Device", quality: "Quality", speed: "Speed", sampling: "Sampling", prompt: "Prompt" };
 
 /** One chip per stage: done, partly done or not yet, flagged when measured on an older test suite. */
-function tuneStageChips(stages, staleParts = []) {
+/**
+ * One button per stage: done, partly done or not yet, flagged when measured on an older
+ * test suite. Clicking one runs just that stage for the model, on top of its saved results.
+ */
+function tuneStageChips(stages, staleParts = [], { modelId = null, running = false, current = null } = {}) {
   const chips = document.createElement("div");
   chips.className = "tune-chips";
-  const add = (text, status, stale, title) => {
-    chips.appendChild(Object.assign(document.createElement("span"), { className: `tune-chip ${status}${stale ? " stale" : ""}`, textContent: text, title }));
+  const add = (stage, text, status, stale, title) => {
+    const chip = Object.assign(document.createElement("button"), {
+      type: "button",
+      className: `tune-chip ${status}${stale ? " stale" : ""}${current === stage ? " running" : ""}`,
+      textContent: text,
+      disabled: running || !modelId,
+      title: `${title}\n${status === "done" ? "Click to run it again" : "Click to run it"}; the other stages keep their saved results and later stages build on this one.`,
+    });
+    chip.dataset.tuneStage = stage;
+    chip.dataset.tuneStageModel = modelId ?? "";
+    chips.appendChild(chip);
   };
   for (const stage of ["device", "quality", "speed"]) {
     const status = stages?.[stage] ?? "pending";
     const stale = staleParts.includes(stage);
-    add(`${STAGE_NAMES[stage]} ${status === "done" ? "✓" : status === "partial" ? "…" : "–"}`, status, stale, `${STAGE_NAMES[stage]}: ${status}${stale ? ", measured on an older test suite" : ""}`);
+    add(stage, `${STAGE_NAMES[stage]} ${status === "done" ? "✓" : status === "partial" ? "…" : "–"}`, status, stale, `${STAGE_NAMES[stage]}: ${status}${stale ? ", measured on an older test suite" : ""}`);
   }
   for (const stage of ["sampling", "prompt"]) {
     const done = TUNE_TASKS.filter((task) => stages?.[stage]?.[task] === "done");
     const status = done.length === TUNE_TASKS.length ? "done" : done.length ? "partial" : "pending";
     const stale = staleParts.some((part) => part.startsWith(`${stage}:`));
-    add(`${STAGE_NAMES[stage]} ${done.length}/${TUNE_TASKS.length}`, status, stale, `${STAGE_NAMES[stage]} done for: ${done.map((task) => TASK_NAMES[task]).join(", ") || "no task yet"}`);
+    add(stage, `${STAGE_NAMES[stage]} ${done.length}/${TUNE_TASKS.length}`, status, stale, `${STAGE_NAMES[stage]} done for: ${done.map((task) => TASK_NAMES[task]).join(", ") || "no task yet"} (runs all four tasks)`);
   }
   return chips;
 }
@@ -2237,7 +2250,7 @@ function renderTuneModels() {
     const device = profile?.device?.settings;
     row.appendChild(tuneCell(device ? (device.gpuBackend === "cpu" ? "CPU" : `${device.gpuBackend} GPU`) : "–", profile?.device?.reason ?? ""));
     const progress = document.createElement("td");
-    progress.appendChild(tuneStageChips(profile?.stages, model.staleParts ?? []));
+    progress.appendChild(tuneStageChips(profile?.stages, model.staleParts ?? [], { modelId: model.id, running, current: item && running ? item.progress?.stage : null }));
     row.appendChild(progress);
     const rated = TUNE_TASKS.filter((task) => profile?.tasks?.[task]?.stats);
     row.appendChild(tuneCell(rated.map((task) => `${TASK_NAMES[task]} ${profile.tasks[task].stats.rate}%`).join(" · ") || "–"));
@@ -2330,11 +2343,12 @@ async function pollTune() {
   }
 }
 
-async function startTune(models, { force = false, forceStale = false } = {}) {
-  const settings = [...els.tuneOnly.querySelectorAll("input:checked")].map((input) => input.value);
+async function startTune(models, { force = false, forceStale = false, stage = null } = {}) {
+  // A stage button runs that one stage, whatever the boxes above say.
+  const settings = stage ? [] : [...els.tuneOnly.querySelectorAll("input:checked")].map((input) => input.value);
   const all = [...els.tuneStages.querySelectorAll("input[value]")].map((input) => input.value);
   // Chosen settings run wherever they belong, so they override the stage boxes.
-  const stages = settings.length ? all : [...els.tuneStages.querySelectorAll("input[value]:checked")].map((input) => input.value);
+  const stages = stage ? [stage] : settings.length ? all : [...els.tuneStages.querySelectorAll("input[value]:checked")].map((input) => input.value);
   if (!stages.length) {
     showToast("Choose at least one stage", { kind: "error" });
     return;
@@ -2342,7 +2356,7 @@ async function startTune(models, { force = false, forceStale = false } = {}) {
   // A part run measures its parts again on top of the saved rest; only a whole tune starts a stale profile over (ADR-040).
   const partRun = settings.length > 0 || stages.length < all.length;
   try {
-    const { job } = await request("/api/tune/start", { method: "POST", body: { models, stages, settings: settings.length ? settings : null, force: (force && !partRun) || els.tuneForce.checked, forceStale } });
+    const { job } = await request("/api/tune/start", { method: "POST", body: { models, stages, settings: settings.length ? settings : null, force: (force && !partRun) || (!stage && els.tuneForce.checked), forceStale } });
     state.tuneJob = job;
     renderTuneJob();
     startTunePolling();
@@ -2743,6 +2757,11 @@ function bindEvents() {
       renderTuneModels();
       const model = (state.tuneOverview ?? []).find((item) => item.id === id);
       if (model && state.tuneOpen.has(id) && !state.tuneSweeps.has(model.profileId)) void loadTuneSweeps(model);
+      return;
+    }
+    const stageButton = event.target.closest("[data-tune-stage]");
+    if (stageButton) {
+      void startTune([stageButton.dataset.tuneStageModel], { stage: stageButton.dataset.tuneStage });
       return;
     }
     const button = event.target.closest("[data-tune-model]");
