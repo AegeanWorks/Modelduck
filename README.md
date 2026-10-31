@@ -112,7 +112,7 @@ device. It is off by default so a missing driver never prevents chat from workin
   held-back questions, and a model that cannot load stops the tune. Each finished step is saved and applied at once, so a
   tune can stop anywhere; a stage in a row (or a task in Details) runs just that again, a table names
   each task's best model, and
-  **Run all** tunes models side by side in CPU and GPU lanes, showing time left;
+  **Run all** tunes models side by side in CPU and GPU lanes, shown live as they run;
   **Tune runs and statistics** keeps every run and answer; stopped runs can continue. **Tune
   settings** edits the values each setting is tried at and the lanes for this PC.
   In chat, the task picker picks the tuned preset and each answer shows it; **Settings** has the tuned on/off switch

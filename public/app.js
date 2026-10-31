@@ -105,6 +105,7 @@ const els = {
   tuneBest: $("tune-best"),
   tuneRuns: $("tune-runs"),
   tuneContinue: $("tune-continue"),
+  tuneLive: $("tune-live"),
   tuneRunsList: $("tune-runs-list"),
   tuneRunDetail: $("tune-run-detail"),
   tuneOnly: $("tune-only"),
@@ -2551,6 +2552,107 @@ function renderTuneJob() {
     els.tuneProgress.textContent = `${count("done") + count("skipped")} of ${job.items.length} models finished · ${count("running")} running · ${count("queued")} waiting${failed.length ? ` · failed: ${failed.join("; ")}` : ""}`;
   }
   renderTuneModels();
+  renderTuneLive(job);
+}
+
+/** One running model: its progress, the setting it tries now and what it decided (ADR-055). */
+function liveCard(item) {
+  const live = item.live ?? {};
+  const card = document.createElement("article");
+  card.className = "tune-live-card";
+  const where = item.progress?.stage ? ` · ${STAGE_NAMES[item.progress.stage] ?? item.progress.stage}${item.progress.task ? ` for ${TASK_NAMES[item.progress.task] ?? item.progress.task}` : ""}${item.progress.axis ? `: ${SETTING_GUIDE[item.progress.axis]?.[1] ?? item.progress.axis}` : ""}` : "";
+  card.appendChild(Object.assign(document.createElement("h5"), { textContent: `${item.name}${item.lane ? ` — ${item.lane.toUpperCase()} lane` : ""}${where}` }));
+  const bar = Object.assign(document.createElement("progress"), { max: live.expectedAnswers || 1, value: Math.min(live.answers ?? 0, live.expectedAnswers || 1) });
+  const counts = `${live.answers ?? 0}${live.expectedAnswers ? ` of up to ${live.expectedAnswers}` : ""} answers${live.eta ? ` · ${live.eta}` : ""}`;
+  card.append(bar, Object.assign(document.createElement("p"), { className: "tune-live-counts", textContent: counts }));
+  if (live.axis?.candidates?.length) {
+    // Speed settings are judged on time with identical answers; the rest on right answers.
+    const speed = live.axis.stage === "speed";
+    const best = speed
+      ? Math.min(...live.axis.candidates.map((candidate) => candidate.latencyMs ?? Infinity))
+      : Math.max(...live.axis.candidates.map((candidate) => candidate.rate ?? -1));
+    const table = document.createElement("table");
+    table.className = "benchmark-table";
+    const head = table.createTHead().insertRow();
+    for (const text of [`Trying now: ${SETTING_GUIDE[live.axis.axis]?.[1] ?? live.axis.axis}`, "Questions", "Right answers", "Time", "Tokens"]) head.appendChild(Object.assign(document.createElement("th"), { textContent: text }));
+    const body = table.createTBody();
+    for (const candidate of live.axis.candidates) {
+      const row = body.insertRow();
+      if ((speed ? candidate.latencyMs : candidate.rate) === best) row.className = "tune-live-best";
+      row.append(tuneCell(patchText(candidate.patch)), tuneCell(String(candidate.rung ?? "–")), tuneCell(`${candidate.rate ?? "–"}%`), tuneCell(candidate.latencyMs === null ? "–" : `${candidate.latencyMs} ms`), tuneCell(candidate.outputTokens === null ? "–" : String(candidate.outputTokens)));
+    }
+    card.appendChild(table);
+  }
+  if (live.decisions?.length) {
+    card.appendChild(Object.assign(document.createElement("h6"), { textContent: "Decided this run" }));
+    const list = document.createElement("ul");
+    list.className = "tune-live-decisions";
+    for (const decision of [...live.decisions].reverse().slice(0, 8)) {
+      const where = `${STAGE_NAMES[decision.stage] ?? decision.stage}${decision.task ? ` (${TASK_NAMES[decision.task] ?? decision.task})` : ""}`;
+      const what = `${SETTING_GUIDE[decision.axis]?.[1] ?? decision.axis}: ${patchText(decision.winner)}`;
+      const why = decision.kept ?? decision.reason ?? (decision.changed ? "changed" : "kept, nothing did better");
+      list.appendChild(Object.assign(document.createElement("li"), { textContent: `${where} · ${what} — ${why}` }));
+    }
+    card.appendChild(list);
+  }
+  return card;
+}
+
+function renderTuneLive(job) {
+  const running = job?.status === "running";
+  els.tuneLive.hidden = !running;
+  if (!running) return;
+  els.tuneLive.replaceChildren(Object.assign(document.createElement("h4"), { textContent: "Running now" }));
+  for (const item of job.items.filter((entry) => entry.status === "running")) els.tuneLive.appendChild(liveCard(item));
+  const others = job.items.filter((entry) => entry.status !== "running");
+  if (others.length) {
+    els.tuneLive.appendChild(Object.assign(document.createElement("h6"), { textContent: "Queue" }));
+    const list = document.createElement("ul");
+    list.className = "tune-live-queue";
+    for (const item of others) list.appendChild(Object.assign(document.createElement("li"), { textContent: `${item.name}: ${item.status}${item.error ? ` — ${item.error}` : ""}` }));
+    els.tuneLive.appendChild(list);
+  }
+}
+
+/** One job update, from the stream or a poll: show it, and refresh everything once the tune ends. */
+async function onTuneJob(job) {
+  state.tuneJob = job ?? null;
+  if (job?.status === "running") {
+    renderTuneJob();
+    return;
+  }
+  stopTuneLive();
+  await loadTuneOverview();
+  if (job?.status === "complete") showToast("Tuning finished", { message: "Tuned settings apply the next time each model loads.", kind: "success" });
+}
+
+/** Follow a running tune as it changes; polling every two seconds when the stream is not available. */
+function startTuneLive() {
+  if (state.tuneStream || state.tuneTimer) return;
+  if (typeof EventSource !== "function") {
+    startTunePolling();
+    return;
+  }
+  const stream = new EventSource("/api/tune/stream");
+  state.tuneStream = stream;
+  stream.addEventListener("message", (event) => {
+    try {
+      void onTuneJob(JSON.parse(event.data).job);
+    } catch (error) {
+      showError(error);
+    }
+  });
+  stream.addEventListener("error", () => {
+    // A LAN browser cannot send its key on a stream; polling carries it.
+    stopTuneLive();
+    if (els.benchmarkDialog.open) startTunePolling();
+  });
+}
+
+function stopTuneLive() {
+  state.tuneStream?.close();
+  state.tuneStream = null;
+  stopTunePolling();
 }
 
 function stopTunePolling() {
@@ -2572,7 +2674,7 @@ async function loadTuneOverview() {
   for (const model of state.tuneOverview.filter((item) => state.tuneOpen.has(item.id) && item.profile)) void loadTuneSweeps(model);
   state.tuneJob = status.job ?? null;
   renderTuneJob();
-  if (state.tuneJob?.status === "running") startTunePolling();
+  if (state.tuneJob?.status === "running") startTuneLive();
 }
 
 async function pollTune() {
@@ -2582,14 +2684,7 @@ async function pollTune() {
   }
   try {
     const { job } = await request("/api/tune/status");
-    state.tuneJob = job ?? null;
-    if (job?.status === "running") {
-      renderTuneJob();
-      return;
-    }
-    stopTunePolling();
-    await loadTuneOverview();
-    if (job?.status === "complete") showToast("Tuning finished", { message: "Tuned settings apply the next time each model loads.", kind: "success" });
+    await onTuneJob(job);
   } catch (error) {
     stopTunePolling();
     showError(error);
@@ -2612,7 +2707,7 @@ async function startTune(models, { force = false, forceStale = false, stage = nu
     const { job } = await request("/api/tune/start", { method: "POST", body: { models, ...(tasks && { tasks }), ...(continueRun && { continue: true }), stages, settings: settings.length ? settings : null, force: !continueRun && ((force && !partRun) || (!stage && els.tuneForce.checked)), forceStale } });
     state.tuneJob = job;
     renderTuneJob();
-    startTunePolling();
+    startTuneLive();
   } catch (error) {
     showError(error);
   }
@@ -3046,6 +3141,7 @@ function bindEvents() {
     if (button) void startTune([button.dataset.tuneModel], { force: button.dataset.tuneForce === "true" });
   });
   els.benchmarkDialog.addEventListener("close", stopBenchmarkPolling);
+  els.benchmarkDialog.addEventListener("close", stopTuneLive);
   $("theme-toggle").addEventListener("click", () => {
     state.theme = state.theme === "dark" ? "light" : "dark";
     applyTheme();

@@ -5,28 +5,12 @@
     "last_phase": "verification",
     "active_phase": 4,
     "status": "in_progress",
-    "updated_at": 1793473996.5128467,
+    "updated_at": 1793474278.661203,
     "owner": "claude-opus-5.5",
     "started_by": "claude-opus-5.5",
-    "continuations": [],
-    "impact_assessment": {
-      "why": "The user wants running tunes shown in real time with sections under the tuner",
-      "benefits": "A running tune shows its progress, what it tries and what it decides as it happens",
-      "risks": "contract: new GET /api/tune/stream and scheduler subscribe; dependency: none; concurrency: listeners per open page; state: none",
-      "mitigation": "Failing-first scheduler and server tests; polling fallback; ADR-055"
-    }
+    "continuations": []
   },
   "checkpoints": [
-    {
-      "task_id": "tune-ux-v2",
-      "phase": "completed",
-      "phase_num": 5,
-      "description": "Task 'tune-ux-v2' completed successfully.",
-      "status": "completed",
-      "timestamp": 1793456720.810866,
-      "timestamp_str": "2026-10-31 17:25:20",
-      "agent": "claude-opus-5.5"
-    },
     {
       "task_id": "tune-stats-v1",
       "phase": "planning",
@@ -261,6 +245,17 @@
         "risks": "contract: new GET /api/tune/stream and scheduler subscribe; dependency: none; concurrency: listeners per open page; state: none",
         "mitigation": "Failing-first scheduler and server tests; polling fallback; ADR-055"
       }
+    },
+    {
+      "task_id": "live-tune",
+      "phase": "verification",
+      "phase_num": 4,
+      "description": "Milestone 2 live panel in; tests pass, gate 4/4, Edge review with a stand-in stream; real end-to-end check after the baseline; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793474278.661203,
+      "timestamp_str": "2026-10-31 22:17:58",
+      "agent": "claude-opus-5.5"
     }
   ]
 }

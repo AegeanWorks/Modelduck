@@ -362,5 +362,19 @@
     "final_snapshot_digest": "",
     "final_snapshot_entries": 0,
     "surface_digest": "9fe89bc26fafd21a4add615089274392fd1d4cf9474e75ae1ed89a5533a37550"
+  },
+  {
+    "schema": 1,
+    "surface": "app",
+    "baseline_commit": "5fbb79917f167a7b5afcf6b7676b4cab88fe87a2",
+    "contract_hash": "c6a291e913a9c8f174aadf7fb264b0941c55e9f4999a9a43152f1fb616845d11",
+    "started_at": 1793474000.424428,
+    "finished_at": 1793474264.982588,
+    "strikes": 0,
+    "reviewer": "Claude (AI; headless Edge review of the live panel fed by a stand-in stream: per-model progress, time left, the values being tried with the best highlighted, decisions with reasons and the queue; no console errors; delegated by the user on 2026-11-01)",
+    "allowed_removals": [],
+    "final_snapshot_digest": "",
+    "final_snapshot_entries": 0,
+    "surface_digest": "940fbc817890b8f5a090aa0d2f27cc588d84d3d6fad41b0b79b287e820ee3bb0"
   }
 ]
