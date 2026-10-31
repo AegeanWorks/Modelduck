@@ -187,6 +187,7 @@ const PROGRESS = {
   runs: 10,
 };
 const withProgress = () => ({ ...profile(), progress: structuredClone(PROGRESS) });
+const profileWith = (progress) => ({ ...profile(), progress });
 
 test("choosing some stages measures them again on top of the saved rest, even when they are done or the profile is stale", () => {
   const stale = { profile: withProgress(), stale: ["suiteVersion"], warnings: ["changed"] };
@@ -235,4 +236,16 @@ test("a profile remembers the device each part was measured on and flags parts f
   assert.ok(!loaded.deviceParts.includes("device"));
   assert.match(loaded.warnings.at(-1), /measured on the vulkan GPU.*now on the CPU/i);
   assert.deepEqual(measuredOnAfter(null, TUNE.stages, [], "vulkan").quality, "vulkan", "a fresh tune measures everything on its device");
+});
+
+test("continuing a run measures only what is not done yet, even on a stale profile", () => {
+  // An interrupted prompt-only run: chat finished again, code was cleared and never reached.
+  const progress = structuredClone(PROGRESS);
+  progress.prompt = { chat: { status: "done", settings: { reasoning: "off" } } };
+  const profile = { ...profileWith(progress), stages: { ...TUNE.stages, prompt: { chat: "done" } } };
+  const stale = { profile, stale: ["suiteVersion"], warnings: ["changed"] };
+  const plan = planTune(stale, ["chat", "code"], ["prompt"], null, { continueRun: true });
+  assert.deepEqual(plan.rerun, [], "nothing finished is measured again");
+  assert.deepEqual(plan.resume.prompt, progress.prompt, "the finished part stays as it is");
+  assert.deepEqual(planTune(stale, ["chat"], ["prompt"], null, { continueRun: true }), { skip: true }, "nothing left to continue");
 });

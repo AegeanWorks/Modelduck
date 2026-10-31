@@ -1,60 +1,16 @@
 {
   "version": 1,
   "active_task": {
-    "task_id": "tune-stats-v1",
+    "task_id": "continue-v1",
     "last_phase": "verification",
     "active_phase": 4,
     "status": "in_progress",
-    "updated_at": 1793471566.525907,
+    "updated_at": 1793471846.9155571,
     "owner": "claude-opus-5.5",
     "started_by": "claude-opus-5.5",
     "continuations": []
   },
   "checkpoints": [
-    {
-      "task_id": "reasoning-steps",
-      "phase": "verification",
-      "phase_num": 4,
-      "description": "Reasoning steps off/deep; 310/310 tests; checklists: passed",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793447254.1990058,
-      "timestamp_str": "2026-10-31 14:47:34",
-      "agent": "claude-opus-5.5",
-      "impact_assessment": {
-        "why": "The user asked for reasoning to be tuned off and on; auto is only a nudge",
-        "benefits": "The tune compares no reasoning with a real think-first directive",
-        "risks": "contract: default reasoning steps change, saved grids keep theirs; dependency: none; concurrency: none; state: saved profiles keep their choice",
-        "mitigation": "Failing-first step test; ADR-041"
-      }
-    },
-    {
-      "task_id": "reasoning-steps",
-      "phase": "completed",
-      "phase_num": 5,
-      "description": "Task 'reasoning-steps' completed successfully.",
-      "status": "completed",
-      "timestamp": 1793447260.6771069,
-      "timestamp_str": "2026-10-31 14:47:40",
-      "agent": "claude-opus-5.5"
-    },
-    {
-      "task_id": "bench-ui-v1",
-      "phase": "planning",
-      "phase_num": 2,
-      "description": "[1/2] Tuner panel: intro, stage descriptions, grouped settings with help, stale reason, per-model details, part-run force fix; [2/2] reports collapsed, older suites optional, item tables folded, tile overlap fixed",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793447395.5162826,
-      "timestamp_str": "2026-10-31 14:49:55",
-      "agent": "claude-opus-5.5",
-      "impact_assessment": {
-        "why": "User review: the Bench section is crowded, lacks descriptions and details, and shows older statistics by default",
-        "benefits": "The tuner explains itself and shows each model's results; old reports stay out of the way until asked for",
-        "risks": "contract: tune overview adds staleParts; dependency: none; concurrency: none; state: none",
-        "mitigation": "UI tasks per milestone with headless Edge screenshots and console checks; existing UI tests"
-      }
-    },
     {
       "task_id": "bench-ui-v1",
       "phase": "verification",
@@ -260,6 +216,44 @@
       "status": "in_progress",
       "timestamp": 1793471566.525907,
       "timestamp_str": "2026-10-31 21:32:46",
+      "agent": "claude-opus-5.5"
+    },
+    {
+      "task_id": "tune-stats-v1",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'tune-stats-v1' completed successfully.",
+      "status": "completed",
+      "timestamp": 1793471580.7263286,
+      "timestamp_str": "2026-10-31 21:33:00",
+      "agent": "claude-opus-5.5"
+    },
+    {
+      "task_id": "continue-v1",
+      "phase": "planning",
+      "phase_num": 2,
+      "description": "[1/2] continue option in planner, CLI, scheduler and server, never forcing; [2/2] Continue where you left off section and Continue buttons on unfinished runs",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793471580.86741,
+      "timestamp_str": "2026-10-31 21:33:00",
+      "agent": "claude-opus-5.5",
+      "impact_assessment": {
+        "why": "The user wants to continue a stopped or interrupted run where it left off",
+        "benefits": "A stopped tune finishes without measuring finished parts again",
+        "risks": "contract: planTune gains continueRun, tune start accepts continue; dependency: none; concurrency: none; state: none",
+        "mitigation": "Failing-first tests; real interrupted run continued; ADR-051"
+      }
+    },
+    {
+      "task_id": "continue-v1",
+      "phase": "verification",
+      "phase_num": 4,
+      "description": "Milestone 1 continue option in; tests pass, gate 4/4, real continued run; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793471846.9155571,
+      "timestamp_str": "2026-10-31 21:37:26",
       "agent": "claude-opus-5.5"
     }
   ]

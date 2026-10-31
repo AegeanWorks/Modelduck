@@ -263,8 +263,15 @@ export function isPartRun(stages, only) {
   return Boolean(only?.length) || TUNE_STAGES.some((stage) => !(stages ?? TUNE_STAGES).includes(stage));
 }
 
-export function planTune(saved, tasks, stages = TUNE_STAGES, only = null) {
+export function planTune(saved, tasks, stages = TUNE_STAGES, only = null, { continueRun = false } = {}) {
   if (!saved) return { resume: null };
+  // Continuing a run measures what is not done yet in its stages and keeps what is,
+  // even on a stale profile (ADR-051); chosen settings always run again.
+  if (continueRun && saved.profile.progress) {
+    const pending = only?.length ? only : pendingWork(saved.profile, tasks, stages);
+    if (!pending.length) return { skip: true };
+    return { resume: { ...saved.profile.progress, sweeps: saved.profile.sweeps ?? [] }, rerun: [] };
+  }
   // Choosing some stages or settings measures those parts again on top of the saved rest,
   // even when they are done or the profile is stale (ADR-040); a partial stage resumes.
   if (isPartRun(stages, only) && saved.profile.progress) {

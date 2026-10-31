@@ -30,6 +30,7 @@ older test, runtime, CPU or model file is kept with a warning until --force.
   --home <folder>    data folder that receives profiles/<model>.json
   --models-dir <dir> models folder
   --events           JSON progress lines on stdout (used by the app)
+  --continue         finish an unfinished run: measure only what is not done yet
 `;
 
 function parseArgs(argv) {
@@ -45,6 +46,7 @@ function parseArgs(argv) {
     const arg = argv[index];
     if (arg === "--help" || arg === "-h") options.help = true;
     else if (arg === "--events") options.events = true;
+    else if (arg === "--continue") options.continueRun = true;
     else if (arg === "--force") options.force = true;
     else if (arg === "--interactive") options.interactive = true;
     else if (arg === "--grid") options.grid = take(index++, arg);
@@ -106,6 +108,7 @@ async function main() {
     only: options.only ?? null,
     steps,
     force: options.force,
+    continueRun: Boolean(options.continueRun),
     maxRuns: options.maxRuns,
     passes: options.passes,
     onStart: (plan) => {

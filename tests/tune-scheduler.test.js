@@ -165,6 +165,15 @@ test("a run of only some settings passes them to every tune", async () => {
   assert.deepEqual(runner.get().settings, ["contextSize", "threads"]);
 });
 
+test("a continued run asks every tune to continue, not to start over", async () => {
+  const spawn = spawner();
+  const runner = scheduler(spawn);
+  runner.start({ models: MODELS.slice(0, 1), stages: ["prompt"], continueRun: true });
+  await settle();
+  assert.ok(spawn.children[0].args.includes("--continue"));
+  assert.equal(spawn.children[0].args.includes("--force"), false);
+});
+
 test("force can be set per model, so only out-of-date profiles start over", async () => {
   const spawn = spawner();
   const runner = scheduler(spawn);

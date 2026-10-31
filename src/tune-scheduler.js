@@ -46,7 +46,7 @@ export class TuneScheduler {
   }
 
   /** Start tuning `models` ([{ id, fileName, profileId, name }]); resolves immediately with the job. */
-  start({ models, tasks = null, stages = null, settings = null, force = false }) {
+  start({ models, tasks = null, stages = null, settings = null, force = false, continueRun = false }) {
     if (this.#job?.status === "running") {
       throw new AppError("A tune is already running", {
         code: "tune_in_progress",
@@ -65,6 +65,7 @@ export class TuneScheduler {
       tasks: tasks?.length ? [...tasks] : null,
       settings: settings?.length ? [...settings] : null,
       force: Boolean(force),
+      continueRun: Boolean(continueRun),
       items: models.map((model) => ({
         profileId: model.profileId, name: model.name ?? model.profileId, fileName: model.fileName,
         lane: null, phase: null, status: "queued", progress: null, exitCode: null, error: null, log: [],
@@ -140,6 +141,7 @@ export class TuneScheduler {
       if (job.tasks) args.push("--tasks", job.tasks.join(","));
       if (job.settings) args.push("--settings", job.settings.join(","));
       if (force) args.push("--force");
+      if (job.continueRun) args.push("--continue");
       Object.assign(item, { phase, status: "running", progress: { type: "starting", stage: stages[0] }, exitCode: null });
       let child;
       try {

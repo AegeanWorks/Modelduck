@@ -522,7 +522,8 @@ export function createHttpServer({
       const stages = Array.isArray(body.stages) ? body.stages.map(String) : null;
       // forceStale starts over only where the saved profile was measured on another suite, runtime or machine,
       // and only for a whole tune: a part run re-measures its parts on top of the saved rest (ADR-040).
-      if (body.forceStale === true && profilesDir && !isPartRun(stages, only)) {
+      // Continuing never starts over: it finishes what the earlier run left (ADR-051).
+      if (body.forceStale === true && profilesDir && !isPartRun(stages, only) && body.continue !== true) {
         for (const model of models) {
           const entry = installed.find((item) => item.id === model.id);
           const saved = await loadProfile(profilesDir, model.profileId, await profileFingerprint(entry)).catch(() => null);
@@ -541,6 +542,7 @@ export function createHttpServer({
           stages,
           settings: only,
           force: body.force === true,
+          continueRun: body.continue === true,
         }),
       });
       return;
