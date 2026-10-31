@@ -29,6 +29,7 @@ export class TuneScheduler {
   #logger;
   #job = null;
   #children = new Set();
+  #listeners = new Set();
 
   constructor({ homeDir, modelsDir, profilesDir = null, tuneStepsFile = null, scriptPath = SCRIPT, spawnImpl = spawn, readLanes = null, readLane = null, logger = console }) {
     this.#homeDir = homeDir;
@@ -38,6 +39,22 @@ export class TuneScheduler {
     this.#readLanes = readLanes ?? (async () => (await readSteps(tuneStepsFile)).steps.lanes);
     this.#readLane = readLane ?? ((model) => laneFromProfile(profilesDir, model));
     this.#logger = logger;
+  }
+
+  /** Call `listener` after every change to the job; returns the function that stops it (ADR-055). */
+  subscribe(listener) {
+    this.#listeners.add(listener);
+    return () => this.#listeners.delete(listener);
+  }
+
+  #changed() {
+    for (const listener of this.#listeners) {
+      try {
+        listener();
+      } catch (error) {
+        this.#logger.warn?.(`[modelduck] Tune listener failed: ${error?.message ?? error}`);
+      }
+    }
   }
 
   get() {
@@ -68,7 +85,7 @@ export class TuneScheduler {
       continueRun: Boolean(continueRun),
       items: models.map((model) => ({
         profileId: model.profileId, name: model.name ?? model.profileId, fileName: model.fileName,
-        lane: null, phase: null, status: "queued", progress: null, exitCode: null, error: null, log: [],
+        lane: null, phase: null, status: "queued", progress: null, exitCode: null, error: null, log: [], live: emptyLive(),
       })),
     };
     const job = this.#job;
@@ -76,6 +93,7 @@ export class TuneScheduler {
       this.#logger.warn?.(`[modelduck] Tune scheduler failed: ${error?.message ?? error}`);
       this.#finish(job, "failed");
     });
+    this.#changed();
     return this.get();
   }
 
@@ -88,6 +106,7 @@ export class TuneScheduler {
     job.finishedAt = new Date().toISOString();
     for (const item of job.items) if (item.status === "queued" || item.status === "running") item.status = "cancelled";
     for (const child of this.#children) child.kill();
+    this.#changed();
     return this.get();
   }
 
@@ -143,6 +162,7 @@ export class TuneScheduler {
       if (force) args.push("--force");
       if (job.continueRun) args.push("--continue");
       Object.assign(item, { phase, status: "running", progress: { type: "starting", stage: stages[0] }, exitCode: null });
+      this.#changed();
       let child;
       try {
         child = this.#spawn(process.execPath, args, { cwd: path.dirname(this.#scriptPath), env: process.env, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
@@ -158,7 +178,9 @@ export class TuneScheduler {
         const event = parseEvent(line);
         if (!event) return pushLog(item, line);
         item.progress = event;
+        followLive(item.live, event);
         if (event.type === "complete" && event.skipped) skipped = true;
+        this.#changed();
       });
       createInterface({ input: child.stderr }).on("line", (line) => pushLog(item, line));
       let closed = false;
@@ -170,6 +192,7 @@ export class TuneScheduler {
         if (job.status === "cancelled") item.status = "cancelled";
         else if (code === 0) item.status = more ? "queued" : skipped ? "skipped" : "done";
         else Object.assign(item, { status: "failed", error: item.log.at(-1) ?? `The tune exited with code ${code}.` });
+        this.#changed();
         resolve();
       });
     });
@@ -179,6 +202,34 @@ export class TuneScheduler {
     if (job.finishedAt) return;
     job.status = status;
     job.finishedAt = new Date().toISOString();
+    this.#changed();
+  }
+}
+
+const KEPT_DECISIONS = 30;
+
+const emptyLive = () => ({ expectedAnswers: null, answers: 0, eta: null, axis: null, decisions: [] });
+
+/**
+ * What the Bench panel shows while a tune runs: answers so far against the expected
+ * count, the time left, the setting being tried with each value's latest round, and
+ * the decisions made so far (ADR-055).
+ */
+function followLive(live, event) {
+  if (Number.isFinite(event.runs)) live.answers = event.runs;
+  if (event.eta) live.eta = event.eta;
+  if (event.type === "estimate" && Number.isFinite(event.expectedAnswers)) live.expectedAnswers = event.expectedAnswers;
+  if (event.type === "tune-candidate") {
+    const key = `${event.stage}|${event.task ?? ""}|${event.axis}`;
+    if (live.axis?.key !== key) live.axis = { key, stage: event.stage, task: event.task ?? null, axis: event.axis, candidates: [] };
+    const candidate = { patch: event.patch, rung: event.rung, rate: event.rate, latencyMs: event.latencyMs ?? null, outputTokens: event.outputTokens ?? null };
+    const same = live.axis.candidates.findIndex((entry) => JSON.stringify(entry.patch) === JSON.stringify(event.patch));
+    if (same >= 0) live.axis.candidates[same] = candidate;
+    else live.axis.candidates.push(candidate);
+  }
+  if (event.type === "tune-sweep") {
+    live.decisions.push({ stage: event.stage, task: event.task ?? null, axis: event.axis, winner: event.winner, changed: Boolean(event.changed), kept: event.kept ?? null, reason: event.reason ?? null });
+    if (live.decisions.length > KEPT_DECISIONS) live.decisions.shift();
   }
 }
 

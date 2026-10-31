@@ -182,3 +182,53 @@ test("force can be set per model, so only out-of-date profiles start over", asyn
   const forced = spawn.children.map((child) => [value(child.args, "--model"), child.args.includes("--force")]);
   assert.deepEqual(forced, [["smol.gguf", true], ["qwen.gguf", false]]);
 });
+
+test("a running tune keeps a live summary of its answers, the setting it tries and what it decided", async () => {
+  const spawn = spawner();
+  const runner = scheduler(spawn);
+  let changes = 0;
+  const stop = runner.subscribe(() => { changes += 1; });
+  runner.start({ models: MODELS.slice(0, 1), stages: ["prompt"] });
+  await settle();
+  const child = spawn.children[0];
+  const line = (event) => child.stdout.write(`${JSON.stringify(event)}\n`);
+  line({ type: "estimate", expectedAnswers: 480 });
+  line({ type: "tune-candidate", stage: "prompt", task: "code", axis: "systemPrompt", rung: 12, patch: { systemPrompt: "A" }, rate: 50, latencyMs: 300, runs: 12, eta: "about 9 min left" });
+  line({ type: "tune-candidate", stage: "prompt", task: "code", axis: "systemPrompt", rung: 12, patch: { systemPrompt: "B" }, rate: 75, latencyMs: 320, runs: 24, eta: "about 8 min left" });
+  line({ type: "tune-candidate", stage: "prompt", task: "code", axis: "systemPrompt", rung: 48, patch: { systemPrompt: "B" }, rate: 80, latencyMs: 310, runs: 60, eta: "about 6 min left" });
+  line({ type: "tune-sweep", stage: "prompt", task: "code", axis: "systemPrompt", winner: { systemPrompt: "B" }, changed: true, runs: 60 });
+  line({ type: "tune-candidate", stage: "prompt", task: "code", axis: "reasoning", rung: 12, patch: { reasoning: "off" }, rate: 80, latencyMs: 300, runs: 72 });
+  await settle();
+  const live = runner.get().items[0].live;
+  assert.equal(live.expectedAnswers, 480);
+  assert.equal(live.answers, 72);
+  assert.equal(live.eta, "about 6 min left", "the latest time left is kept until a newer one comes");
+  assert.equal(live.axis.axis, "reasoning", "a new setting starts a new list of candidates");
+  assert.deepEqual(live.axis.candidates.map((candidate) => candidate.patch.reasoning), ["off"]);
+  assert.deepEqual(live.decisions.map((decision) => [decision.axis, decision.winner.systemPrompt, decision.changed]), [["systemPrompt", "B", true]]);
+  assert.ok(changes >= 6, `subscribers heard every change (${changes})`);
+  stop();
+  const before = changes;
+  line({ type: "tune-sweep", stage: "prompt", task: "code", axis: "reasoning", winner: { reasoning: "off" }, changed: false, runs: 80 });
+  await settle();
+  assert.equal(changes, before, "an unsubscribed listener hears nothing");
+  child.finish(0);
+  await settle();
+});
+
+test("a setting's candidate keeps only its latest round", async () => {
+  const spawn = spawner();
+  const runner = scheduler(spawn);
+  runner.start({ models: MODELS.slice(0, 1), stages: ["sampling"] });
+  await settle();
+  const child = spawn.children[0];
+  for (const [rung, rate] of [[12, 50], [24, 60]]) {
+    child.stdout.write(`${JSON.stringify({ type: "tune-candidate", stage: "sampling", task: "chat", axis: "temperature", rung, patch: { temperature: 0 }, rate, runs: rung })}\n`);
+  }
+  await settle();
+  const { candidates } = runner.get().items[0].live.axis;
+  assert.equal(candidates.length, 1);
+  assert.deepEqual([candidates[0].rung, candidates[0].rate], [24, 60]);
+  child.finish(0);
+  await settle();
+});

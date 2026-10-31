@@ -32,6 +32,10 @@ import { handleOpenAI } from "./openai.js";
 import { settingPresets } from "./config.js";
 import { systemInfo } from "./system.js";
 
+// Live tune updates: changes within this window go out together; a comment keeps idle connections open.
+const STREAM_BATCH_MS = 250;
+const STREAM_HEARTBEAT_MS = 15_000;
+
 const PUBLIC_DIR = fileURLToPath(new URL("../public", import.meta.url));
 const BENCHMARK_DIR = fileURLToPath(new URL("../benchmarks", import.meta.url));
 
@@ -482,6 +486,29 @@ export function createHttpServer({
       const stream = fs.createReadStream(answersFile(tuneRunsDir, id));
       stream.on("error", () => res.end());
       stream.pipe(res);
+      return;
+    }
+
+    // A running tune, pushed to the Bench panel as it changes (ADR-055).
+    if (pathname === "/api/tune/stream" && method === "GET") {
+      if (!tunes?.subscribe) throw new AppError("Tune scheduler unavailable", { status: 503 });
+      res.writeHead(200, { "content-type": "text/event-stream; charset=utf-8", "cache-control": "no-cache", connection: "keep-alive" });
+      const send = () => res.write(`data: ${JSON.stringify({ job: tunes.get() ?? null })}\n\n`);
+      send();
+      // Changes come in bursts (every answer); a quarter second is live enough.
+      let pending = null;
+      const stop = tunes.subscribe(() => {
+        pending ??= setTimeout(() => {
+          pending = null;
+          send();
+        }, STREAM_BATCH_MS);
+      });
+      const heartbeat = setInterval(() => res.write(`: keep-alive\n\n`), STREAM_HEARTBEAT_MS);
+      req.on("close", () => {
+        stop();
+        clearTimeout(pending);
+        clearInterval(heartbeat);
+      });
       return;
     }
 

@@ -1,28 +1,22 @@
 {
   "version": 1,
   "active_task": {
-    "task_id": "holdout-v1",
+    "task_id": "live-tune",
     "last_phase": "verification",
-    "active_phase": 5,
-    "status": "completed",
-    "updated_at": 1793473258.1577895,
+    "active_phase": 4,
+    "status": "in_progress",
+    "updated_at": 1793473996.5128467,
     "owner": "claude-opus-5.5",
     "started_by": "claude-opus-5.5",
     "continuations": [],
-    "completed_at": 1793473258.5978205
+    "impact_assessment": {
+      "why": "The user wants running tunes shown in real time with sections under the tuner",
+      "benefits": "A running tune shows its progress, what it tries and what it decides as it happens",
+      "risks": "contract: new GET /api/tune/stream and scheduler subscribe; dependency: none; concurrency: listeners per open page; state: none",
+      "mitigation": "Failing-first scheduler and server tests; polling fallback; ADR-055"
+    }
   },
   "checkpoints": [
-    {
-      "task_id": "tune-ux-v2",
-      "phase": "verification",
-      "phase_num": 4,
-      "description": "Milestone 2 row warnings and legacy control removal in; tests pass, gate 4/4, Edge review; checklists: passed",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793456399.7628062,
-      "timestamp_str": "2026-10-31 17:19:59",
-      "agent": "claude-opus-5.5"
-    },
     {
       "task_id": "tune-ux-v2",
       "phase": "completed",
@@ -250,6 +244,23 @@
       "timestamp": 1793473258.5978222,
       "timestamp_str": "2026-10-31 22:00:58",
       "agent": "claude-opus-5.5"
+    },
+    {
+      "task_id": "live-tune",
+      "phase": "verification",
+      "phase_num": 4,
+      "description": "[1/2] live summary and stream in; [2/2] live sections in the panel. Milestone 1: tests pass, gate 4/4; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793473996.5128467,
+      "timestamp_str": "2026-10-31 22:13:16",
+      "agent": "claude-opus-5.5",
+      "impact_assessment": {
+        "why": "The user wants running tunes shown in real time with sections under the tuner",
+        "benefits": "A running tune shows its progress, what it tries and what it decides as it happens",
+        "risks": "contract: new GET /api/tune/stream and scheduler subscribe; dependency: none; concurrency: listeners per open page; state: none",
+        "mitigation": "Failing-first scheduler and server tests; polling fallback; ADR-055"
+      }
     }
   ]
 }

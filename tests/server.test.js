@@ -769,3 +769,30 @@ test("tune runs are listed, opened with an answer summary, and their answers dow
   assert.equal((await fetch(`${harness.base}/api/tune/runs/..%2Fprofiles`)).status, 400);
   assert.equal((await fetch(`${harness.base}/api/tune/runs/2026-01-01T00-00-00-000Z-1`)).status, 404);
 });
+
+test("a tune is streamed live: the job at once, then each change, until the page goes away", async (t) => {
+  const listeners = new Set();
+  let job = { status: "running", items: [{ profileId: "qwen", live: { answers: 0 } }] };
+  const tunes = { start: () => job, cancel: () => job, get: () => job, subscribe: (listener) => (listeners.add(listener), () => listeners.delete(listener)) };
+  const harness = await makeHarness(t, { tunes });
+  const controller = new AbortController();
+  const response = await fetch(`${harness.base}/api/tune/stream`, { signal: controller.signal });
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("content-type"), /text\/event-stream/);
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let text = "";
+  const nextEvent = async () => {
+    while (!text.includes("\n\n")) text += decoder.decode((await reader.read()).value);
+    const [event, ...rest] = text.split("\n\n");
+    text = rest.join("\n\n");
+    return JSON.parse(event.replace(/^data: /, ""));
+  };
+  assert.equal((await nextEvent()).job.items[0].live.answers, 0, "the job as it is now");
+  job = { ...job, items: [{ profileId: "qwen", live: { answers: 12 } }] };
+  for (const listener of listeners) listener();
+  assert.equal((await nextEvent()).job.items[0].live.answers, 12, "the change, pushed");
+  controller.abort();
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.equal(listeners.size, 0, "a closed page stops listening");
+});
