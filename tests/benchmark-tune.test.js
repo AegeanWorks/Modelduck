@@ -604,3 +604,30 @@ test("a preset that also wins on held-back items is kept, with its honest gain",
   assert.equal(tasks.math.holdout.items, 8);
   assert.equal(tasks.math.holdout.vsDefault.rateDelta, 50, "8 of 8 against 4 of 8 on unseen items");
 });
+
+test("each task's result and its unseen check are broken down by question type", async () => {
+  const items = ids("math", 20);
+  const held = ids("hold", 8);
+  const { tasks } = await tune({
+    evaluate: async (settings, itemIds) => ({
+      prompts: itemIds.map((id) => {
+        const index = Number(id.split("-")[1]);
+        // "Other." helps the hard half (index 10+) and leaves the easy half as it is.
+        const passed = index < 10 || (settings.systemPrompt === "Other." && index < 18);
+        return { id, passed: passed ? 1 : 0, total: 1, ms: 10, outputTokens: 10, digest: id };
+      }),
+    }),
+    base: { ...BASE, temperature: 0 },
+    tasks: ["math"],
+    stages: ["sampling", "prompt"],
+    rungs: { ...RUNGS, math: [items], holdout: { math: held } },
+    typeOf: (id) => (Number(id.split("-")[1]) < 10 ? "easy" : "hard"),
+    hardware: { logicalCores: 12 },
+    ...AXES,
+    samplingAxes: () => [],
+    promptAxes: [{ name: "systemPrompt", patches: ["Be precise.", "Other."].map((systemPrompt) => ({ systemPrompt })), full: true }],
+    options: { seeds: [42], passes: 1 },
+  });
+  assert.deepEqual(tasks.math.stats.byType, { easy: { items: 10, right: 10, defaultRight: 10 }, hard: { items: 10, right: 8, defaultRight: 0 } });
+  assert.deepEqual(tasks.math.holdout.byType.easy, { items: 8, right: 8, defaultRight: 8 }, "held-back items 0-7 are all easy");
+});

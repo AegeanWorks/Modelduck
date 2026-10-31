@@ -1,44 +1,22 @@
 {
   "version": 1,
   "active_task": {
-    "task_id": "live-tune",
-    "last_phase": "verification",
-    "active_phase": 4,
+    "task_id": "bench-types",
+    "last_phase": "planning",
+    "active_phase": 2,
     "status": "in_progress",
-    "updated_at": 1793474278.661203,
+    "updated_at": 1793474894.3288946,
     "owner": "claude-opus-5.5",
     "started_by": "claude-opus-5.5",
-    "continuations": []
+    "continuations": [],
+    "impact_assessment": {
+      "why": "The benchmark is ModelDuck's difference; the user asked to separate the testing more and whether best results carry across tuning parts",
+      "benefits": "Which kind of question a setting helps or hurts is visible; a shared setting cannot quietly hurt one task; the suite is explained in the app",
+      "risks": "contract: task stats gain byType, quality sweeps gain perTask and may revert; new suite summary route; dependency: none; concurrency: none; state: profiles gain byType",
+      "mitigation": "Failing-first tests; Edge review; ADRs"
+    }
   },
   "checkpoints": [
-    {
-      "task_id": "tune-stats-v1",
-      "phase": "planning",
-      "phase_num": 2,
-      "description": "[1/3] prompt screening on 25% of items; [2/3] a saved record of every tune run with every answer; [3/3] a Statistics section listing runs with full details and raw download",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793457050.592626,
-      "timestamp_str": "2026-10-31 17:30:50",
-      "agent": "claude-opus-5.5",
-      "impact_assessment": {
-        "why": "The prompt stage is the costliest; the user wants every tune's data kept with detailed results",
-        "benefits": "About half the prompt-stage answers; a durable, inspectable history of every run",
-        "risks": "contract: full axes gain a screening rung; new tune-runs folder and API routes; dependency: none; concurrency: one writer per run file; state: run files grow with every run, never deleted automatically",
-        "mitigation": "Failing-first tests; atomic run-file writes; real runs; ADRs"
-      }
-    },
-    {
-      "task_id": "tune-stats-v1",
-      "phase": "verification",
-      "phase_num": 4,
-      "description": "Milestone 1 prompt screening in; tests pass, gate 4/4; checklists: passed",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793457088.2578228,
-      "timestamp_str": "2026-10-31 17:31:28",
-      "agent": "claude-opus-5.5"
-    },
     {
       "task_id": "tune-stats-v1",
       "phase": "verification",
@@ -255,6 +233,33 @@
       "status": "in_progress",
       "timestamp": 1793474278.661203,
       "timestamp_str": "2026-10-31 22:17:58",
+      "agent": "claude-opus-5.5"
+    },
+    {
+      "task_id": "bench-types",
+      "phase": "planning",
+      "phase_num": 2,
+      "description": "[1/3] results per question type for each task and its unseen check; [2/3] shared quality settings checked per task, reverting when one task loses; [3/3] a Benchmark tab describing the test suite",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793474894.3288946,
+      "timestamp_str": "2026-10-31 22:28:14",
+      "agent": "claude-opus-5.5",
+      "impact_assessment": {
+        "why": "The benchmark is ModelDuck's difference; the user asked to separate the testing more and whether best results carry across tuning parts",
+        "benefits": "Which kind of question a setting helps or hurts is visible; a shared setting cannot quietly hurt one task; the suite is explained in the app",
+        "risks": "contract: task stats gain byType, quality sweeps gain perTask and may revert; new suite summary route; dependency: none; concurrency: none; state: profiles gain byType",
+        "mitigation": "Failing-first tests; Edge review; ADRs"
+      }
+    },
+    {
+      "task_id": "live-tune",
+      "phase": "superseded",
+      "phase_num": 4,
+      "description": "Superseded by 'bench-types' without --complete or --reset",
+      "status": "superseded",
+      "timestamp": 1793474894.3288946,
+      "timestamp_str": "2026-10-31 22:28:14",
       "agent": "claude-opus-5.5"
     }
   ]

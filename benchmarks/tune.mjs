@@ -207,6 +207,8 @@ export async function tune({
   contextBudget = null,
   // (settings, seed, answers) for every newly measured answer.
   onAnswers = () => {},
+  // (itemId) => the item's question type, to break each task's result down (ADR-056).
+  typeOf = null,
   modelLayers = 0,
   qualityAxes = defaultQualityAxes(),
   speedAxes = defaultSpeedAxes(hardware),
@@ -221,7 +223,7 @@ export async function tune({
   const threadCap = hardware.logicalCores ? Math.max(1, Math.floor(hardware.logicalCores * 0.75)) : Infinity;
   const start = (base.threads ?? 0) > threadCap ? { ...base, threads: threadCap } : base;
   const state = resume ? { ...emptyProgress(), ...structuredClone(resume) } : emptyProgress();
-  const context = { options: settings, measurements: new Measurements(evaluate, settings.maxRuns, onAnswers), sweeps: state.sweeps, onEvent, stageBest: -Infinity, valid: isValidCombination, contextBudget };
+  const context = { options: settings, measurements: new Measurements(evaluate, settings.maxRuns, onAnswers), sweeps: state.sweeps, onEvent, stageBest: -Infinity, valid: isValidCombination, contextBudget, typeOf };
   const report = async () => {
     state.runs = (resume?.runs ?? 0) + context.measurements.runs;
     await onProgress(state);
@@ -355,6 +357,7 @@ async function holdoutCheck(context, final, untuned, items) {
     ci95: chosen.ci95,
     defaultRate: before.rate,
     vsDefault: { rateDelta: round(chosen.rate - before.rate), ...paired(before, chosen) },
+    ...byType(context, chosen, before, items),
     fellBack: chosen.rate < before.rate,
   };
 }
@@ -367,7 +370,24 @@ async function taskStats(context, final, untuned, items) {
   return {
     ...publicStats(chosen),
     vsDefault: before ? { rateDelta: round(chosen.rate - before.rate), ...paired(before, chosen) } : null,
+    ...byType(context, chosen, before, items),
   };
+}
+
+/**
+ * Right answers per question type, for the chosen settings and the defaults, so a setting
+ * that helps one kind of question and hurts another shows (ADR-056).
+ */
+function byType(context, chosen, before, items) {
+  if (!context.typeOf) return {};
+  const types = {};
+  for (const id of items) {
+    const entry = (types[context.typeOf(id) ?? "other"] ??= { items: 0, right: 0, defaultRight: 0 });
+    entry.items += 1;
+    if (chosen.majority.get(id)) entry.right += 1;
+    if (before?.majority.get(id)) entry.defaultRight += 1;
+  }
+  return { byType: types };
 }
 
 /**

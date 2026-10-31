@@ -11,7 +11,7 @@ import { systemInfo } from "../src/system.js";
 import { createTimingLock } from "../src/tune-lock.js";
 import { readSteps } from "../src/tune-steps.js";
 import { startRun } from "../src/tune-runs.js";
-import { SYSTEM_PROMPT } from "./suite.mjs";
+import { PROMPTS, SYSTEM_PROMPT } from "./suite.mjs";
 import { tuneRungs } from "./tasks.mjs";
 import { STAGES, resultFrom, tune } from "./tune.mjs";
 import { expectedAnswers, promptAxes, qualityAxes, samplingAxes, speedAxes } from "./tune-grid.mjs";
@@ -46,6 +46,8 @@ export async function withEngine(target, fn) {
     await engine.dispose().catch(() => {});
   }
 }
+
+const CATEGORY_OF = new Map(PROMPTS.map((prompt) => [prompt.id, prompt.category]));
 
 /** Where every tune starts and every gate measures from: app defaults, answering like the benchmark (suite system prompt, reasoning off). */
 export function tuneBase() {
@@ -132,6 +134,8 @@ export async function runTune(target, { tasks, stages = STAGES, only = null, ste
     return tune({
       evaluate,
       contextBudget,
+      // Question types, so each task's result is broken down (ADR-056).
+      typeOf: (id) => CATEGORY_OF.get(id) ?? null,
       timing: { acquire: () => lock.acquire(), release: () => lock.release() },
       base,
       tasks,
