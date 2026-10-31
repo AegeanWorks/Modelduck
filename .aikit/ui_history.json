@@ -250,5 +250,19 @@
     "final_snapshot_digest": "",
     "final_snapshot_entries": 0,
     "surface_digest": "4d08a617b78cbca6843724b6d95a29fec775cee360c9d7b6aadeed9eda5bd1e7"
+  },
+  {
+    "schema": 1,
+    "surface": "app",
+    "baseline_commit": "2284d3b8e71e464a759de051dacc9570962d18a2",
+    "contract_hash": "c6a291e913a9c8f174aadf7fb264b0941c55e9f4999a9a43152f1fb616845d11",
+    "started_at": 1793456414.471599,
+    "finished_at": 1793456628.7101417,
+    "strikes": 0,
+    "reviewer": "Claude (AI; headless Edge review with comparable scratch profiles: best model per task ranks current-suite models with ranges and runner-up; per-task Sampling and Prompt buttons send one stage for one task without force; no console errors; delegated by the user on 2026-10-31)",
+    "allowed_removals": [],
+    "final_snapshot_digest": "",
+    "final_snapshot_entries": 0,
+    "surface_digest": "b2025f4e8fe7cf565bea7d6d8b5159605d29217d8a51701c263c8ceb2e15fa0a"
   }
 ]

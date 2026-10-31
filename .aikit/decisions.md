@@ -364,3 +364,10 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
 - **Context**: A model row showed only its first warning, so a device change behind a suite change was visible only in Details. The benchmark gate still offered "Optimise one model" (ADR-026), a 17-variant reload sweep on the smoke set that the settings tuner now does per stage, with statistics.
 - **Decision**: The row shows each warning's first clause on its own line; "Measured before that" (which only explains the suite line) and "The tune's test items changed" (which always comes with a suite change) stay in Details. The "Optimise one model" selector and its code leave the panel; `npm run bench -- --model <id>` still runs the sweep from the command line, and saved single-model reports still display.
 - **Consequences**: Rows can be two or three lines taller when several things changed. The panel has one way to tune a model.
+
+### ADR-048: The tuner names the best model per task and runs one task's stage
+- **Date**: 2026-10-31
+- **Status**: Accepted
+- **Context**: Tuned profiles held each model's rate per task, but nothing compared models, and the Sampling and Prompt buttons always ran all four tasks.
+- **Decision**: Under the model table, "Best model per task on this PC" ranks the tuned models per task by rate (then the lower end of the 95% range), with the range, device and runner-up. Only models tuned on the current test suite are compared, since rates on other items are not comparable; when none is, the older best is shown and marked "older test suite". In a model's Details, each task has Sampling and Prompt buttons that run that stage for that task only (`tasks: [task]`), on top of the saved results.
+- **Consequences**: Until models are re-tuned on the current suite the table shows older results, marked; overlapping ranges mean the leaders may be equally good.

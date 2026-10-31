@@ -103,15 +103,16 @@ device. It is off by default so a missing driver never prevents chat from workin
   `POST /v1/chat/completions` and `POST /v1/completions`, including SSE
   streaming, so local tools can use ModelDuck as a drop-in backend.
 - **Benchmark panel** - folded under the tuner: run either phase, read per-test
-  rates; reports from older suites show only when asked.
+  rates; older-suite reports show only when asked.
 - **Settings tuner** - **Bench → Tune** finds the best settings for each installed
   model on this PC, in order: device (CPU or GPU, measured), context (largest that
   fits in free memory) and KV cache, speed settings (threads, batch, flash, mmap; Fastest/Light
   presets), then sampling and system prompt for each task (chat, code, math, long
   context). A setting changes only on a significant paired gain; a model that
   cannot load stops the tune. Each finished step is saved and applied at once, so a
-  tune can stop anywhere; a stage in a model's row runs just that stage again, and
-  **Run all** tunes models side by side in CPU and GPU lanes, each with its time left. **Tune
+  tune can stop anywhere; a stage in a row (or a task in Details) runs just that again, a table names
+  each task's best model, and
+  **Run all** tunes models side by side in CPU and GPU lanes, showing time left. **Tune
   settings** edits the values each setting is tried at and the lanes for this PC.
   In chat, the task picker chooses which tuned preset applies, and each answer
   shows what was applied; **Settings** has the tuned on/off switch

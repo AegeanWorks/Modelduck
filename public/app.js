@@ -102,6 +102,7 @@ const els = {
   tuneCancel: $("tune-cancel"),
   tuneProgress: $("tune-progress"),
   tuneModels: $("tune-models"),
+  tuneBest: $("tune-best"),
   tuneOnly: $("tune-only"),
   tuneSettings: $("tune-settings"),
   tuneSettingsForm: $("tune-settings-form"),
@@ -2110,18 +2111,27 @@ function tuneDetails(model) {
   const table = document.createElement("table");
   table.className = "benchmark-table";
   const head = table.createTHead().insertRow();
-  for (const label of ["Task", "Right answers", "95% range", "vs defaults", "Chosen settings"]) head.appendChild(Object.assign(document.createElement("th"), { textContent: label }));
+  for (const label of ["Task", "Right answers", "95% range", "vs defaults", "Chosen settings", "Run for this task"]) head.appendChild(Object.assign(document.createElement("th"), { textContent: label }));
   const body = table.createTBody();
   for (const task of TUNE_TASKS) {
     const preset = profile?.tasks?.[task];
     const stats = preset?.stats;
     const versus = stats?.vsDefault;
+    // Run one stage for just this task, on top of the saved results.
+    const run = document.createElement("td");
+    for (const stage of ["sampling", "prompt"]) {
+      const button = Object.assign(document.createElement("button"), { type: "button", className: "small-btn", textContent: STAGE_NAMES[stage], disabled: state.tuneJob?.status === "running" });
+      button.title = `Run the ${STAGE_NAMES[stage].toLowerCase()} stage for ${TASK_NAMES[task]} only; the other tasks and stages keep their results.`;
+      Object.assign(button.dataset, { tuneTaskStage: stage, tuneTask: task, tuneTaskModel: model.id });
+      run.append(button, " ");
+    }
     body.insertRow().append(
       tuneCell(TASK_NAMES[task]),
       tuneCell(stats ? `${stats.rate}%` : "not tuned"),
       tuneCell(stats?.ci95 ? `${stats.ci95.low}–${stats.ci95.high}%` : "–", "The true rate lies in this range with 95% confidence"),
       tuneCell(versus ? `${versus.rateDelta >= 0 ? "+" : ""}${versus.rateDelta} pts (p=${versus.pValue})` : "–", "Paired against the app defaults; p below 0.05 means the gain is unlikely to be chance"),
       tuneCell(Object.entries(preset?.settings ?? {}).map(([key, value]) => `${SETTING_GUIDE[key]?.[1] ?? key} ${shownValue(value)}`).join(" · ") || "defaults"),
+      run,
     );
   }
   box.appendChild(table);
@@ -2281,6 +2291,44 @@ function renderTuneModels() {
     }
   }
   els.tuneModels.appendChild(table);
+  renderTuneBest(models, repeated);
+}
+
+/**
+ * The best tuned model per task on this PC. Models are compared only on the current test
+ * suite, since rates on other items are not comparable; without one, the older best is
+ * shown and marked (ADR-048).
+ */
+function renderTuneBest(models, repeated) {
+  els.tuneBest.replaceChildren();
+  const label = (model) => (repeated.has(model.name) ? `${model.name} (${model.fileName})` : model.name);
+  const percent = (rate) => `${Number(Number(rate).toFixed(1))}%`;
+  const device = (model) => (model.profile?.load?.settings?.gpuBackend ?? "cpu") === "cpu" ? "CPU" : `${model.profile.load.settings.gpuBackend} GPU`;
+  const rated = (task) => models
+    .filter((model) => model.profile?.tasks?.[task]?.stats)
+    .map((model) => ({ model, stats: model.profile.tasks[task].stats, current: !model.stale?.length }))
+    .sort((left, right) => Number(right.current) - Number(left.current) || right.stats.rate - left.stats.rate || (right.stats.ci95?.low ?? 0) - (left.stats.ci95?.low ?? 0));
+  const rows = TUNE_TASKS.map((task) => [task, rated(task)]).filter(([, entries]) => entries.length);
+  if (!rows.length) return;
+  els.tuneBest.appendChild(Object.assign(document.createElement("h4"), { textContent: "Best model per task on this PC" }));
+  const table = document.createElement("table");
+  table.className = "benchmark-table";
+  const head = table.createTHead().insertRow();
+  for (const text of ["Task", "Best tuned model", "Right answers", "Device", "Next best"]) head.appendChild(Object.assign(document.createElement("th"), { textContent: text }));
+  const body = table.createTBody();
+  for (const [task, entries] of rows) {
+    const [best, next] = entries;
+    const range = best.stats.ci95 ? ` (${best.stats.ci95.low}–${best.stats.ci95.high}%)` : "";
+    const older = best.current ? "" : " · older test suite";
+    body.insertRow().append(
+      tuneCell(TASK_NAMES[task]),
+      tuneCell(`${label(best.model)}${older}`, best.current ? "" : "No model is tuned on the current test suite for this task yet; re-tune to compare fairly."),
+      tuneCell(`${percent(best.stats.rate)}${range}`, "The true rate lies in the range with 95% confidence; overlapping ranges mean the models may be equally good"),
+      tuneCell(device(best.model)),
+      tuneCell(next && next.current === best.current ? `${label(next.model)} ${percent(next.stats.rate)}` : "–"),
+    );
+  }
+  els.tuneBest.appendChild(table);
 }
 
 function renderTuneJob() {
@@ -2339,7 +2387,7 @@ async function pollTune() {
   }
 }
 
-async function startTune(models, { force = false, forceStale = false, stage = null } = {}) {
+async function startTune(models, { force = false, forceStale = false, stage = null, tasks = null } = {}) {
   // A stage button (one stage) or the re-run button (several) runs just those, whatever the boxes above say.
   const settings = stage ? [] : [...els.tuneOnly.querySelectorAll("input:checked")].map((input) => input.value);
   const all = [...els.tuneStages.querySelectorAll("input[value]")].map((input) => input.value);
@@ -2352,7 +2400,7 @@ async function startTune(models, { force = false, forceStale = false, stage = nu
   // A part run measures its parts again on top of the saved rest; only a whole tune starts a stale profile over (ADR-040).
   const partRun = settings.length > 0 || stages.length < all.length;
   try {
-    const { job } = await request("/api/tune/start", { method: "POST", body: { models, stages, settings: settings.length ? settings : null, force: (force && !partRun) || (!stage && els.tuneForce.checked), forceStale } });
+    const { job } = await request("/api/tune/start", { method: "POST", body: { models, ...(tasks && { tasks }), stages, settings: settings.length ? settings : null, force: (force && !partRun) || (!stage && els.tuneForce.checked), forceStale } });
     state.tuneJob = job;
     renderTuneJob();
     startTunePolling();
@@ -2752,6 +2800,11 @@ function bindEvents() {
       renderTuneModels();
       const model = (state.tuneOverview ?? []).find((item) => item.id === id);
       if (model && state.tuneOpen.has(id) && !state.tuneSweeps.has(model.profileId)) void loadTuneSweeps(model);
+      return;
+    }
+    const taskStage = event.target.closest("[data-tune-task-stage]");
+    if (taskStage) {
+      void startTune([taskStage.dataset.tuneTaskModel], { stage: taskStage.dataset.tuneTaskStage, tasks: [taskStage.dataset.tuneTask] });
       return;
     }
     const rerun = event.target.closest("[data-tune-rerun]");

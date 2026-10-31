@@ -2812,3 +2812,14 @@ button.tune-chip.running {
 .tune-rerun {
   margin-top: 6px;
 }
+
+/* Best tuned model per task, under the model table */
+.tune-best h4 {
+  margin: 14px 0 4px;
+  font-size: 13px;
+}
+
+.tune-best .benchmark-table th:last-child,
+.tune-best .benchmark-table td:last-child {
+  text-align: left;
+}
