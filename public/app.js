@@ -91,7 +91,6 @@ const els = {
   benchmarkBaseline: $("benchmark-baseline"),
   benchmarkDownload: $("benchmark-download"),
   benchmarkFull: $("benchmark-full"),
-  benchmarkModel: $("benchmark-model"),
   benchmarkStart: $("benchmark-start"),
   benchmarkCancel: $("benchmark-cancel"),
   benchmarkProgress: $("benchmark-progress"),
@@ -1874,7 +1873,7 @@ function renderRecommendations(advice, headerTitle = "Recommended configurations
     empty.className = "benchmark-empty";
     empty.textContent = advice?.available
       ? `Recommendations from the suite v${advice.suiteVersion} run are hidden with the other older reports.`
-      : "No configuration advice yet. Run the model phase, or pick a single model to sweep its settings.";
+      : "No configuration advice yet. Run the model phase.";
     els.benchmarkRecommendations.appendChild(empty);
     return;
   }
@@ -2003,9 +2002,6 @@ async function startBenchmark() {
         updateBaseline: els.benchmarkBaseline.checked,
         download: els.benchmarkDownload.checked,
         fullMatrix: els.benchmarkPhase.value === "model" && els.benchmarkFull.checked,
-        model: els.benchmarkPhase.value === "model" && els.benchmarkModel.value
-          ? els.benchmarkModel.value
-          : null,
       },
     });
     state.benchmarkJob = job;
@@ -2031,21 +2027,6 @@ async function cancelBenchmark() {
   } catch (error) {
     els.benchmarkCancel.disabled = false;
     showError(error);
-  }
-}
-
-function populateBenchmarkModels(models) {
-  if (!els.benchmarkModel || !Array.isArray(models)) return;
-  const previous = els.benchmarkModel.value;
-  while (els.benchmarkModel.options.length > 1) els.benchmarkModel.remove(1);
-  for (const model of models) {
-    const option = document.createElement("option");
-    option.value = model.catalogId;
-    option.textContent = `${model.label} · ${model.kind}`;
-    els.benchmarkModel.appendChild(option);
-  }
-  if ([...els.benchmarkModel.options].some((option) => option.value === previous)) {
-    els.benchmarkModel.value = previous;
   }
 }
 
@@ -2248,7 +2229,12 @@ function renderTuneModels() {
     const label = repeated.has(model.name) ? `${model.name} (${model.fileName})` : model.name;
     const nameCell = tuneCell(`${label}${live}`, model.fileName);
     // Say why a profile is out of date, not only that it is.
-    if (model.warnings.length) nameCell.appendChild(Object.assign(document.createElement("small"), { className: "tune-stale", textContent: `⚠ ${model.warnings[0].split(";")[0]}` }));
+    // Every reason, one short line each. "Measured before that" only explains the line above it, and a suite
+    // change always changes the test items too, so those stay in Details.
+    const suiteChanged = model.warnings.some((text) => text.startsWith("The test suite changed"));
+    for (const warning of model.warnings.filter((text) => !text.startsWith("Measured before that") && !(suiteChanged && text.startsWith("The tune's test items changed")))) {
+      nameCell.appendChild(Object.assign(document.createElement("small"), { className: "tune-stale", textContent: `⚠ ${warning.split(/[;:]/)[0]}`, title: warning }));
+    }
     row.appendChild(nameCell);
     const device = profile?.device?.settings;
     row.appendChild(tuneCell(device ? (device.gpuBackend === "cpu" ? "CPU" : `${device.gpuBackend} GPU`) : "–", profile?.device?.reason ?? ""));
@@ -2520,7 +2506,6 @@ async function openBenchmarks() {
       request("/api/benchmarks/status").catch(() => ({ job: null })),
     ]);
     renderBenchmarkReport(report);
-    populateBenchmarkModels(report.models);
     state.chatBase = report.chatBase ?? state.chatBase;
     renderChatBase(state.chatBase);
     renderRecommendations(report.recommendations, report.recommendationsTitle);
@@ -2781,11 +2766,6 @@ function bindEvents() {
     }
     const button = event.target.closest("[data-tune-model]");
     if (button) void startTune([button.dataset.tuneModel], { force: button.dataset.tuneForce === "true" });
-  });
-  els.benchmarkModel.addEventListener("change", () => {
-    const single = Boolean(els.benchmarkModel.value);
-    if (single) els.benchmarkFull.checked = false;
-    els.benchmarkFull.disabled = single;
   });
   els.benchmarkDialog.addEventListener("close", stopBenchmarkPolling);
   $("theme-toggle").addEventListener("click", () => {

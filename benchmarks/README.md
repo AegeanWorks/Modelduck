@@ -121,8 +121,8 @@ result (`items.byOrigin`) and on the Bench panel. The overall rate still include
 both; the split makes it visible when a score is driven by material a model may have
 seen during training.
 
-A single-model run (`--model <catalogId>` or the panel's **Optimise one model**
-selector) builds a 17-variant reload sweep for that model, runs it on the 16-item
+A single-model run (`--model <catalogId>`; in the app, the settings tuner does
+this job) builds a 17-variant reload sweep for that model, runs it on the 16-item
 smoke set, writes `results/latest-single-model.json`, and recommends its best
 settings. It is deliberately not baseline-eligible: `--update-baseline` is refused,
 so a quick optimisation can never shrink the shared gate.

@@ -357,3 +357,10 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
 - **Context**: The prompt stage tried reasoning off against deep (ADR-041) at the task's tuned answer length, often 512 tokens. A model told to think before answering can be cut off before it answers, so deep lost for lack of room rather than on merit.
 - **Decision**: An axis may `widen` a value on top of the current settings and name the further settings it changes in `extraKeys`. The reasoning axis tries every value other than off with an answer length of at least `REASONING_TOKENS` (1024), or the task's own length if larger, and the stored preset keeps that length, so a winning deep is not cut off in use. Temperature and answer length are already re-tuned against each other by the descent's second pass.
 - **Consequences**: Reasoning trials cost more tokens. A synthetic task that deep solves only with room now picks deep with 1024 tokens.
+
+### ADR-047: The Bench row lists every reason, and the single-model control leaves the panel
+- **Date**: 2026-10-31
+- **Status**: Accepted
+- **Context**: A model row showed only its first warning, so a device change behind a suite change was visible only in Details. The benchmark gate still offered "Optimise one model" (ADR-026), a 17-variant reload sweep on the smoke set that the settings tuner now does per stage, with statistics.
+- **Decision**: The row shows each warning's first clause on its own line; "Measured before that" (which only explains the suite line) and "The tune's test items changed" (which always comes with a suite change) stay in Details. The "Optimise one model" selector and its code leave the panel; `npm run bench -- --model <id>` still runs the sweep from the command line, and saved single-model reports still display.
+- **Consequences**: Rows can be two or three lines taller when several things changed. The panel has one way to tune a model.

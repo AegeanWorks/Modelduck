@@ -236,5 +236,19 @@
     "final_snapshot_digest": "",
     "final_snapshot_entries": 0,
     "surface_digest": "45863349f048e71d8b6fc48d23cd38c6eefd002dd7f8a2841c932d970834c5b8"
+  },
+  {
+    "schema": 1,
+    "surface": "app",
+    "baseline_commit": "d05c51f5bf1336895fa92cdc36fc90d0b25d26f3",
+    "contract_hash": "c6a291e913a9c8f174aadf7fb264b0941c55e9f4999a9a43152f1fb616845d11",
+    "started_at": 1793454175.0904894,
+    "finished_at": 1793456393.9250517,
+    "strikes": 0,
+    "reviewer": "Claude (AI; headless Edge review: each model row lists every distinct reason it is out of date, device changes included; the old Optimise one model control is gone from the benchmark gate; no console errors; delegated by the user on 2026-10-31)",
+    "allowed_removals": [],
+    "final_snapshot_digest": "",
+    "final_snapshot_entries": 0,
+    "surface_digest": "4d08a617b78cbca6843724b6d95a29fec775cee360c9d7b6aadeed9eda5bd1e7"
   }
 ]

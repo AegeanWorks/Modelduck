@@ -171,8 +171,8 @@ measured model, quantization, KV cache, context and reload settings. `--base-var
 <variantId>` uses one for a single run without saving it. With no selection, the
 chat phase uses Qwen2.5 0.5B Q4 at its default settings.
 
-`npm run bench -- --model <catalogId>` (or **Optimise one model** in the Bench
-panel) sweeps 17 reload settings for that model on the 16-item smoke set, writes
+`npm run bench -- --model <catalogId>` (the tuner replaces it in the Bench panel)
+sweeps 17 reload settings for that model on the 16-item smoke set, writes
 `results/latest-single-model.json`, and recommends the best quality, overall,
 coding and speed-within-budget configuration for that model. It records history
 but never reads, compares or replaces the shared baseline; `--update-baseline` is

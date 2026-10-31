@@ -5,29 +5,12 @@
     "last_phase": "verification",
     "active_phase": 4,
     "status": "in_progress",
-    "updated_at": 1793454147.394639,
+    "updated_at": 1793456399.7628062,
     "owner": "claude-opus-5.5",
     "started_by": "claude-opus-5.5",
     "continuations": []
   },
   "checkpoints": [
-    {
-      "task_id": "suite-v11",
-      "phase": "planning",
-      "phase_num": 2,
-      "description": "[1/1] Suite v11 adds 12 items on three larger codebases (ledger, orders, markdown)",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793446749.971457,
-      "timestamp_str": "2026-10-31 14:39:09",
-      "agent": "claude-opus-5.5",
-      "impact_assessment": {
-        "why": "The user wants a coder that works well in complex codebases; v10 had only 12 codebase items on small projects",
-        "benefits": "24 codebase items across six projects, larger ones with six or seven files",
-        "risks": "contract: SUITE_VERSION 11 marks saved profiles stale with a warning; dependency: none; concurrency: none; state: code task grows to 112 items",
-        "mitigation": "References, shipped-bug failures and culprit probes verified in tests; ADR-039"
-      }
-    },
     {
       "task_id": "suite-v11",
       "phase": "verification",
@@ -265,6 +248,17 @@
       "status": "in_progress",
       "timestamp": 1793454147.394639,
       "timestamp_str": "2026-10-31 16:42:27",
+      "agent": "claude-opus-5.5"
+    },
+    {
+      "task_id": "tune-ux-v2",
+      "phase": "verification",
+      "phase_num": 4,
+      "description": "Milestone 2 row warnings and legacy control removal in; tests pass, gate 4/4, Edge review; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793456399.7628062,
+      "timestamp_str": "2026-10-31 17:19:59",
       "agent": "claude-opus-5.5"
     }
   ]
