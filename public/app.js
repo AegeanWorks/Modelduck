@@ -84,6 +84,7 @@ const els = {
   serverKeyValue: $("server-key-value"),
   benchmarkDialog: $("benchmark-dialog"),
   benchmarkPhases: $("benchmark-phases"),
+  benchmarkShowOld: $("benchmark-show-old"),
   benchmarkRecommendations: $("benchmark-recommendations"),
   benchmarkRunState: $("benchmark-run-state"),
   benchmarkPhase: $("benchmark-phase"),
@@ -1582,7 +1583,14 @@ function renderCategoryTable(items) {
   return section;
 }
 
+/** True when a report was measured on an older test suite than this app's and older ones are hidden. */
+function hiddenAsOlder(suiteVersion) {
+  const current = state.benchmarkReport?.currentSuiteVersion;
+  return Boolean(current && Number(suiteVersion) < current && !els.benchmarkShowOld.checked);
+}
+
 function renderBenchmarkReport(data) {
+  state.benchmarkReport = data;
   els.benchmarkPhases.replaceChildren();
   if (!data.available) {
     const empty = document.createElement("p");
@@ -1592,7 +1600,14 @@ function renderBenchmarkReport(data) {
     els.benchmarkPhases.appendChild(empty);
     return;
   }
-  for (const phase of data.phases) {
+  const hidden = data.phases.filter((phase) => hiddenAsOlder(phase.suiteVersion));
+  if (hidden.length) {
+    const note = document.createElement("p");
+    note.className = "benchmark-empty";
+    note.textContent = `${hidden.length} report${hidden.length === 1 ? " was" : "s were"} measured on an older test suite (v${hidden.map((phase) => phase.suiteVersion).join(", v")}; now v${data.currentSuiteVersion}) and ${hidden.length === 1 ? "is" : "are"} hidden. Tick "Show reports measured on older test suites" to see them.`;
+    els.benchmarkPhases.appendChild(note);
+  }
+  for (const phase of data.phases.filter((item) => !hidden.includes(item))) {
     const card = document.createElement("section");
     card.className = "benchmark-card";
     const head = document.createElement("div");
@@ -1616,16 +1631,16 @@ function renderBenchmarkReport(data) {
     metrics.append(
       benchmarkMetric("quality", `${Number(phase.quality).toFixed(1)}%`),
       ...(phase.items
-        ? [benchmarkMetric("items passed", `${phase.items.rate}%${phase.items.ci95 ? ` (95% CI ${phase.items.ci95.low}-${phase.items.ci95.high})` : ""}`)]
+        ? [benchmarkMetric(`items passed${phase.items.ci95 ? ` · 95% CI ${phase.items.ci95.low}-${phase.items.ci95.high}` : ""}`, `${phase.items.rate}%`)]
         : []),
       benchmarkMetric("speed", `${Number(phase.tokensPerSecond).toFixed(1)} tok/s`),
       benchmarkMetric("runtime", `${(Number(phase.runtimeMs) / 1000).toFixed(1)}s`),
       benchmarkMetric("first token", `${Number(phase.firstTokenMs)} ms`),
       ...(phase.items?.byOrigin?.own
-        ? [benchmarkMetric("own questions", `${phase.items.byOrigin.own.rate}% (${phase.items.byOrigin.own.passed}/${phase.items.byOrigin.own.total})`)]
+        ? [benchmarkMetric(`own questions · ${phase.items.byOrigin.own.passed}/${phase.items.byOrigin.own.total}`, `${phase.items.byOrigin.own.rate}%`)]
         : []),
       ...(phase.items?.byOrigin?.public
-        ? [benchmarkMetric("public benchmarks", `${phase.items.byOrigin.public.rate}% (${phase.items.byOrigin.public.passed}/${phase.items.byOrigin.public.total})`)]
+        ? [benchmarkMetric(`public benchmarks · ${phase.items.byOrigin.public.passed}/${phase.items.byOrigin.public.total}`, `${phase.items.byOrigin.public.rate}%`)]
         : []),
     );
 
@@ -1672,7 +1687,10 @@ function renderBenchmarkReport(data) {
       : "Not linked to a commit yet";
     const types = renderCategoryTable(phase.items);
     const datasets = renderDatasetTable(phase.items);
-    card.append(head, metrics, ...(types ? [types] : []), ...(datasets ? [datasets] : []), table, commit);
+    const items = document.createElement("details");
+    items.className = "benchmark-items";
+    items.append(Object.assign(document.createElement("summary"), { textContent: `Every item (${phase.tests.length})` }), table);
+    card.append(head, metrics, ...(types ? [types] : []), ...(datasets ? [datasets] : []), items, commit);
     els.benchmarkPhases.appendChild(card);
   }
 
@@ -1849,11 +1867,13 @@ async function selectChatBaseForChat(item) {
 function renderRecommendations(advice, headerTitle = "Recommended configurations") {
   if (!els.benchmarkRecommendations) return;
   els.benchmarkRecommendations.replaceChildren();
-  if (!advice?.available) {
+  state.benchmarkAdvice = { advice, headerTitle };
+  if (!advice?.available || hiddenAsOlder(advice.suiteVersion)) {
     const empty = document.createElement("p");
     empty.className = "benchmark-empty";
-    empty.textContent =
-      "No configuration advice yet. Run the model phase, or pick a single model to sweep its settings.";
+    empty.textContent = advice?.available
+      ? `Recommendations from the suite v${advice.suiteVersion} run are hidden with the other older reports.`
+      : "No configuration advice yet. Run the model phase, or pick a single model to sweep its settings.";
     els.benchmarkRecommendations.appendChild(empty);
     return;
   }
@@ -2644,6 +2664,10 @@ function bindEvents() {
   els.tuneSettingsSave.addEventListener("click", () => void saveTuneSettings(readTuneSettings()));
   els.tuneSettingsReset.addEventListener("click", () => {
     if (state.tuneDefaults) void saveTuneSettings(state.tuneDefaults);
+  });
+  els.benchmarkShowOld.addEventListener("change", () => {
+    if (state.benchmarkReport) renderBenchmarkReport(state.benchmarkReport);
+    if (state.benchmarkAdvice) renderRecommendations(state.benchmarkAdvice.advice, state.benchmarkAdvice.headerTitle);
   });
   els.tuneModels.addEventListener("click", (event) => {
     const details = event.target.closest("[data-tune-details]");

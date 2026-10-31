@@ -152,5 +152,19 @@
     "final_snapshot_digest": "",
     "final_snapshot_entries": 0,
     "surface_digest": "c97a541c09ab87459d0fe3574707a2efb4b93872b3f45a272eda83c8ecd4eb2b"
+  },
+  {
+    "schema": 1,
+    "surface": "app",
+    "baseline_commit": "9f2602c468944f6ecc3d971fa132becc7616cb91",
+    "contract_hash": "c6a291e913a9c8f174aadf7fb264b0941c55e9f4999a9a43152f1fb616845d11",
+    "started_at": 1793450296.3563485,
+    "finished_at": 1793450509.2514253,
+    "strikes": 3,
+    "reviewer": "Claude (AI; headless Edge review: reports fold under the tuner, older-suite reports and recommendations hidden until asked, item lists folded, metric tiles no longer overlap; no console errors; delegated by the user on 2026-10-31)",
+    "allowed_removals": [],
+    "final_snapshot_digest": "",
+    "final_snapshot_entries": 0,
+    "surface_digest": "1083c13bc5b59c3eae1d8c39dc2570a5d2b82308409f53ab23efeba9faef628f"
   }
 ]

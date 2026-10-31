@@ -2712,3 +2712,40 @@ a:focus-visible {
 .tune-details .benchmark-table td:last-child {
   white-space: normal;
 }
+
+/* Benchmark gate and older reports fold away under the tuner */
+.benchmark-reports {
+  margin-top: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.benchmark-reports > summary {
+  cursor: pointer;
+}
+
+.benchmark-reports > summary small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.benchmark-show-old {
+  margin: 12px 0;
+}
+
+.benchmark-items {
+  margin-top: 10px;
+}
+
+.benchmark-items summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.benchmark-metric small {
+  overflow-wrap: anywhere;
+}

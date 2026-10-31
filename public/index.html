@@ -505,6 +505,15 @@
             <p class="benchmark-progress" id="tune-settings-note">Lists are comma-separated. Values outside what the app accepts are dropped and listed here.</p>
           </details>
         </section>
+        <details class="benchmark-reports" id="benchmark-reports">
+          <summary>
+            <strong>Benchmark gate and reports</strong>
+            <small>The full benchmark run and the statistics of earlier runs. Not needed for tuning.</small>
+          </summary>
+          <label class="check benchmark-show-old">
+            <input id="benchmark-show-old" type="checkbox" />
+            <span>Show reports measured on older test suites</span>
+          </label>
         <section class="benchmark-run">
           <div class="benchmark-head">
             <div>
@@ -556,6 +565,7 @@
           when it finishes. Recommendations only fill the settings form; nothing is
           applied until you save and reload the model.
         </p>
+        </details>
       </div>
       <div class="dialog-actions">
         <button class="small-btn" type="button" data-close-dialog="benchmark-dialog">Close</button>

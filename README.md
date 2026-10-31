@@ -103,9 +103,8 @@ device. It is off by default so a missing driver never prevents chat from workin
 - **OpenAI-compatible API** — `GET /v1/models`, `GET /v1/models/:id`,
   `POST /v1/chat/completions` and `POST /v1/completions`, including SSE
   streaming, so local tools can use ModelDuck as a drop-in backend.
-- **Benchmark panel** - run either phase with live progress, and read quality,
-  speed, per-test pass rates, the test hash and linked commit; recommendation
-  cards fill the settings form or set the chat-phase base.
+- **Benchmark panel** - under the tuner, folded: run either phase, read quality,
+  speed and per-test rates; reports from older suites show only when asked.
 - **Settings tuner** - **Bench → Tune** finds the best settings for each installed
   model on this PC, in order: device (CPU or GPU, measured), quality load settings
   (context, KV cache), speed settings (threads, batch, flash, mmap; Fastest and Light

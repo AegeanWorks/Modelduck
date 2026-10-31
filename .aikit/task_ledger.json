@@ -5,29 +5,12 @@
     "last_phase": "verification",
     "active_phase": 4,
     "status": "in_progress",
-    "updated_at": 1793450236.7178235,
+    "updated_at": 1793450448.9906433,
     "owner": "claude-opus-5.5",
     "started_by": "claude-opus-5.5",
     "continuations": []
   },
   "checkpoints": [
-    {
-      "task_id": "directive-prompts-v1",
-      "phase": "planning",
-      "phase_num": 2,
-      "description": "[1/1] Replace the default thinking prompts with one-sentence directive prompts in the prompt stage",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793440951.3519282,
-      "timestamp_str": "2026-10-31 13:02:31",
-      "agent": "claude-opus-5.5",
-      "impact_assessment": {
-        "why": "Coder 1.5B tune: none of the 21 thinking prompts beat the format-directive baseline; the user asked for directive-style prompts",
-        "benefits": "The prompt stage tries instructions small models can act on",
-        "risks": "contract: default prompt step list changes, saved tune-grid.json files keep their own lists; dependency: none; concurrency: none; state: existing profiles keep their chosen prompt",
-        "mitigation": "THINKING_PROMPTS stays exported; tests pin the new list; ADR-036 records it"
-      }
-    },
     {
       "task_id": "directive-prompts-v1",
       "phase": "verification",
@@ -265,6 +248,17 @@
       "status": "in_progress",
       "timestamp": 1793450236.7178235,
       "timestamp_str": "2026-10-31 15:37:16",
+      "agent": "claude-opus-5.5"
+    },
+    {
+      "task_id": "bench-ui-v1",
+      "phase": "verification",
+      "phase_num": 4,
+      "description": "Milestone 2 reports folded; 311/311 tests, gate 4/4, Edge review; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793450448.9906433,
+      "timestamp_str": "2026-10-31 15:40:48",
       "agent": "claude-opus-5.5"
     }
   ]
