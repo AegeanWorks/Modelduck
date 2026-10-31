@@ -5,23 +5,12 @@
     "last_phase": "verification",
     "active_phase": 4,
     "status": "in_progress",
-    "updated_at": 1793471846.9155571,
+    "updated_at": 1793472030.5301423,
     "owner": "claude-opus-5.5",
     "started_by": "claude-opus-5.5",
     "continuations": []
   },
   "checkpoints": [
-    {
-      "task_id": "bench-ui-v1",
-      "phase": "verification",
-      "phase_num": 4,
-      "description": "Milestone 1 tuner panel in; 310/310 tests, gate 4/4, Edge review; checklists: passed",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793450236.7178235,
-      "timestamp_str": "2026-10-31 15:37:16",
-      "agent": "claude-opus-5.5"
-    },
     {
       "task_id": "bench-ui-v1",
       "phase": "verification",
@@ -254,6 +243,17 @@
       "status": "in_progress",
       "timestamp": 1793471846.9155571,
       "timestamp_str": "2026-10-31 21:37:26",
+      "agent": "claude-opus-5.5"
+    },
+    {
+      "task_id": "continue-v1",
+      "phase": "verification",
+      "phase_num": 4,
+      "description": "Milestone 2 Continue section in; tests pass, gate 4/4, Edge review with a real interrupted run; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793472030.5301423,
+      "timestamp_str": "2026-10-31 21:40:30",
       "agent": "claude-opus-5.5"
     }
   ]

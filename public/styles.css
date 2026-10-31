@@ -2864,3 +2864,14 @@ button.tune-chip.running {
   margin-top: 8px;
   color: var(--accent);
 }
+
+/* Unfinished runs that can be continued */
+.tune-continue h4 {
+  margin: 10px 0 4px;
+  font-size: 13px;
+}
+
+.tune-continue p {
+  margin: 4px 0;
+  font-size: 12.5px;
+}

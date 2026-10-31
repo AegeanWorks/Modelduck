@@ -306,5 +306,19 @@
     "final_snapshot_digest": "",
     "final_snapshot_entries": 0,
     "surface_digest": "72a529a32d27c7649031fae9d1df1210b7cc998459e452e323f9bac45a1df657"
+  },
+  {
+    "schema": 1,
+    "surface": "app",
+    "baseline_commit": "46cba2f7f962b4c0390cfe348cc29b01c80412ed",
+    "contract_hash": "c6a291e913a9c8f174aadf7fb264b0941c55e9f4999a9a43152f1fb616845d11",
+    "started_at": 1793471850.2511008,
+    "finished_at": 1793471999.0595949,
+    "strikes": 0,
+    "reviewer": "Claude (AI; headless Edge review with a real interrupted SmolLM2 run: Continue where you left off lists it with parts left, and Continue sends the same stage and task with continue and no force; no console errors; delegated by the user on 2026-10-31)",
+    "allowed_removals": [],
+    "final_snapshot_digest": "",
+    "final_snapshot_entries": 0,
+    "surface_digest": "34ba425f49e200a10d8eded197e074a31671ba03cfd7faef340ddb3b8458a246"
   }
 ]

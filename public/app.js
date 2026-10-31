@@ -104,6 +104,7 @@ const els = {
   tuneModels: $("tune-models"),
   tuneBest: $("tune-best"),
   tuneRuns: $("tune-runs"),
+  tuneContinue: $("tune-continue"),
   tuneRunsList: $("tune-runs-list"),
   tuneRunDetail: $("tune-run-detail"),
   tuneOnly: $("tune-only"),
@@ -2212,14 +2213,72 @@ function runRequestText(request = {}) {
   return parts.filter(Boolean).join(" ");
 }
 
-/** Every saved tune run, newest first (ADR-050). */
+/** Every saved tune run, newest first (ADR-050): feeds the continue section and, when open, the run list. */
 async function loadTuneRuns() {
   try {
     const { runs } = await request("/api/tune/runs");
-    renderTuneRuns(runs ?? []);
+    state.tuneRuns = runs ?? [];
+    renderTuneContinue();
+    if (els.tuneRuns.open) renderTuneRuns(state.tuneRuns);
   } catch (error) {
     showError(error);
   }
+}
+
+/** How many parts of a run's request are still not done for its model. */
+function partsLeft(model, request = {}) {
+  if (request.only?.length) return request.only.length;
+  const stages = model.profile?.stages ?? {};
+  const tasks = request.tasks?.length ? request.tasks : TUNE_TASKS;
+  let left = 0;
+  for (const stage of request.stages ?? []) {
+    if (stage === "sampling" || stage === "prompt") left += tasks.filter((task) => stages[stage]?.[task] !== "done").length;
+    else if (stages[stage] !== "done") left += 1;
+  }
+  return left;
+}
+
+/** The model a run can be continued on: its latest run, unfinished, with work left (ADR-051). */
+function continuable(run) {
+  if (!["stopped", "failed", "interrupted"].includes(run.outcome)) return null;
+  const latest = (state.tuneRuns ?? []).find((entry) => entry.profileId === run.profileId);
+  const model = (state.tuneOverview ?? []).find((entry) => entry.profileId === run.profileId);
+  return latest?.id === run.id && model && partsLeft(model, run.request) > 0 ? model : null;
+}
+
+function continueButton(run) {
+  const button = Object.assign(document.createElement("button"), { type: "button", className: "small-btn", textContent: "Continue", disabled: state.tuneJob?.status === "running" });
+  button.title = "Run the same request again, measuring only what it did not finish; finished parts are kept.";
+  button.dataset.tuneContinue = run.id;
+  return button;
+}
+
+function renderTuneContinue() {
+  els.tuneContinue.replaceChildren();
+  const unfinished = (state.tuneRuns ?? []).filter((run) => continuable(run));
+  if (!unfinished.length) return;
+  els.tuneContinue.appendChild(Object.assign(document.createElement("h4"), { textContent: "Continue where you left off" }));
+  for (const run of unfinished) {
+    const model = continuable(run);
+    const left = partsLeft(model, run.request);
+    const row = document.createElement("p");
+    const what = runRequestText(run.request) || "everything";
+    row.append(
+      Object.assign(document.createElement("span"), {
+        textContent: `${model.name}: ${what}, ${run.outcome} ${new Date(run.updatedAt ?? run.startedAt).toLocaleString()} after ${run.answers ?? 0} answers; ${left} ${run.request?.only?.length ? "setting" : "part"}${left === 1 ? "" : "s"} left. `,
+        title: run.error ?? "",
+      }),
+      continueButton(run),
+    );
+    els.tuneContinue.appendChild(row);
+  }
+}
+
+async function continueTuneRun(id) {
+  const run = (state.tuneRuns ?? []).find((entry) => entry.id === id);
+  const model = run && continuable(run);
+  if (!model) return;
+  await startTune([model.id], { stage: run.request.stages, tasks: run.request.tasks, only: run.request.only, continueRun: true });
 }
 
 function renderTuneRuns(runs) {
@@ -2239,6 +2298,7 @@ function renderTuneRuns(runs) {
     open.dataset.tuneRun = run.id;
     const action = document.createElement("td");
     action.appendChild(open);
+    if (continuable(run)) action.append(" ", continueButton(run));
     const pace = run.answers && run.durationMs ? `${(run.durationMs / 1000 / run.answers).toFixed(2)} s/answer` : "–";
     body.insertRow().append(
       tuneCell(new Date(run.startedAt).toLocaleString()),
@@ -2385,7 +2445,7 @@ function renderTuneModels() {
     }
     row.appendChild(progress);
     const rated = TUNE_TASKS.filter((task) => profile?.tasks?.[task]?.stats);
-    row.appendChild(tuneCell(rated.map((task) => `${TASK_NAMES[task]} ${profile.tasks[task].stats.rate}%`).join(" · ") || "–"));
+    row.appendChild(tuneCell(rated.map((task) => `${TASK_NAMES[task]} ${Number(Number(profile.tasks[task].stats.rate).toFixed(1))}%`).join(" · ") || "–"));
     const action = document.createElement("td");
     const button = document.createElement("button");
     button.type = "button";
@@ -2484,8 +2544,8 @@ function startTunePolling() {
 async function loadTuneOverview() {
   const [overview, status] = await Promise.all([request("/api/tune/overview"), request("/api/tune/status").catch(() => ({ job: null }))]);
   state.tuneOverview = overview.models ?? [];
-  // A finished tune adds a run; refresh the list when it is showing.
-  if (els.tuneRuns.open) void loadTuneRuns();
+  // A finished tune adds a run and may leave work to continue.
+  void loadTuneRuns();
   // A finished tune changes the sweep logs; reload those whose details are open.
   state.tuneSweeps.clear();
   for (const model of state.tuneOverview.filter((item) => state.tuneOpen.has(item.id) && item.profile)) void loadTuneSweeps(model);
@@ -2515,9 +2575,9 @@ async function pollTune() {
   }
 }
 
-async function startTune(models, { force = false, forceStale = false, stage = null, tasks = null } = {}) {
+async function startTune(models, { force = false, forceStale = false, stage = null, tasks = null, only = null, continueRun = false } = {}) {
   // A stage button (one stage) or the re-run button (several) runs just those, whatever the boxes above say.
-  const settings = stage ? [] : [...els.tuneOnly.querySelectorAll("input:checked")].map((input) => input.value);
+  const settings = only ?? (stage ? [] : [...els.tuneOnly.querySelectorAll("input:checked")].map((input) => input.value));
   const all = [...els.tuneStages.querySelectorAll("input[value]")].map((input) => input.value);
   // Chosen settings run wherever they belong, so they override the stage boxes.
   const stages = stage ? [].concat(stage) : settings.length ? all : [...els.tuneStages.querySelectorAll("input[value]:checked")].map((input) => input.value);
@@ -2528,7 +2588,7 @@ async function startTune(models, { force = false, forceStale = false, stage = nu
   // A part run measures its parts again on top of the saved rest; only a whole tune starts a stale profile over (ADR-040).
   const partRun = settings.length > 0 || stages.length < all.length;
   try {
-    const { job } = await request("/api/tune/start", { method: "POST", body: { models, ...(tasks && { tasks }), stages, settings: settings.length ? settings : null, force: (force && !partRun) || (!stage && els.tuneForce.checked), forceStale } });
+    const { job } = await request("/api/tune/start", { method: "POST", body: { models, ...(tasks && { tasks }), ...(continueRun && { continue: true }), stages, settings: settings.length ? settings : null, force: !continueRun && ((force && !partRun) || (!stage && els.tuneForce.checked)), forceStale } });
     state.tuneJob = job;
     renderTuneJob();
     startTunePolling();
@@ -2924,8 +2984,17 @@ function bindEvents() {
     if (els.tuneRuns.open) void loadTuneRuns();
   });
   els.tuneRunsList.addEventListener("click", (event) => {
+    const resume = event.target.closest("[data-tune-continue]");
+    if (resume) {
+      void continueTuneRun(resume.dataset.tuneContinue);
+      return;
+    }
     const button = event.target.closest("[data-tune-run]");
     if (button) void openTuneRun(button.dataset.tuneRun);
+  });
+  els.tuneContinue.addEventListener("click", (event) => {
+    const resume = event.target.closest("[data-tune-continue]");
+    if (resume) void continueTuneRun(resume.dataset.tuneContinue);
   });
   els.tuneModels.addEventListener("click", (event) => {
     const details = event.target.closest("[data-tune-details]");

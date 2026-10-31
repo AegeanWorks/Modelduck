@@ -113,10 +113,9 @@ device. It is off by default so a missing driver never prevents chat from workin
   tune can stop anywhere; a stage in a row (or a task in Details) runs just that again, a table names
   each task's best model, and
   **Run all** tunes models side by side in CPU and GPU lanes, showing time left;
-  **Tune runs and statistics** keeps every run and answer. **Tune
+  **Tune runs and statistics** keeps every run and answer; stopped runs can continue. **Tune
   settings** edits the values each setting is tried at and the lanes for this PC.
-  In chat, the task picker chooses which tuned preset applies, and each answer
-  shows what was applied; **Settings** has the tuned on/off switch
+  In chat, the task picker picks the tuned preset and each answer shows it; **Settings** has the tuned on/off switch
   and Fastest/Light. Tune with heavy programs closed: CPU timings swing with load.
 - **Small surface area** — Node's HTTP server, a vanilla UI; no build, framework,
   CDN or account.
