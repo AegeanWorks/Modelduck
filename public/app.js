@@ -2079,16 +2079,17 @@ const STAGE_NAMES = { device: "Device", quality: "Quality", speed: "Speed", samp
  * One button per stage: done, partly done or not yet, flagged when measured on an older
  * test suite. Clicking one runs just that stage for the model, on top of its saved results.
  */
-function tuneStageChips(stages, staleParts = [], { modelId = null, running = false, current = null } = {}) {
+function tuneStageChips(stages, staleParts = [], { modelId = null, running = false, current = null, deviceParts = [] } = {}) {
   const chips = document.createElement("div");
   chips.className = "tune-chips";
   const add = (stage, text, status, stale, title) => {
+    const other = deviceParts.some((part) => part === stage || part.startsWith(`${stage}:`));
     const chip = Object.assign(document.createElement("button"), {
       type: "button",
-      className: `tune-chip ${status}${stale ? " stale" : ""}${current === stage ? " running" : ""}`,
+      className: `tune-chip ${status}${stale ? " stale" : ""}${other ? " other-device" : ""}${current === stage ? " running" : ""}`,
       textContent: text,
       disabled: running || !modelId,
-      title: `${title}\n${status === "done" ? "Click to run it again" : "Click to run it"}; the other stages keep their saved results and later stages build on this one.`,
+      title: `${title}${other ? ", measured on another device" : ""}\n${status === "done" ? "Click to run it again" : "Click to run it"}; the other stages keep their saved results and later stages build on this one.`,
     });
     chip.dataset.tuneStage = stage;
     chip.dataset.tuneStageModel = modelId ?? "";
@@ -2250,7 +2251,14 @@ function renderTuneModels() {
     const device = profile?.device?.settings;
     row.appendChild(tuneCell(device ? (device.gpuBackend === "cpu" ? "CPU" : `${device.gpuBackend} GPU`) : "–", profile?.device?.reason ?? ""));
     const progress = document.createElement("td");
-    progress.appendChild(tuneStageChips(profile?.stages, model.staleParts ?? [], { modelId: model.id, running, current: item && running ? item.progress?.stage : null }));
+    progress.appendChild(tuneStageChips(profile?.stages, model.staleParts ?? [], { modelId: model.id, running, current: item && running ? item.progress?.stage : null, deviceParts: model.deviceParts ?? [] }));
+    // After the device changed, the later stages were measured on the old one: offer to run them again.
+    if (model.deviceParts?.length) {
+      const rerun = Object.assign(document.createElement("button"), { type: "button", className: "small-btn tune-rerun", textContent: "Re-run Quality → Prompt", disabled: running });
+      rerun.title = "These stages were measured on another device than the one this model now uses. Runs them again on the current device and keeps the device result.";
+      rerun.dataset.tuneRerun = model.id;
+      progress.appendChild(rerun);
+    }
     row.appendChild(progress);
     const rated = TUNE_TASKS.filter((task) => profile?.tasks?.[task]?.stats);
     row.appendChild(tuneCell(rated.map((task) => `${TASK_NAMES[task]} ${profile.tasks[task].stats.rate}%`).join(" · ") || "–"));
@@ -2344,11 +2352,11 @@ async function pollTune() {
 }
 
 async function startTune(models, { force = false, forceStale = false, stage = null } = {}) {
-  // A stage button runs that one stage, whatever the boxes above say.
+  // A stage button (one stage) or the re-run button (several) runs just those, whatever the boxes above say.
   const settings = stage ? [] : [...els.tuneOnly.querySelectorAll("input:checked")].map((input) => input.value);
   const all = [...els.tuneStages.querySelectorAll("input[value]")].map((input) => input.value);
   // Chosen settings run wherever they belong, so they override the stage boxes.
-  const stages = stage ? [stage] : settings.length ? all : [...els.tuneStages.querySelectorAll("input[value]:checked")].map((input) => input.value);
+  const stages = stage ? [].concat(stage) : settings.length ? all : [...els.tuneStages.querySelectorAll("input[value]:checked")].map((input) => input.value);
   if (!stages.length) {
     showToast("Choose at least one stage", { kind: "error" });
     return;
@@ -2757,6 +2765,11 @@ function bindEvents() {
       renderTuneModels();
       const model = (state.tuneOverview ?? []).find((item) => item.id === id);
       if (model && state.tuneOpen.has(id) && !state.tuneSweeps.has(model.profileId)) void loadTuneSweeps(model);
+      return;
+    }
+    const rerun = event.target.closest("[data-tune-rerun]");
+    if (rerun) {
+      void startTune([rerun.dataset.tuneRerun], { stage: ["quality", "speed", "sampling", "prompt"] });
       return;
     }
     const stageButton = event.target.closest("[data-tune-stage]");

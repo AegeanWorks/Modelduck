@@ -41,3 +41,16 @@ test("free memory for a load counts the loaded model's own share as free", async
   assert.equal(await gpu.availableMemory({ gpuBackend: "vulkan" }), 12 * GIB, "free VRAM plus the model on the GPU");
   assert.equal(await cpu.availableMemory({ gpuBackend: "vulkan" }), null, "no GPU runtime: unknown, so the budget falls back");
 });
+
+test("a backend can be started without a model, failing the way a load would", async () => {
+  const failing = async () => ({
+    ...(await runtime()()),
+    getLlama: async ({ gpu }) => {
+      if (gpu) throw new Error("NoBinaryFoundError");
+      return { gpu: false, maxThreads: 4, dispose: async () => {} };
+    },
+  });
+  const engine = new LlamaEngine({ registry, logger: quiet, availableMemory: () => GIB, loadRuntime: failing });
+  await engine.startBackend("cpu");
+  await assert.rejects(engine.startBackend("vulkan"), (error) => error.code === "gpu_backend_failed" && /NoBinaryFoundError/.test(error.why));
+});

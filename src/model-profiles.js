@@ -49,7 +49,7 @@ export function profileIdFor(fileName) {
 const pick = (settings, keys) => Object.fromEntries(keys.filter((key) => key in settings).map((key) => [key, settings[key]]));
 
 /** Turn a `tune()` result into a storable profile. */
-export function profileFromTune(result, { catalogId, fingerprint, measuredUnder = null, createdAt = new Date().toISOString() }) {
+export function profileFromTune(result, { catalogId, fingerprint, measuredUnder = null, measuredOn = null, createdAt = new Date().toISOString() }) {
   return {
     schema: PROFILE_SCHEMA,
     catalogId,
@@ -57,6 +57,8 @@ export function profileFromTune(result, { catalogId, fingerprint, measuredUnder 
     fingerprint: pick(fingerprint, FINGERPRINT_KEYS),
     // Parts measured under another fingerprint than the one above, after a part run (ADR-040).
     ...(measuredUnder && { measuredUnder }),
+    // The device (CPU or GPU backend) each part was measured on (ADR-044).
+    ...(measuredOn && { measuredOn }),
     load: { settings: pick(result.load.settings, LOAD_KEYS), stats: result.load.stats ?? null },
     device: result.device ?? null,
     speed: result.speed ?? null,
@@ -105,7 +107,15 @@ export async function loadProfile(directory, catalogId, fingerprint) {
   const warnings = stale.map((key) => staleWarning(key, prints.find((print) => differs(print)(key))?.[key], fingerprint?.[key]));
   const staleParts = parts.filter(([, print]) => FINGERPRINT_KEYS.some(differs(print))).map(([part]) => part);
   if (staleParts.length) warnings.push(`Measured before that: ${staleParts.join(", ")}; the other parts are up to date.`);
-  return { profile, stale, staleParts, warnings };
+  // Parts measured on another device than the profile now uses; the device part itself decides it.
+  const device = profile.load?.settings?.gpuBackend ?? "cpu";
+  const onOther = Object.entries(profile.measuredOn ?? {}).filter(([part, backend]) => part !== "device" && backend !== device);
+  const deviceParts = onOther.map(([part]) => part);
+  if (deviceParts.length) {
+    const before = [...new Set(onOther.map(([, backend]) => deviceLabel(backend)))].join(" and ");
+    warnings.push(`Measured on ${before}, now on ${deviceLabel(device)}: ${deviceParts.join(", ")}. Run them again so they match the device.`);
+  }
+  return { profile, stale, staleParts, deviceParts, warnings };
 }
 
 const STALE_REASONS = Object.freeze({
@@ -213,15 +223,39 @@ export function measuredUnderAfter(saved, fingerprint, stages, rerun) {
   const current = pick(fingerprint ?? {}, FINGERPRINT_KEYS);
   if (!saved) return null;
   const before = saved.profile.measuredUnder ?? {};
-  const measured = Object.keys(stages ?? {}).flatMap((stage) =>
-    stages[stage] && typeof stages[stage] === "object" ? Object.keys(stages[stage]).map((task) => `${stage}:${task}`) : [stage]);
   const map = {};
-  for (const part of measured.filter((key) => statusOf(stages, key) !== "pending")) {
+  for (const part of measuredParts(stages)) {
     const measuredNow = rerun.includes(part) || statusOf(saved.profile.stages, part) === "pending";
     map[part] = measuredNow ? current : before[part] ?? pick(saved.profile.fingerprint ?? {}, FINGERPRINT_KEYS);
   }
   const same = (print) => FINGERPRINT_KEYS.every((key) => print[key] === current[key]);
   return Object.values(map).every(same) ? null : map;
+}
+
+const deviceLabel = (backend) => (backend === "cpu" ? "the CPU" : `the ${backend} GPU`);
+
+/** The parts a result has measured (done or partly done): device, quality and speed once, sampling and prompt per task. */
+function measuredParts(stages) {
+  const parts = Object.keys(stages ?? {}).flatMap((stage) =>
+    stages[stage] && typeof stages[stage] === "object" ? Object.keys(stages[stage]).map((task) => `${stage}:${task}`) : [stage]);
+  return parts.filter((part) => statusOf(stages, part) !== "pending");
+}
+
+/**
+ * After a run, the device each measured part was measured on: parts measured now get
+ * `backend`, the rest keep theirs (for a profile from before this record, the device it
+ * was on).
+ */
+export function measuredOnAfter(saved, stages, rerun, backend) {
+  const before = saved?.profile.measuredOn ?? {};
+  const previous = saved?.profile.load?.settings?.gpuBackend ?? null;
+  const map = {};
+  for (const part of measuredParts(stages)) {
+    const measuredNow = !saved || rerun.includes(part) || statusOf(saved.profile.stages, part) === "pending";
+    const on = measuredNow ? backend : before[part] ?? previous;
+    if (on) map[part] = on;
+  }
+  return map;
 }
 
 /** A run of some stages or some settings rather than the whole tune (ADR-040). */

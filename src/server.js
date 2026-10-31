@@ -451,6 +451,7 @@ export function createHttpServer({
           profile: loaded ? profile : null,
           stale: loaded?.stale ?? [],
           staleParts: loaded?.staleParts ?? [],
+          deviceParts: loaded?.deviceParts ?? [],
           warnings: loaded?.warnings ?? [],
         });
       }

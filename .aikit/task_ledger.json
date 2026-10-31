@@ -5,28 +5,12 @@
     "last_phase": "verification",
     "active_phase": 4,
     "status": "in_progress",
-    "updated_at": 1793453217.1870809,
+    "updated_at": 1793453447.4643216,
     "owner": "claude-opus-5.5",
     "started_by": "claude-opus-5.5",
-    "continuations": [],
-    "impact_assessment": {
-      "why": "Context size was chosen by noise; one timing test failed now and then",
-      "benefits": "Context fits free memory with a stated reason; the gate stops flaking",
-      "risks": "contract: contextSize axis gains budget; engine gains availableMemory; dependency: node-llama-cpp getVramState; concurrency: none; state: profiles keep their context until re-run",
-      "mitigation": "Failing-first tests; real run; ADR-043 names the loosened test"
-    }
+    "continuations": []
   },
   "checkpoints": [
-    {
-      "task_id": "system-prompt-fix",
-      "phase": "completed",
-      "phase_num": 5,
-      "description": "Task 'system-prompt-fix' completed successfully.",
-      "status": "completed",
-      "timestamp": 1793443798.7226577,
-      "timestamp_str": "2026-10-31 13:49:58",
-      "agent": "claude-opus-5.5"
-    },
     {
       "task_id": "suite-v10",
       "phase": "planning",
@@ -271,6 +255,17 @@
         "risks": "contract: contextSize axis gains budget; engine gains availableMemory; dependency: node-llama-cpp getVramState; concurrency: none; state: profiles keep their context until re-run",
         "mitigation": "Failing-first tests; real run; ADR-043 names the loosened test"
       }
+    },
+    {
+      "task_id": "tune-budget-v1",
+      "phase": "verification",
+      "phase_num": 4,
+      "description": "Milestone 2 in: device records, re-run button, GPU preflight; 320/320 tests, gate 4/4, real preflight run; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793453447.4643216,
+      "timestamp_str": "2026-10-31 16:30:47",
+      "agent": "claude-opus-5.5"
     }
   ]
 }

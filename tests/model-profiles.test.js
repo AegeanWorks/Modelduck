@@ -12,6 +12,7 @@ import {
   currentFingerprint,
   listProfiles,
   loadProfile,
+  measuredOnAfter,
   measuredUnderAfter,
   pendingWork,
   planTune,
@@ -217,4 +218,21 @@ test("a profile records which parts were measured under an older fingerprint and
   assert.match(loaded.warnings.at(-1), /Measured before that: device, speed/);
   assert.equal(measuredUnderAfter({ profile: saved }, FINGERPRINT, TUNE.stages, ["quality"]), null, "nothing to record when every part is current");
   assert.deepEqual(measuredUnderAfter(null, now, TUNE.stages, []), null, "a forced tune measures everything now");
+});
+
+test("a profile remembers the device each part was measured on and flags parts from another device", async (t) => {
+  const dir = await directory(t);
+  // An older profile on the GPU, without a record per part: its device stands in for every part.
+  const saved = { profile: { ...withProgress(), load: { settings: { gpuBackend: "vulkan" } } } };
+  const measuredOn = measuredOnAfter(saved, TUNE.stages, ["device"], "cpu");
+  assert.equal(measuredOn.device, "cpu", "the device part was measured now");
+  assert.equal(measuredOn.quality, "vulkan", "the rest keep the device they were measured on");
+  assert.equal(measuredOn["sampling:code"], "vulkan");
+  await saveProfile(dir, profileFromTune({ ...TUNE, load: { settings: { gpuBackend: "cpu" } } }, { catalogId: "qwen2.5-0.5b-instruct-q4", fingerprint: FINGERPRINT, measuredOn }));
+  const loaded = await loadProfile(dir, "qwen2.5-0.5b-instruct-q4", FINGERPRINT);
+  assert.deepEqual(loaded.stale, [], "another device is not a stale profile");
+  assert.ok(loaded.deviceParts.includes("quality") && loaded.deviceParts.includes("prompt:math"));
+  assert.ok(!loaded.deviceParts.includes("device"));
+  assert.match(loaded.warnings.at(-1), /measured on the vulkan GPU.*now on the CPU/i);
+  assert.deepEqual(measuredOnAfter(null, TUNE.stages, [], "vulkan").quality, "vulkan", "a fresh tune measures everything on its device");
 });

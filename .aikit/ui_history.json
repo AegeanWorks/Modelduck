@@ -208,5 +208,19 @@
     "final_snapshot_digest": "",
     "final_snapshot_entries": 0,
     "surface_digest": "50bffad2be4e80f0d70f22f29c45082c601755e1889065596cdb8758c3cfe99a"
+  },
+  {
+    "schema": 1,
+    "surface": "app",
+    "baseline_commit": "2096b4890c1bc9683f5322c100045050dfc344eb",
+    "contract_hash": "c6a291e913a9c8f174aadf7fb264b0941c55e9f4999a9a43152f1fb616845d11",
+    "started_at": 1793453360.16357,
+    "finished_at": 1793453429.5621686,
+    "strikes": 0,
+    "reviewer": "Claude (AI; headless Edge review: parts measured on another device get dotted chips and a Re-run Quality to Prompt button that sends those four stages without force; engine startBackend and per-part device records; no console errors; delegated by the user on 2026-10-31)",
+    "allowed_removals": [],
+    "final_snapshot_digest": "",
+    "final_snapshot_entries": 0,
+    "surface_digest": "e87b837914e0592bac5d3cb2d71b7e64854d8a18917dce78e757813ce45251be"
   }
 ]

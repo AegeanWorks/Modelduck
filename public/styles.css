@@ -2802,3 +2802,13 @@ button.tune-chip.running {
   background: var(--accent-soft);
   color: var(--text);
 }
+
+/* Parts measured on another device than the model now uses */
+.tune-chip.other-device {
+  border-style: dotted;
+  border-color: var(--accent);
+}
+
+.tune-rerun {
+  margin-top: 6px;
+}

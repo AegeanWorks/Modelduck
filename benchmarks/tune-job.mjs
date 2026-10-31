@@ -5,7 +5,7 @@ import { LlamaEngine } from "../src/engine.js";
 import { AppError } from "../src/errors.js";
 import { getCatalogModel } from "../src/model-catalog.js";
 import { budgetContext } from "../src/memory-fit.js";
-import { currentFingerprint, loadProfile, measuredUnderAfter, planTune, profileFromTune, profileIdFor, saveProfile } from "../src/model-profiles.js";
+import { currentFingerprint, loadProfile, measuredOnAfter, measuredUnderAfter, planTune, profileFromTune, profileIdFor, saveProfile } from "../src/model-profiles.js";
 import { createModelRegistry } from "../src/model-registry.js";
 import { systemInfo } from "../src/system.js";
 import { createTimingLock } from "../src/tune-lock.js";
@@ -68,7 +68,8 @@ export async function runTune(target, { tasks, stages = STAGES, only = null, ste
   const used = steps ?? (await readSteps(target.paths.tuneGrid)).steps;
   const save = async (result) => {
     const measuredUnder = measuredUnderAfter(saved, target.fingerprint, result.stages, plan.rerun ?? []);
-    const profile = profileFromTune({ ...result, steps: used }, { catalogId: target.profileId, fingerprint: target.fingerprint, measuredUnder });
+    const measuredOn = measuredOnAfter(saved, result.stages, plan.rerun ?? [], result.load.settings.gpuBackend ?? "cpu");
+    const profile = profileFromTune({ ...result, steps: used }, { catalogId: target.profileId, fingerprint: target.fingerprint, measuredUnder, measuredOn });
     await saveProfile(target.paths.profiles, profile);
     return profile;
   };
@@ -78,7 +79,20 @@ export async function runTune(target, { tasks, stages = STAGES, only = null, ste
   // Even if the process is stopped mid-tune, its registration must not linger.
   const cleanUp = () => lock.unregisterSync();
   process.once("exit", cleanUp);
-  const result = await withEngine(target, (engine) => {
+  // Without a device probe this run, the tune starts on the saved device; a GPU that cannot
+  // start stops it here, in a second, instead of after a round of failed answers (ADR-044).
+  const probes = stages.includes("device") && (!only?.length || only.includes("device"));
+  const startOn = plan.resume?.device?.settings?.gpuBackend ?? saved?.profile.load?.settings?.gpuBackend ?? base.gpuBackend ?? "cpu";
+  const result = await withEngine(target, async (engine) => {
+    if (!probes && startOn !== "cpu") {
+      await engine.startBackend(startOn).catch((error) => {
+        throw new AppError("The tune did not start: the GPU could not start", {
+          code: "tune_gpu_failed",
+          why: error.why ?? error.message,
+          fix: "Restart the computer or update the GPU driver, or run the Device stage again to fall back to the CPU. Nothing was measured or saved.",
+        });
+      });
+    }
     const evaluate = createEvaluator({ engine, modelId: target.entry.id, beforeAnswer: () => lock.pauseIfNeeded() });
     // Context size is a memory budget: the largest listed size that fits on the chosen device (ADR-043).
     const contextBudget = async (settings, sizes) => {

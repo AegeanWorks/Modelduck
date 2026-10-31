@@ -162,6 +162,49 @@ export class LlamaEngine {
     }
   }
 
+  /** The llama runtime for `backend`, started once and replaced when the backend changes. */
+  async #startRuntime(module, backend) {
+    if (this.#llama && this.#gpuBackend !== backend) {
+      await this.#llama.dispose().catch(() => {});
+      this.#llama = null;
+    }
+    if (this.#llama) return;
+    try {
+      this.#llama = await module.getLlama({
+        ...RUNTIME_OPTIONS,
+        gpu: backend === "cpu" ? false : backend,
+      });
+      this.#gpuBackend = backend;
+    } catch (error) {
+      if (backend === "cpu") throw runtimeMissing(error);
+      if (backend !== "auto") {
+        throw new AppError("The GPU backend could not start", {
+          code: "gpu_backend_failed",
+          status: 500,
+          why: `${backend} could not be loaded: ${error?.message || error}`,
+          fix: "Use the CPU backend, install the vendor runtime, or try Vulkan/CUDA from Settings.",
+        });
+      }
+      this.#logger.warn?.(
+        `[modelduck] ${backend} GPU unavailable; falling back to CPU: ${error?.message || error}`,
+      );
+      this.#llama = await module.getLlama({ ...RUNTIME_OPTIONS, gpu: false }).catch((cpuError) => {
+        throw runtimeMissing(cpuError);
+      });
+      this.#gpuBackend = "cpu";
+    }
+  }
+
+  /**
+   * Start the runtime for `gpuBackend` without loading a model, so a tune finds a broken
+   * GPU in a second instead of after a round of failed answers (ADR-044). A loaded
+   * model is left alone; its runtime evidently works.
+   */
+  async startBackend(gpuBackend) {
+    if (this.#state.status === "ready" || this.#loading) return;
+    await this.#startRuntime(await this.#loadRuntime(), gpuBackend);
+  }
+
   get loadedId() {
     return this.#state.model?.id ?? null;
   }
@@ -262,36 +305,7 @@ export class LlamaEngine {
       const backend = ["cpu", "auto", "cuda", "vulkan", "metal"].includes(requestedBackend)
         ? requestedBackend
         : "cpu";
-      if (this.#llama && this.#gpuBackend !== backend) {
-        await this.#llama.dispose().catch(() => {});
-        this.#llama = null;
-      }
-      if (!this.#llama) {
-        try {
-          this.#llama = await module.getLlama({
-            ...RUNTIME_OPTIONS,
-            gpu: backend === "cpu" ? false : backend,
-          });
-          this.#gpuBackend = backend;
-        } catch (error) {
-          if (backend === "cpu") throw runtimeMissing(error);
-          if (backend !== "auto") {
-            throw new AppError("The GPU backend could not start", {
-              code: "gpu_backend_failed",
-              status: 500,
-              why: `${backend} could not be loaded: ${error?.message || error}`,
-              fix: "Use the CPU backend, install the vendor runtime, or try Vulkan/CUDA from Settings.",
-            });
-          }
-          this.#logger.warn?.(
-            `[modelduck] ${backend} GPU unavailable; falling back to CPU: ${error?.message || error}`,
-          );
-          this.#llama = await module.getLlama({ ...RUNTIME_OPTIONS, gpu: false }).catch((cpuError) => {
-            throw runtimeMissing(cpuError);
-          });
-          this.#gpuBackend = "cpu";
-        }
-      }
+      await this.#startRuntime(module, backend);
 
       const actualThreads = Math.max(1, Math.min(64, Number(threads) || 4));
       const actualMaxThreads = Math.max(1, Math.min(64, Number(maxThreads) || actualThreads));
