@@ -3,31 +3,15 @@
   "active_task": {
     "task_id": "suite-v11",
     "last_phase": "verification",
-    "active_phase": 4,
-    "status": "in_progress",
+    "active_phase": 5,
+    "status": "completed",
     "updated_at": 1793446792.2011752,
     "owner": "claude-opus-5.5",
     "started_by": "claude-opus-5.5",
-    "continuations": []
+    "continuations": [],
+    "completed_at": 1793446793.1329236
   },
   "checkpoints": [
-    {
-      "task_id": "suite-v9-v1",
-      "phase": "in_progress",
-      "phase_num": 2,
-      "description": "[1/1] Suite v9: 44 new own items - 16 code, 6 long code (code-long, 1024 tokens), 16 bug-fix, 6 long multi-bug fixes (bugfix-long); every case checked by a reference solution, every buggy function proven to fail its tests; categories joined to the code task and CODING_CATEGORIES; SUITE_VERSION 9, CHANGELOG, README, ADR-035; saved tune profiles become stale with a warning (ADR-028)",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793438156.1492338,
-      "timestamp_str": "2026-10-31 12:15:56",
-      "agent": "claude-code:20b8d1d8",
-      "impact_assessment": {
-        "why": "User asked for many more of our own coding and bug-fix questions, including long ones",
-        "benefits": "Code task tuning judged on 74 own coding items instead of 24, including long multi-step work",
-        "risks": "contract: suite v9 test hash; dependency: none; concurrency: none; state: existing tune profiles marked stale, cross-model baseline lags further",
-        "mitigation": "Reference solutions and failing-buggy checks in tests; stale profiles keep working with warnings"
-      }
-    },
     {
       "task_id": "suite-v9-v1",
       "phase": "in_progress",
@@ -260,6 +244,16 @@
       "status": "in_progress",
       "timestamp": 1793446792.2011752,
       "timestamp_str": "2026-10-31 14:39:52",
+      "agent": "claude-opus-5.5"
+    },
+    {
+      "task_id": "suite-v11",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'suite-v11' completed successfully.",
+      "status": "completed",
+      "timestamp": 1793446793.1329255,
+      "timestamp_str": "2026-10-31 14:39:53",
       "agent": "claude-opus-5.5"
     }
   ]
