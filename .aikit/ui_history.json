@@ -292,5 +292,19 @@
     "final_snapshot_digest": "",
     "final_snapshot_entries": 0,
     "surface_digest": "24c9238c698a2136f50d4059a7b7ca97e6da80c0055b9be8c5b5bc8e68a0fb4e"
+  },
+  {
+    "schema": 1,
+    "surface": "app",
+    "baseline_commit": "5396c3077edb50f03ac34d8e7a24c5beea330bc2",
+    "contract_hash": "c6a291e913a9c8f174aadf7fb264b0941c55e9f4999a9a43152f1fb616845d11",
+    "started_at": 1793457423.0023515,
+    "finished_at": 1793471528.7588096,
+    "strikes": 0,
+    "reviewer": "Claude (AI; headless Edge review with real interrupted SmolLM2 runs: the runs list and a run's detail show outcome, what ran, time and answers so far, answer statistics, results and decisions, and the answers download; no console errors; delegated by the user on 2026-10-31)",
+    "allowed_removals": [],
+    "final_snapshot_digest": "",
+    "final_snapshot_entries": 0,
+    "surface_digest": "72a529a32d27c7649031fae9d1df1210b7cc998459e452e323f9bac45a1df657"
   }
 ]

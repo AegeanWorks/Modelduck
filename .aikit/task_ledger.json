@@ -5,22 +5,12 @@
     "last_phase": "verification",
     "active_phase": 4,
     "status": "in_progress",
-    "updated_at": 1793457279.5338728,
+    "updated_at": 1793471566.525907,
     "owner": "claude-opus-5.5",
     "started_by": "claude-opus-5.5",
     "continuations": []
   },
   "checkpoints": [
-    {
-      "task_id": "part-runs",
-      "phase": "completed",
-      "phase_num": 5,
-      "description": "Task 'part-runs' completed successfully.",
-      "status": "completed",
-      "timestamp": 1793447131.7382824,
-      "timestamp_str": "2026-10-31 14:45:31",
-      "agent": "claude-opus-5.5"
-    },
     {
       "task_id": "reasoning-steps",
       "phase": "verification",
@@ -259,6 +249,17 @@
       "status": "in_progress",
       "timestamp": 1793457279.5338728,
       "timestamp_str": "2026-10-31 17:34:39",
+      "agent": "claude-opus-5.5"
+    },
+    {
+      "task_id": "tune-stats-v1",
+      "phase": "verification",
+      "phase_num": 4,
+      "description": "Milestone 3 statistics section in; tests pass, gate 4/4, Edge review on real interrupted runs; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793471566.525907,
+      "timestamp_str": "2026-10-31 21:32:46",
       "agent": "claude-opus-5.5"
     }
   ]

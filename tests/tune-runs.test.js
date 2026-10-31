@@ -67,3 +67,18 @@ test("a run's answers are summarised: how many, how many right, errors, typical 
   assert.equal(summary.outputTokens.mean, 24.5);
   assert.deepEqual(await summarizeAnswers(dir, "2026-01-01T00-00-00-000Z-1"), { answers: 0, right: null, errors: 0, ms: null, outputTokens: null }, "a run without answers summarises to nothing");
 });
+
+test("an unfinished run shows its answers and time so far, and the same outcome in the list and in full", async (t) => {
+  const dir = await runsDir(t);
+  let clock = Date.parse("2026-10-31T10:00:00Z");
+  const run = await startRun(dir, { profileId: "a", model: "a.gguf", request: REQUEST, now: new Date(clock), pid: 333, clock: () => clock });
+  clock += 20_000;
+  await run.answers([{ item: "i-1", passed: 1, total: 1 }, { item: "i-2", passed: 0, total: 1 }]);
+  const dead = { isAlive: () => false };
+  const [listed] = await listRuns(dir, dead);
+  const full = await loadRun(dir, run.id, dead);
+  assert.equal(listed.answers, 2, "the count is saved while answers arrive");
+  assert.equal(listed.durationMs, 20_000, "time so far for a run that never finished");
+  assert.equal(listed.outcome, "interrupted");
+  assert.equal(full.outcome, "interrupted", "the full record agrees with the list");
+});

@@ -103,6 +103,9 @@ const els = {
   tuneProgress: $("tune-progress"),
   tuneModels: $("tune-models"),
   tuneBest: $("tune-best"),
+  tuneRuns: $("tune-runs"),
+  tuneRunsList: $("tune-runs-list"),
+  tuneRunDetail: $("tune-run-detail"),
   tuneOnly: $("tune-only"),
   tuneSettings: $("tune-settings"),
   tuneSettingsForm: $("tune-settings-form"),
@@ -2174,6 +2177,12 @@ function tuneTried(sweeps) {
         chip.title = Object.entries(candidate.patch).map(([key, value]) => `${key}: ${value}`).join("\n");
         tried.append(chip, " ");
       }
+      // Screened out on the first quarter of the items (ADR-049).
+      for (const dropped of sweep.dropped ?? []) {
+        const chip = Object.assign(document.createElement("span"), { className: "tune-chip dropped", textContent: `${patchText(dropped.patch)}: dropped after ${dropped.of} (${dropped.solved}/${dropped.of})` });
+        chip.title = `${dropped.behind} items behind the leader on the first ${dropped.of}, so it was not measured further.`;
+        tried.append(chip, " ");
+      }
       const decision = sweep.kept
         ? sweep.kept
         : sweep.changed
@@ -2187,6 +2196,123 @@ function tuneTried(sweeps) {
     box.appendChild(table);
   }
   return box;
+}
+
+const durationText = (ms) => {
+  if (!(ms >= 0)) return "–";
+  const minutes = Math.round(ms / 60_000);
+  return minutes < 1 ? `${Math.round(ms / 1000)} s` : minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
+};
+
+/** What a run was asked to measure, in a few words. */
+function runRequestText(request = {}) {
+  const parts = [request.only?.length ? `only ${request.only.map((name) => SETTING_GUIDE[name]?.[1] ?? name).join(", ")}` : (request.stages ?? []).map((stage) => STAGE_NAMES[stage] ?? stage).join(", ")];
+  if (request.tasks?.length && request.tasks.length < TUNE_TASKS.length) parts.push(`for ${request.tasks.map((task) => TASK_NAMES[task] ?? task).join(", ")}`);
+  if (request.force) parts.push("from scratch");
+  return parts.filter(Boolean).join(" ");
+}
+
+/** Every saved tune run, newest first (ADR-050). */
+async function loadTuneRuns() {
+  try {
+    const { runs } = await request("/api/tune/runs");
+    renderTuneRuns(runs ?? []);
+  } catch (error) {
+    showError(error);
+  }
+}
+
+function renderTuneRuns(runs) {
+  els.tuneRunsList.replaceChildren();
+  if (!runs.length) {
+    els.tuneRunsList.appendChild(Object.assign(document.createElement("p"), { className: "benchmark-empty", textContent: "No tune runs yet. Each run from now on is kept here." }));
+    return;
+  }
+  const names = new Map((state.tuneOverview ?? []).map((model) => [model.profileId, model.name]));
+  const table = document.createElement("table");
+  table.className = "benchmark-table";
+  const head = table.createTHead().insertRow();
+  for (const text of ["When", "Model", "What ran", "Outcome", "Took", "Answers", "Pace", ""]) head.appendChild(Object.assign(document.createElement("th"), { textContent: text }));
+  const body = table.createTBody();
+  for (const run of runs) {
+    const open = Object.assign(document.createElement("button"), { type: "button", className: "small-btn", textContent: "Open" });
+    open.dataset.tuneRun = run.id;
+    const action = document.createElement("td");
+    action.appendChild(open);
+    const pace = run.answers && run.durationMs ? `${(run.durationMs / 1000 / run.answers).toFixed(2)} s/answer` : "–";
+    body.insertRow().append(
+      tuneCell(new Date(run.startedAt).toLocaleString()),
+      tuneCell(names.get(run.profileId) ?? run.profileId, run.model),
+      tuneCell(runRequestText(run.request)),
+      tuneCell(run.outcome, run.error ?? ""),
+      tuneCell(durationText(run.durationMs)),
+      tuneCell(`${run.answers ?? 0}${run.expectedAnswers ? ` of up to ${run.expectedAnswers}` : ""}`),
+      tuneCell(pace),
+      action,
+    );
+  }
+  els.tuneRunsList.appendChild(table);
+}
+
+async function openTuneRun(id) {
+  try {
+    const detail = await request(`/api/tune/runs/${encodeURIComponent(id)}`);
+    renderTuneRunDetail(detail);
+    els.tuneRunDetail.scrollIntoView({ block: "start", behavior: "smooth" });
+  } catch (error) {
+    showError(error);
+  }
+}
+
+/** One run in full: summary, answer statistics, results per task and every decision. */
+function renderTuneRunDetail({ run, answers }) {
+  const box = document.createElement("div");
+  box.className = "tune-details tune-run-detail";
+  box.appendChild(Object.assign(document.createElement("h4"), { textContent: `${run.model} · ${new Date(run.startedAt).toLocaleString()}` }));
+  const line = (label, text) => {
+    const row = document.createElement("p");
+    row.append(Object.assign(document.createElement("strong"), { textContent: `${label}: ` }), text);
+    box.appendChild(row);
+  };
+  line("Outcome", `${run.outcome}${run.error ? ` — ${run.error}` : ""}`);
+  line("What ran", runRequestText(run.request) || "everything");
+  line("Took", `${durationText(run.durationMs)}${run.finishedAt ? "" : " so far"}`);
+  if (answers?.answers) {
+    const times = answers.ms ? `; answers took ${answers.ms.median} ms typically, ${answers.ms.p90} ms for the slowest tenth` : "";
+    const tokens = answers.outputTokens ? `; ${answers.outputTokens.mean} tokens per answer on average` : "";
+    line("Answers", `${answers.answers}${run.expectedAnswers ? ` of up to ${run.expectedAnswers}` : ""}; ${answers.right}% of checks passed; ${answers.errors} errors${times}${tokens}`);
+  }
+  const backend = run.result?.load?.settings?.gpuBackend;
+  if (backend) line("Device", backend === "cpu" ? "CPU" : `${backend} GPU`);
+  if (run.fingerprint) line("Measured on", `test suite v${run.fingerprint.suiteVersion}, ${run.fingerprint.cpu ?? "this CPU"}, node-llama-cpp ${run.fingerprint.nodeLlamaCpp ?? "?"}`);
+  const tasks = Object.entries(run.result?.tasks ?? {});
+  if (tasks.length) {
+    const table = document.createElement("table");
+    table.className = "benchmark-table";
+    const head = table.createTHead().insertRow();
+    for (const text of ["Task", "Right answers", "95% range", "vs defaults"]) head.appendChild(Object.assign(document.createElement("th"), { textContent: text }));
+    const body = table.createTBody();
+    for (const [task, preset] of tasks) {
+      const stats = preset.stats;
+      const versus = stats?.vsDefault;
+      body.insertRow().append(
+        tuneCell(TASK_NAMES[task] ?? task),
+        tuneCell(stats ? `${stats.rate}%` : "–"),
+        tuneCell(stats?.ci95 ? `${stats.ci95.low}–${stats.ci95.high}%` : "–"),
+        tuneCell(versus ? `${versus.rateDelta >= 0 ? "+" : ""}${versus.rateDelta} pts (p=${versus.pValue})` : "–"),
+      );
+    }
+    box.appendChild(table);
+  }
+  if (run.sweeps?.length) {
+    const tried = tuneTried(run.sweeps);
+    tried.open = true;
+    box.appendChild(tried);
+  }
+  const download = Object.assign(document.createElement("a"), { href: `/api/tune/runs/${encodeURIComponent(run.id)}/answers`, textContent: "Download every answer (JSON lines)" });
+  download.setAttribute("download", `tune-run-${run.id}.jsonl`);
+  box.appendChild(download);
+  els.tuneRunDetail.replaceChildren(box);
 }
 
 async function loadTuneSweeps(model) {
@@ -2358,6 +2484,8 @@ function startTunePolling() {
 async function loadTuneOverview() {
   const [overview, status] = await Promise.all([request("/api/tune/overview"), request("/api/tune/status").catch(() => ({ job: null }))]);
   state.tuneOverview = overview.models ?? [];
+  // A finished tune adds a run; refresh the list when it is showing.
+  if (els.tuneRuns.open) void loadTuneRuns();
   // A finished tune changes the sweep logs; reload those whose details are open.
   state.tuneSweeps.clear();
   for (const model of state.tuneOverview.filter((item) => state.tuneOpen.has(item.id) && item.profile)) void loadTuneSweeps(model);
@@ -2791,6 +2919,13 @@ function bindEvents() {
   els.benchmarkShowOld.addEventListener("change", () => {
     if (state.benchmarkReport) renderBenchmarkReport(state.benchmarkReport);
     if (state.benchmarkAdvice) renderRecommendations(state.benchmarkAdvice.advice, state.benchmarkAdvice.headerTitle);
+  });
+  els.tuneRuns.addEventListener("toggle", () => {
+    if (els.tuneRuns.open) void loadTuneRuns();
+  });
+  els.tuneRunsList.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-tune-run]");
+    if (button) void openTuneRun(button.dataset.tuneRun);
   });
   els.tuneModels.addEventListener("click", (event) => {
     const details = event.target.closest("[data-tune-details]");

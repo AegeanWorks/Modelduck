@@ -112,7 +112,8 @@ device. It is off by default so a missing driver never prevents chat from workin
   cannot load stops the tune. Each finished step is saved and applied at once, so a
   tune can stop anywhere; a stage in a row (or a task in Details) runs just that again, a table names
   each task's best model, and
-  **Run all** tunes models side by side in CPU and GPU lanes, showing time left. **Tune
+  **Run all** tunes models side by side in CPU and GPU lanes, showing time left;
+  **Tune runs and statistics** keeps every run and answer. **Tune
   settings** edits the values each setting is tried at and the lanes for this PC.
   In chat, the task picker chooses which tuned preset applies, and each answer
   shows what was applied; **Settings** has the tuned on/off switch
@@ -259,8 +260,8 @@ so no latency winner is claimed from a single run.
 | Settings | `~/.modelduck/settings.json` | `--home <folder>` |
 | Server settings + key hashes | `~/.modelduck/server-settings.json` | `--home <folder>` |
 | Tuned model profiles | `~/.modelduck/profiles/<model>.json` (load settings and per-task presets) | `--home <folder>` |
-| Tune runs | `~/.modelduck/tune-runs/` (every run's results and every answer) | `--home <folder>` |
-| Tune steps | `~/.modelduck/tune-grid.json` (the values each setting is tried at) | `--home <folder>` |
+| Tune runs | `~/.modelduck/tune-runs/` (every run and answer) | `--home <folder>` |
+| Tune steps | `~/.modelduck/tune-grid.json` (values tried per setting) | `--home <folder>` |
 | Downloads | `~/.modelduck/models/*.part` | `--models <folder>` |
 
 The models folder is ordinary storage. Copy a `.gguf` file into it and press

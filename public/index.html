@@ -496,6 +496,14 @@
           <p class="benchmark-progress" id="tune-progress">No tune is running. Pick a model below, or Run all; stop any time and what was found is applied.</p>
           <div class="tune-models" id="tune-models"></div>
           <div class="tune-best" id="tune-best"></div>
+          <details class="tune-runs" id="tune-runs">
+            <summary>
+              Tune runs and statistics
+              <small>Every run with what it measured, answer by answer. Nothing is deleted.</small>
+            </summary>
+            <div id="tune-runs-list"></div>
+            <div id="tune-run-detail"></div>
+          </details>
           <details class="tune-settings" id="tune-settings">
             <summary>Tune settings: the values each setting is tried at, lanes and devices</summary>
             <form id="tune-settings-form" class="tune-settings-form"></form>

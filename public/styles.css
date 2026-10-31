@@ -2823,3 +2823,44 @@ button.tune-chip.running {
 .tune-best .benchmark-table td:last-child {
   text-align: left;
 }
+
+/* Tune runs and their statistics */
+.tune-runs {
+  margin-top: 14px;
+}
+
+.tune-runs > summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tune-runs > summary small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.tune-run-detail {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.tune-run-detail h4 {
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+
+.tune-chip.dropped {
+  opacity: 0.65;
+  text-decoration: line-through;
+}
+
+.tune-run-detail a {
+  display: inline-block;
+  margin-top: 8px;
+  color: var(--accent);
+}

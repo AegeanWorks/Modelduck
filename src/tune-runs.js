@@ -44,8 +44,11 @@ function isAliveDefault(pid) {
   }
 }
 
+// While answers arrive, the summary's count and time are saved at most this often.
+const ANSWER_SAVE_MS = 15_000;
+
 /** Start recording a run; the recorder keeps the summary and appends answers as they come. */
-export async function startRun(dir, { profileId, model, request, fingerprint = null, expectedAnswers = null, now = new Date(), pid = process.pid }) {
+export async function startRun(dir, { profileId, model, request, fingerprint = null, expectedAnswers = null, now = new Date(), pid = process.pid, clock = Date.now }) {
   await ensureDirectory(dir);
   const id = `${now.toISOString().replace(/[:.]/g, "-")}-${pid}`;
   let record = {
@@ -67,12 +70,22 @@ export async function startRun(dir, { profileId, model, request, fingerprint = n
   };
   const save = () => writeJsonAtomic(summaryFile(dir, id), record);
   await save();
+  let savedAt = clock();
   // Writes go one after another, so a slow disk never reorders a summary.
   let queue = Promise.resolve();
   const later = (work) => (queue = queue.then(work, work));
   return {
     id,
-    answers: (rows) => later(() => (rows.length ? fs.promises.appendFile(answersFile(dir, id), rows.map((row) => `${JSON.stringify(row)}\n`).join("")) : undefined)),
+    answers: (rows) => later(async () => {
+      if (!rows.length) return;
+      await fs.promises.appendFile(answersFile(dir, id), rows.map((row) => `${JSON.stringify(row)}\n`).join(""));
+      // Keep the count and time current, so a run stopped inside a long setting still shows them.
+      record = { ...record, answers: record.answers + rows.length, updatedAt: new Date(clock()).toISOString() };
+      if (clock() - savedAt >= ANSWER_SAVE_MS) {
+        savedAt = clock();
+        await save();
+      }
+    }),
     update: (patch) => later(() => {
       record = { ...record, ...patch, updatedAt: new Date().toISOString() };
       return save();
@@ -84,9 +97,18 @@ export async function startRun(dir, { profileId, model, request, fingerprint = n
   };
 }
 
+/** A run as shown: interrupted when its process died while running, and with its time so far when unfinished. */
+function present(record, isAlive) {
+  const shown = { ...record };
+  if (shown.outcome === "running" && !isAlive(shown.pid)) shown.outcome = "interrupted";
+  shown.durationMs ??= Date.parse(shown.updatedAt) - Date.parse(shown.startedAt);
+  return shown;
+}
+
 /** A saved run with all its details, or null when there is none. */
-export async function loadRun(dir, id) {
-  return readJsonWithQuarantine(summaryFile(dir, id), null, { logger: quiet });
+export async function loadRun(dir, id, { isAlive = isAliveDefault } = {}) {
+  const record = await readJsonWithQuarantine(summaryFile(dir, id), null, { logger: quiet });
+  return record ? present(record, isAlive) : null;
 }
 
 /** Every saved run without its details, newest first; one left running by a process that has died is "interrupted". */
@@ -97,8 +119,7 @@ export async function listRuns(dir, { isAlive = isAliveDefault } = {}) {
     const record = await readJsonWithQuarantine(path.join(dir, name), null, { logger: quiet });
     if (record?.schema !== RUN_SCHEMA) continue;
     const { sweeps: _sweeps, result: _result, ...summary } = record;
-    if (summary.outcome === "running" && !isAlive(summary.pid)) summary.outcome = "interrupted";
-    runs.push(summary);
+    runs.push(present(summary, isAlive));
   }
   return runs.sort((left, right) => right.startedAt.localeCompare(left.startedAt));
 }
