@@ -3,31 +3,15 @@
   "active_task": {
     "task_id": "part-runs",
     "last_phase": "verification",
-    "active_phase": 4,
-    "status": "in_progress",
+    "active_phase": 5,
+    "status": "completed",
     "updated_at": 1793447130.4042432,
     "owner": "claude-opus-5.5",
     "started_by": "claude-opus-5.5",
-    "continuations": []
+    "continuations": [],
+    "completed_at": 1793447131.738281
   },
   "checkpoints": [
-    {
-      "task_id": "polish-v1",
-      "phase": "in_progress",
-      "phase_num": 2,
-      "description": "[1/2] Polish: M1 OpenAI chat completions apply the loaded model's tuned task preset as defaults (client values win; task via x-modelduck-task header or modelduck_task, default chat, unknown task 400) and pass reasoning/promptRepeat that the API silently dropped; M2 UI 'Re-tune' button on a stale profile forces a re-tune instead of being skipped or refused; then publish",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793439071.8772483,
-      "timestamp_str": "2026-10-31 12:31:11",
-      "agent": "claude-code:20b8d1d8",
-      "impact_assessment": {
-        "why": "API clients got untuned sampling and ignored reasoning settings; the stale-profile button did nothing useful",
-        "benefits": "Tuned presets reach every client; the warning button does what it says",
-        "risks": "contract: API defaults now follow the tuned preset and the reasoning setting; dependency: none; concurrency: none; state: none",
-        "mitigation": "Client-sent values keep priority; tuned settings switch still turns it off; tests first"
-      }
-    },
     {
       "task_id": "polish-v1",
       "phase": "in_progress",
@@ -260,6 +244,16 @@
       "status": "in_progress",
       "timestamp": 1793447130.4042432,
       "timestamp_str": "2026-10-31 14:45:30",
+      "agent": "claude-opus-5.5"
+    },
+    {
+      "task_id": "part-runs",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'part-runs' completed successfully.",
+      "status": "completed",
+      "timestamp": 1793447131.7382824,
+      "timestamp_str": "2026-10-31 14:45:31",
       "agent": "claude-opus-5.5"
     }
   ]
