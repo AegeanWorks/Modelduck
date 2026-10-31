@@ -7,7 +7,7 @@
 
 
 A local GGUF chat studio: load a model, talk to it, and serve an OpenAI-compatible API.
-No GPU, no cloud account, no telemetry. Chats, prompts and settings stay on your
+Runs on the CPU or a Vulkan GPU; no cloud account, no telemetry. Chats, prompts and settings stay on your
 computer; the only network requests are model downloads you start (the inference
 runtime is never downloaded or built on demand).
 

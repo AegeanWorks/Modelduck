@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "A local GGUF chat studio: load a model, talk to it, and serve an OpenAI-compatible API. No GPU or cloud account required.",
+  "description": "A local GGUF chat studio: load a model, talk to it, and serve an OpenAI-compatible API. Runs on the CPU or a Vulkan GPU; no cloud account required.",
   "license": "SEE LICENSE IN LICENSE",
   "engines": {
     "node": ">=20.0.0"
