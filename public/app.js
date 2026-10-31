@@ -2098,6 +2098,40 @@ function tuneStageChips(stages, staleParts = [], { modelId = null, running = fal
   return chips;
 }
 
+/** The suite's question types in plain words. */
+const TYPE_NAMES = {
+  instruction: "Follow an instruction", format: "Follow a format", comprehension: "Reading comprehension",
+  knowledge: "Knowledge", facts: "Facts", "public-knowledge": "MMLU (public)", "public-truthful": "TruthfulQA (public)",
+  code: "Write a function", "code-long": "Write a long function", "code-repo": "Work in a codebase",
+  bugfix: "Fix a bug", "bugfix-long": "Fix several bugs", "bugfix-repo": "Fix a bug in a codebase", "public-code": "HumanEval and MBPP (public)",
+  reasoning: "Word problems", "public-math": "GSM8K word problems (public)", context: "Reason over a long document", recall: "Look up in a long document",
+};
+
+const rightOf = (entry, key) => (entry ? `${entry[key]} of ${entry.items}` : "–");
+
+/** Right answers per question type for every task: preset against defaults, tuned and unseen (ADR-056). */
+function byTypeSection(tasks) {
+  const rows = Object.entries(tasks ?? {}).flatMap(([task, preset]) =>
+    Object.entries(preset?.stats?.byType ?? {}).map(([type, entry]) => ({ task, type, entry, unseen: preset.holdout?.byType?.[type] })));
+  if (!rows.length) return null;
+  const section = document.createElement("details");
+  section.className = "tune-by-type";
+  section.appendChild(Object.assign(document.createElement("summary"), { textContent: "By question type" }));
+  const table = document.createElement("table");
+  table.className = "benchmark-table";
+  const head = table.createTHead().insertRow();
+  for (const text of ["Task", "Question type", "Preset", "Defaults", "Unseen: preset", "Unseen: defaults"]) head.appendChild(Object.assign(document.createElement("th"), { textContent: text }));
+  const body = table.createTBody();
+  for (const { task, type, entry, unseen } of rows) {
+    const row = body.insertRow();
+    // A type the preset answers worse than the defaults stands out.
+    if (entry.right < entry.defaultRight) row.className = "tune-type-worse";
+    row.append(tuneCell(TASK_NAMES[task] ?? task), tuneCell(TYPE_NAMES[type] ?? type), tuneCell(rightOf(entry, "right")), tuneCell(rightOf(entry, "defaultRight")), tuneCell(rightOf(unseen, "right")), tuneCell(rightOf(unseen, "defaultRight")));
+  }
+  section.appendChild(table);
+  return section;
+}
+
 /** A preset against the defaults on items it was never tuned on (ADR-054). */
 function unseenText(holdout) {
   if (!holdout) return "–";
@@ -2151,6 +2185,8 @@ function tuneDetails(model) {
     );
   }
   box.appendChild(table);
+  const types = byTypeSection(profile?.tasks);
+  if (types) box.appendChild(types);
   const sweeps = state.tuneSweeps.get(model.profileId);
   box.appendChild(sweeps ? tuneTried(sweeps) : Object.assign(document.createElement("p"), { textContent: "Loading what was tried…" }));
   return box;
@@ -2388,6 +2424,8 @@ function renderTuneRunDetail({ run, answers }) {
     }
     box.appendChild(table);
   }
+  const types = byTypeSection(run.result?.tasks);
+  if (types) box.appendChild(types);
   if (run.sweeps?.length) {
     const tried = tuneTried(run.sweeps);
     tried.open = true;

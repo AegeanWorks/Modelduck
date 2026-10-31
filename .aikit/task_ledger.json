@@ -2,32 +2,15 @@
   "version": 1,
   "active_task": {
     "task_id": "bench-types",
-    "last_phase": "planning",
-    "active_phase": 2,
+    "last_phase": "verification",
+    "active_phase": 4,
     "status": "in_progress",
-    "updated_at": 1793474894.3288946,
+    "updated_at": 1793475017.8328345,
     "owner": "claude-opus-5.5",
     "started_by": "claude-opus-5.5",
-    "continuations": [],
-    "impact_assessment": {
-      "why": "The benchmark is ModelDuck's difference; the user asked to separate the testing more and whether best results carry across tuning parts",
-      "benefits": "Which kind of question a setting helps or hurts is visible; a shared setting cannot quietly hurt one task; the suite is explained in the app",
-      "risks": "contract: task stats gain byType, quality sweeps gain perTask and may revert; new suite summary route; dependency: none; concurrency: none; state: profiles gain byType",
-      "mitigation": "Failing-first tests; Edge review; ADRs"
-    }
+    "continuations": []
   },
   "checkpoints": [
-    {
-      "task_id": "tune-stats-v1",
-      "phase": "verification",
-      "phase_num": 4,
-      "description": "Milestone 2 run records in; 328/328 tests, gate 4/4; real run check deferred until the baseline finishes; checklists: passed",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793457279.5338728,
-      "timestamp_str": "2026-10-31 17:34:39",
-      "agent": "claude-opus-5.5"
-    },
     {
       "task_id": "tune-stats-v1",
       "phase": "verification",
@@ -260,6 +243,17 @@
       "status": "superseded",
       "timestamp": 1793474894.3288946,
       "timestamp_str": "2026-10-31 22:28:14",
+      "agent": "claude-opus-5.5"
+    },
+    {
+      "task_id": "bench-types",
+      "phase": "verification",
+      "phase_num": 4,
+      "description": "Milestone 1 per-type results in; tests pass, gate 4/4, Edge review; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793475017.8328345,
+      "timestamp_str": "2026-10-31 22:30:17",
       "agent": "claude-opus-5.5"
     }
   ]

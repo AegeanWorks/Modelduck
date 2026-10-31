@@ -2959,3 +2959,17 @@ button.tune-chip.running {
 .bench-tab-dot[hidden] {
   display: none;
 }
+
+/* Results per question type */
+.tune-by-type {
+  margin-top: 10px;
+}
+
+.tune-by-type summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.tune-type-worse td {
+  color: var(--danger, #f87171);
+}

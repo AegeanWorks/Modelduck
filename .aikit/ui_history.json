@@ -390,5 +390,19 @@
     "final_snapshot_digest": "",
     "final_snapshot_entries": 0,
     "surface_digest": "c513956d10ec970d63a9ec6d146d11e2fe64d821b3f787628b2fbacf27124027"
+  },
+  {
+    "schema": 1,
+    "surface": "app",
+    "baseline_commit": "3fa054a5313d7b09bca8cae193cb018d9eca9e7e",
+    "contract_hash": "c6a291e913a9c8f174aadf7fb264b0941c55e9f4999a9a43152f1fb616845d11",
+    "started_at": 1793474939.8937366,
+    "finished_at": 1793475012.8509126,
+    "strikes": 0,
+    "reviewer": "Claude (AI; headless Edge review with sample per-type data in a scratch profile: By question type lists each task's types with preset and defaults, tuned and unseen, and marks a type the preset answers worse; no console errors; delegated by the user on 2026-11-01)",
+    "allowed_removals": [],
+    "final_snapshot_digest": "",
+    "final_snapshot_entries": 0,
+    "surface_digest": "d0870eec62a7fb155289f4068e05ffade1e2e51749c94a699c01dea481e42545"
   }
 ]

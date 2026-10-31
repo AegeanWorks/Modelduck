@@ -420,3 +420,10 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
 - **Context**: The Bench panel polled the tune status every two seconds and showed only each model's last event (stage, setting, time left); which values were being tried, how they scored and what was decided were visible only after the run.
 - **Decision**: The scheduler keeps a live summary per model from the tune's events: answers so far against the expected count, the latest time left, the setting being tried with each value's latest round (score, time, tokens), and the last 30 decisions with their reasons. It calls subscribers after every change. `GET /api/tune/stream` sends the job at once and then after each change as server-sent events, gathering changes within 250 ms and sending a keep-alive comment every 15 s, and stops listening when the page goes away. The panel listens to it while open and falls back to polling if the stream fails.
 - **Consequences**: The panel shows a running tune's sections as it goes. A tune started outside the app (the CLI, the tune gate) is not part of the scheduler and is not shown live.
+
+### ADR-056: Each task's result is broken down by question type
+- **Date**: 2026-11-01
+- **Status**: Accepted
+- **Context**: A task's preset was reported as one rate, so a setting that helped one kind of question (say, writing functions) and hurt another (fixing bugs) looked like a small net change. The benchmark is what sets ModelDuck apart, and its question types were invisible in the tuner.
+- **Decision**: The tune takes `typeOf(itemId)` (the tune job passes each suite item's category), and a task's statistics and its held-back check carry `byType`: per question type, the items and right answers for the chosen settings and for the defaults. Details and a run's detail show them under "By question type" in plain words (for example "Work in a codebase", "GSM8K word problems"), with the types the preset answers worse than the defaults marked.
+- **Consequences**: Per-type counts are small (often under 15), so they show where to look rather than prove a difference; the task-level paired test stays the decision rule.
