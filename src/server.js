@@ -22,7 +22,7 @@ import {
   sseStart,
 } from "./http.js";
 import { publicCatalog } from "./model-catalog.js";
-import { currentFingerprint, listProfiles, loadProfile, profileIdFor } from "./model-profiles.js";
+import { currentFingerprint, isPartRun, listProfiles, loadProfile, profileIdFor } from "./model-profiles.js";
 import { TunedSettings } from "./tuned-settings.js";
 import { readSteps, writeSteps } from "./tune-steps.js";
 import { DEFAULT_STEPS, estimateTune, settingNames } from "../benchmarks/tune-grid.mjs";
@@ -490,15 +490,17 @@ export function createHttpServer({
         }
         return { id: model.id, fileName: model.fileName, profileId: profileIdFor(model.fileName), name: model.name };
       });
-      // forceStale starts over only where the saved profile was measured on another suite, runtime or machine.
-      if (body.forceStale === true && profilesDir) {
+      const only = Array.isArray(body.settings) && body.settings.length ? body.settings.map(String) : null;
+      const stages = Array.isArray(body.stages) ? body.stages.map(String) : null;
+      // forceStale starts over only where the saved profile was measured on another suite, runtime or machine,
+      // and only for a whole tune: a part run re-measures its parts on top of the saved rest (ADR-040).
+      if (body.forceStale === true && profilesDir && !isPartRun(stages, only)) {
         for (const model of models) {
           const entry = installed.find((item) => item.id === model.id);
           const saved = await loadProfile(profilesDir, model.profileId, await profileFingerprint(entry)).catch(() => null);
           model.force = Boolean(saved?.stale.length);
         }
       }
-      const only = Array.isArray(body.settings) && body.settings.length ? body.settings.map(String) : null;
       const unknownSettings = (only ?? []).filter((name) => !settingNames().includes(name));
       if (unknownSettings.length) {
         throw new AppError("Unknown setting", { code: "unknown_setting", status: 400, why: `${unknownSettings.join(", ")} is not a tunable setting.`, fix: `Use any of: ${settingNames().join(", ")}.` });
@@ -508,7 +510,7 @@ export function createHttpServer({
         job: tunes.start({
           models,
           tasks: Array.isArray(body.tasks) ? body.tasks.map(String) : null,
-          stages: Array.isArray(body.stages) ? body.stages.map(String) : null,
+          stages,
           settings: only,
           force: body.force === true,
         }),

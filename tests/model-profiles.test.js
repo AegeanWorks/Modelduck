@@ -12,6 +12,7 @@ import {
   currentFingerprint,
   listProfiles,
   loadProfile,
+  measuredUnderAfter,
   pendingWork,
   planTune,
   presetFor,
@@ -168,9 +169,52 @@ test("a tune reuses what is saved before measuring again", () => {
   assert.throws(() => planTune(stale, ["recall"]), (error) => error.code === "tune_profile_stale" && /--force/.test(error.fix));
 });
 
-test("an explicit selection of settings always runs, resuming the saved progress", () => {
+test("an explicit selection of settings always runs, resuming the saved progress, even on a stale profile", () => {
   const fresh = { profile: profile(), stale: [], warnings: [] };
-  assert.deepEqual(planTune(fresh, ["code"], undefined, ["contextSize"]), { resume: { ...profile().progress, sweeps: profile().sweeps } });
+  assert.deepEqual(planTune(fresh, ["code"], undefined, ["contextSize"]), { resume: { ...profile().progress, sweeps: profile().sweeps }, rerun: [] });
   const stale = { ...fresh, stale: ["suiteVersion"], warnings: ["changed"] };
-  assert.throws(() => planTune(stale, ["code"], undefined, ["contextSize"]), (error) => error.code === "tune_profile_stale");
+  assert.deepEqual(planTune(stale, ["code"], undefined, ["contextSize"]), { resume: { ...profile().progress, sweeps: profile().sweeps }, rerun: [] }, "a part run keeps the rest of a stale profile (ADR-040)");
+});
+
+const PROGRESS = {
+  device: { status: "done", settings: { gpuBackend: "vulkan" } },
+  quality: { status: "done", settings: { contextSize: 8192 } },
+  speed: { status: "done", settings: { threads: 8 } },
+  sampling: { code: { status: "done", settings: { temperature: 0.2 } }, math: { status: "done", settings: { temperature: 0 } } },
+  prompt: { code: { status: "done", settings: { reasoning: "off" } }, math: { status: "partial", settings: {} } },
+  sweeps: [],
+  runs: 10,
+};
+const withProgress = () => ({ ...profile(), progress: structuredClone(PROGRESS) });
+
+test("choosing some stages measures them again on top of the saved rest, even when they are done or the profile is stale", () => {
+  const stale = { profile: withProgress(), stale: ["suiteVersion"], warnings: ["changed"] };
+  const quality = planTune(stale, ["code"], ["quality"]);
+  assert.deepEqual(quality.rerun, ["quality"]);
+  assert.equal(quality.resume.quality, undefined, "the chosen stage starts over");
+  assert.deepEqual(quality.resume.device, PROGRESS.device, "the other stages stay as the starting point");
+  assert.deepEqual(quality.resume.sampling, PROGRESS.sampling);
+  const prompt = planTune(stale, ["code", "math"], ["prompt"]);
+  assert.deepEqual(prompt.rerun, ["prompt:code"], "a partial stage resumes instead of starting over");
+  assert.deepEqual(Object.keys(prompt.resume.prompt), ["math"]);
+  assert.deepEqual(planTune(stale, ["code"], ["device"]).rerun, ["device"]);
+  assert.throws(() => planTune(stale, ["recall"]), (error) => error.code === "tune_profile_stale", "a full run of a stale profile still needs --force");
+});
+
+test("a profile records which parts were measured under an older fingerprint and warns about only those", async (t) => {
+  const dir = await directory(t);
+  const now = { ...FINGERPRINT, suiteVersion: 9 };
+  const saved = withProgress();
+  const measuredUnder = measuredUnderAfter({ profile: saved }, now, TUNE.stages, ["quality"]);
+  assert.deepEqual(measuredUnder.quality, now);
+  assert.deepEqual(measuredUnder.device, FINGERPRINT, "parts not measured again keep their fingerprint");
+  assert.deepEqual(measuredUnder["prompt:math"], FINGERPRINT);
+  await saveProfile(dir, profileFromTune(TUNE, { catalogId: "qwen2.5-0.5b-instruct-q4", fingerprint: now, measuredUnder }));
+  const loaded = await loadProfile(dir, "qwen2.5-0.5b-instruct-q4", now);
+  assert.deepEqual(loaded.stale, ["suiteVersion"]);
+  assert.ok(!loaded.staleParts.includes("quality"));
+  assert.ok(loaded.staleParts.includes("device") && loaded.staleParts.includes("sampling:code"));
+  assert.match(loaded.warnings.at(-1), /Measured before that: device, speed/);
+  assert.equal(measuredUnderAfter({ profile: saved }, FINGERPRINT, TUNE.stages, ["quality"]), null, "nothing to record when every part is current");
+  assert.deepEqual(measuredUnderAfter(null, now, TUNE.stages, []), null, "a forced tune measures everything now");
 });

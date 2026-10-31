@@ -4,7 +4,7 @@ import { DEFAULT_SETTINGS, resolvePaths } from "../src/config.js";
 import { LlamaEngine } from "../src/engine.js";
 import { AppError } from "../src/errors.js";
 import { getCatalogModel } from "../src/model-catalog.js";
-import { currentFingerprint, loadProfile, planTune, profileFromTune, profileIdFor, saveProfile } from "../src/model-profiles.js";
+import { currentFingerprint, loadProfile, measuredUnderAfter, planTune, profileFromTune, profileIdFor, saveProfile } from "../src/model-profiles.js";
 import { createModelRegistry } from "../src/model-registry.js";
 import { systemInfo } from "../src/system.js";
 import { createTimingLock } from "../src/tune-lock.js";
@@ -66,7 +66,8 @@ export async function runTune(target, { tasks, stages = STAGES, only = null, ste
   const logicalCores = target.system.parallelism;
   const used = steps ?? (await readSteps(target.paths.tuneGrid)).steps;
   const save = async (result) => {
-    const profile = profileFromTune({ ...result, steps: used }, { catalogId: target.profileId, fingerprint: target.fingerprint });
+    const measuredUnder = measuredUnderAfter(saved, target.fingerprint, result.stages, plan.rerun ?? []);
+    const profile = profileFromTune({ ...result, steps: used }, { catalogId: target.profileId, fingerprint: target.fingerprint, measuredUnder });
     await saveProfile(target.paths.profiles, profile);
     return profile;
   };

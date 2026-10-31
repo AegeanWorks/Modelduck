@@ -1,38 +1,16 @@
 {
   "version": 1,
   "active_task": {
-    "task_id": "suite-v11",
+    "task_id": "part-runs",
     "last_phase": "verification",
-    "active_phase": 5,
-    "status": "completed",
-    "updated_at": 1793446792.2011752,
+    "active_phase": 4,
+    "status": "in_progress",
+    "updated_at": 1793447130.4042432,
     "owner": "claude-opus-5.5",
     "started_by": "claude-opus-5.5",
-    "continuations": [],
-    "completed_at": 1793446793.1329236
+    "continuations": []
   },
   "checkpoints": [
-    {
-      "task_id": "suite-v9-v1",
-      "phase": "in_progress",
-      "phase_num": 4,
-      "description": "[1/1] Suite v9: 44 new own items (16 code, 6 long code, 16 bug-fix, 6 long multi-bug fixes), every case verified by reference solutions, every buggy function fails its tests, long categories in the code task and coding rate, docs, CHANGELOG, ADR-035; checklists: passed",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793438428.214221,
-      "timestamp_str": "2026-10-31 12:20:28",
-      "agent": "claude-code:20b8d1d8"
-    },
-    {
-      "task_id": "suite-v9-v1",
-      "phase": "completed",
-      "phase_num": 5,
-      "description": "Task 'suite-v9-v1' completed successfully.",
-      "status": "completed",
-      "timestamp": 1793438428.946876,
-      "timestamp_str": "2026-10-31 12:20:28",
-      "agent": "claude-code:20b8d1d8"
-    },
     {
       "task_id": "polish-v1",
       "phase": "in_progress",
@@ -254,6 +232,34 @@
       "status": "completed",
       "timestamp": 1793446793.1329255,
       "timestamp_str": "2026-10-31 14:39:53",
+      "agent": "claude-opus-5.5"
+    },
+    {
+      "task_id": "part-runs",
+      "phase": "planning",
+      "phase_num": 2,
+      "description": "[1/1] Part runs re-measure chosen stages or settings for one or all models on top of the saved rest, with per-part fingerprints",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793447074.2911744,
+      "timestamp_str": "2026-10-31 14:44:34",
+      "agent": "claude-opus-5.5",
+      "impact_assessment": {
+        "why": "The user wants to run one part (device probe, one setting, the prompt stage) for all models; chosen done stages were skipped and Run all wiped stale profiles",
+        "benefits": "Device-only, setting-only or prompt-only runs across all models keep every other result, and warnings name the parts still measured on an older suite",
+        "risks": "contract: planTune returns rerun and allows part runs on stale profiles (ADR-034 refusal lifted); dependency: none; concurrency: none; state: profiles gain an optional measuredUnder map",
+        "mitigation": "Failing-first profile and server tests; real device-only run on a stale profile kept the rest; ADR-040"
+      }
+    },
+    {
+      "task_id": "part-runs",
+      "phase": "verification",
+      "phase_num": 4,
+      "description": "Part runs in; 310/310 tests, gate 4/4, real device-only run kept the rest; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793447130.4042432,
+      "timestamp_str": "2026-10-31 14:45:30",
       "agent": "claude-opus-5.5"
     }
   ]

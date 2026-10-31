@@ -49,12 +49,14 @@ export function profileIdFor(fileName) {
 const pick = (settings, keys) => Object.fromEntries(keys.filter((key) => key in settings).map((key) => [key, settings[key]]));
 
 /** Turn a `tune()` result into a storable profile. */
-export function profileFromTune(result, { catalogId, fingerprint, createdAt = new Date().toISOString() }) {
+export function profileFromTune(result, { catalogId, fingerprint, measuredUnder = null, createdAt = new Date().toISOString() }) {
   return {
     schema: PROFILE_SCHEMA,
     catalogId,
     createdAt,
     fingerprint: pick(fingerprint, FINGERPRINT_KEYS),
+    // Parts measured under another fingerprint than the one above, after a part run (ADR-040).
+    ...(measuredUnder && { measuredUnder }),
     load: { settings: pick(result.load.settings, LOAD_KEYS), stats: result.load.stats ?? null },
     device: result.device ?? null,
     speed: result.speed ?? null,
@@ -96,8 +98,14 @@ export async function loadProfile(directory, catalogId, fingerprint) {
       fix: "Update ModelDuck, or tune the model again to replace the profile.",
     });
   }
-  const stale = FINGERPRINT_KEYS.filter((key) => profile.fingerprint?.[key] !== fingerprint?.[key]);
-  return { profile, stale, warnings: stale.map((key) => staleWarning(key, profile.fingerprint?.[key], fingerprint?.[key])) };
+  const differs = (print) => (key) => print?.[key] !== fingerprint?.[key];
+  const parts = Object.entries(profile.measuredUnder ?? {});
+  const prints = [profile.fingerprint, ...parts.map(([, print]) => print)];
+  const stale = FINGERPRINT_KEYS.filter((key) => prints.some((print) => differs(print)(key)));
+  const warnings = stale.map((key) => staleWarning(key, prints.find((print) => differs(print)(key))?.[key], fingerprint?.[key]));
+  const staleParts = parts.filter(([, print]) => FINGERPRINT_KEYS.some(differs(print))).map(([part]) => part);
+  if (staleParts.length) warnings.push(`Measured before that: ${staleParts.join(", ")}; the other parts are up to date.`);
+  return { profile, stale, staleParts, warnings };
 }
 
 const STALE_REASONS = Object.freeze({
@@ -173,8 +181,62 @@ export async function listProfiles(directory) {
  * finished every requested stage, resume from its saved progress otherwise,
  * and refuse to add new results to a stale profile.
  */
+/** The parts a tune measures for `stages` and `tasks`: device, quality and speed once, sampling and prompt per task. */
+export function profileParts(stages, tasks) {
+  const parts = ["device", "quality", "speed"].filter((stage) => stages.includes(stage));
+  for (const stage of ["sampling", "prompt"]) if (stages.includes(stage)) parts.push(...tasks.map((task) => `${stage}:${task}`));
+  return parts;
+}
+
+const statusOf = (stages, part) => {
+  const [stage, task] = part.split(":");
+  return (task ? stages?.[stage]?.[task] : stages?.[stage]) ?? "pending";
+};
+
+/** Saved progress with `parts` removed, so a resumed tune measures them from scratch on top of the rest. */
+function withoutParts(progress, parts) {
+  const copy = structuredClone(progress);
+  for (const part of parts) {
+    const [stage, task] = part.split(":");
+    if (task) delete copy[stage]?.[task];
+    else delete copy[stage];
+  }
+  return copy;
+}
+
+/**
+ * After a run, the fingerprint each measured part was measured under: parts
+ * measured now (re-run or new) get the current one, the rest keep theirs.
+ * Null when every part is current, so a profile only carries it when it matters.
+ */
+export function measuredUnderAfter(saved, fingerprint, stages, rerun) {
+  const current = pick(fingerprint ?? {}, FINGERPRINT_KEYS);
+  if (!saved) return null;
+  const before = saved.profile.measuredUnder ?? {};
+  const measured = Object.keys(stages ?? {}).flatMap((stage) =>
+    stages[stage] && typeof stages[stage] === "object" ? Object.keys(stages[stage]).map((task) => `${stage}:${task}`) : [stage]);
+  const map = {};
+  for (const part of measured.filter((key) => statusOf(stages, key) !== "pending")) {
+    const measuredNow = rerun.includes(part) || statusOf(saved.profile.stages, part) === "pending";
+    map[part] = measuredNow ? current : before[part] ?? pick(saved.profile.fingerprint ?? {}, FINGERPRINT_KEYS);
+  }
+  const same = (print) => FINGERPRINT_KEYS.every((key) => print[key] === current[key]);
+  return Object.values(map).every(same) ? null : map;
+}
+
+/** A run of some stages or some settings rather than the whole tune (ADR-040). */
+export function isPartRun(stages, only) {
+  return Boolean(only?.length) || TUNE_STAGES.some((stage) => !(stages ?? TUNE_STAGES).includes(stage));
+}
+
 export function planTune(saved, tasks, stages = TUNE_STAGES, only = null) {
   if (!saved) return { resume: null };
+  // Choosing some stages or settings measures those parts again on top of the saved rest,
+  // even when they are done or the profile is stale (ADR-040); a partial stage resumes.
+  if (isPartRun(stages, only) && saved.profile.progress) {
+    const rerun = only?.length ? [] : profileParts(stages, tasks).filter((part) => statusOf(saved.profile.stages, part) === "done");
+    return { resume: { ...withoutParts(saved.profile.progress, rerun), sweeps: saved.profile.sweeps ?? [] }, rerun };
+  }
   // An explicit choice of settings always runs (ADR-034); otherwise only unfinished work does.
   const pending = only?.length ? only : pendingWork(saved.profile, tasks, stages);
   if (!pending.length) return { skip: true };

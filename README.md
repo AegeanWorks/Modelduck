@@ -373,30 +373,30 @@ while a reply is generating so the CPU measurements stay comparable.
 `POST /api/benchmarks/base` saves one model-phase variant as the base the next
 chat-phase run loads. `POST /api/benchmarks/run` with `{"phase":"tune","model":"<id>"}`
 tunes one installed model (optional `tasks`, `force`, and `stages` from device, quality,
-speed, sampling, prompt); a saved profile is reused unless `force` is true. The profile
-is saved after every finished setting, so a stopped tune applies and later resumes.
+speed, sampling, prompt); a saved profile is reused unless `force` is true, and chosen
+`stages` or `settings` are measured again on top of the saved rest, even when out of date.
+The profile is saved after every setting, so a stopped tune applies and later resumes.
 `POST /api/tune/start` with `{"models":"all"}` (or a list of model ids) tunes several models
 side by side: device probes first, then 1 CPU lane and 2 GPU lanes by default (`lanes` in
-`tune-grid.json`, set per PC); speed measurements pause the other tunes. `GET /api/profiles/:id` returns the profile with `stale` and
-plain-language `warnings` when the test suite, test items, runtime, CPU or model file
-changed since it was measured; a stale profile is still used until it is re-tuned.
+`tune-grid.json`, set per PC); speed measurements pause the other tunes. `GET /api/profiles/:id` returns the profile with `stale`,
+`staleParts` and `warnings` when the suite, items, runtime, CPU or model file changed
+since a part was measured; a stale profile is still used until re-tuned.
 
 The host's loopback UI stays key-free. Authentication covers the OpenAI-compatible
-API and, when the request comes from another machine, the UI/API routes as well.
+API and, for requests from another machine, the UI/API routes too.
 When enabled, send `Authorization: Bearer <key>` or `X-API-Key: <key>`; keys are
-shown once and only their SHA-256 hashes are stored. A LAN browser is prompted
-for the key once and keeps it in session storage.
+shown once and only their SHA-256 hashes are stored. A LAN browser asks for the
+key once and keeps it in session storage.
 
 ## GPU backends
 
-CPU is the default so a missing driver never prevents chat. In **Settings → GPU
+CPU is the default, so a missing driver never blocks chat. In **Settings → GPU
 backend** choose:
 
 - **CUDA** for NVIDIA cards with a working CUDA runtime.
-- **Vulkan** for AMD/Intel GPUs; ROCm is not exposed by node-llama-cpp 3.22.2,
-  so Vulkan is the AMD path here.
+- **Vulkan** for AMD/Intel GPUs (node-llama-cpp has no ROCm build).
 - **Metal** on Apple Silicon.
-- **Auto** lets node-llama-cpp pick, then falls back to CPU if it cannot start.
+- **Auto** lets node-llama-cpp pick, falling back to CPU if it cannot start.
 
 Set **GPU layers** above 0 to offload layers; `0` keeps everything on the CPU.
 The **Detected GPU backends** line in Settings reports what the installed runtime
