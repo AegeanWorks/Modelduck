@@ -7,7 +7,7 @@
 export const DEFAULT_MAX_LOSS_POINTS = 5;
 export const OVERALL_QUALITY_WEIGHT = 0.7;
 export const OVERALL_FLOOR_POINTS = 15;
-export const CODING_CATEGORIES = Object.freeze(["code", "code-long", "bugfix", "bugfix-long", "public-code"]);
+export const CODING_CATEGORIES = Object.freeze(["code", "code-long", "code-repo", "bugfix", "bugfix-long", "bugfix-repo", "public-code"]);
 
 const SETTING_KEYS = [
   "kvCache", "contextSize", "batchSize", "threads", "maxThreads", "sequences",

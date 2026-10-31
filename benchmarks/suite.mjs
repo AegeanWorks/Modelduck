@@ -1,7 +1,9 @@
 import { moreBugFixPrompts, moreCodingPrompts } from "./own-items-v9.mjs";
+import { moreMathPrompts, moreRecallPrompts } from "./own-items-v10.mjs";
+import { repoPrompts } from "./repo-items-v10.mjs";
 import { publicPrompts } from "./public-items.mjs";
 
-export const SUITE_VERSION = 9;
+export const SUITE_VERSION = 10;
 
 export const SYSTEM_PROMPT =
   "You are a precise assistant. Follow the requested output format exactly. " +
@@ -255,8 +257,11 @@ export const PROMPTS = [
   ...bugFixPrompts(),
   ...moreCodingPrompts(),
   ...moreBugFixPrompts(),
+  ...repoPrompts(),
   ...comprehensionPrompts(),
   ...recallPrompts(),
+  ...moreMathPrompts(),
+  ...moreRecallPrompts(),
   ...factPrompts(),
   ...publicPrompts(),
 ];
@@ -633,6 +638,9 @@ export async function runJavaScriptTests(text, check, { timeoutMs = 5000 } = {})
   const { execFile } = await import("node:child_process");
   const cases = check.cases ?? [];
   const harness = [
+    // The rest of a codebase item's files; the answer comes after, so its functions replace theirs.
+    check.setup ?? "",
+    ";",
     // `-e` runs CommonJS, so ESM export keywords would be a syntax error.
     extractCode(text).replace(/^\s*export\s+(default\s+)?/gm, ""),
     ";",

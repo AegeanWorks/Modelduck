@@ -134,15 +134,14 @@ chosen configuration.
 Three small model classes are the default required set: SmolLM2 135M (tiny), Qwen2.5
 0.5B (general) and Qwen2.5 Coder 1.5B (code). `--full-matrix` / `npm run bench:full`
 adds Qwen2.5 1.5B, Llama 3.2 3B and Phi-3.5 Mini plus their KV-cache variants; that
-deeper review takes hours on a CPU and is opt-in. Suite v9 runs 174 items: 114
-questions ModelDuck authored (code and long code, bug fixes and long multi-bug fixes, comprehension, in-context recall,
-facts and the original instruction/reasoning/knowledge/format/context set) plus 60
-items copied from permissively licensed public benchmarks (GSM8K 16, MMLU 12,
+deeper review takes hours on a CPU and is opt-in. Suite v10 runs 256 items: 196
+questions ModelDuck authored (code, long code and multi-file codebase tasks, bug fixes,
+math, recall, comprehension, facts and the original set) plus 60 items copied from
+permissively licensed public benchmarks (GSM8K 16, MMLU 12,
 HumanEval 12, MBPP 8 and TruthfulQA 12) with source and licence recorded per item;
 see [benchmarks/NOTICE-benchmarks.md](benchmarks/NOTICE-benchmarks.md). Public items
 may be in a model's training data, so the report shows **own questions** and
-**public benchmarks** as separate origins and breaks public results down by dataset
-(GSM8K, MMLU, HumanEval, MBPP, TruthfulQA).
+**public benchmarks** as separate origins, with public results per dataset.
 
 ```bash
 npm run bench -- --download        # first run: fetch missing models, core phase
@@ -496,6 +495,8 @@ modelduck/
 │   ├── matrix.mjs
 │   ├── public-items.mjs
 │   ├── own-items-v9.mjs
+│   ├── own-items-v10.mjs
+│   ├── repo-items-v10.mjs
 │   ├── recommend.mjs
 │   ├── stats.mjs
 │   ├── tasks.mjs        <- chat/code/math/recall items and tuning rungs
@@ -532,6 +533,7 @@ modelduck/
 │   ├── benchmark-suite.test.js
 │   ├── benchmark-suite-v6.test.js
 │   ├── benchmark-suite-v9.test.js
+│   ├── benchmark-suite-v10.test.js
 │   ├── reference-solutions-v9.js
 │   ├── benchmark-test-hash.test.js
 │   ├── benchmark-tasks.test.js

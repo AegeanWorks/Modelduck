@@ -1,44 +1,16 @@
 {
   "version": 1,
   "active_task": {
-    "task_id": "system-prompt-fix",
+    "task_id": "suite-v10",
     "last_phase": "verification",
-    "active_phase": 5,
-    "status": "completed",
-    "updated_at": 1793443770.5635805,
+    "active_phase": 4,
+    "status": "in_progress",
+    "updated_at": 1793446065.5357642,
     "owner": "claude-opus-5.5",
     "started_by": "claude-opus-5.5",
-    "continuations": [],
-    "completed_at": 1793443798.722656
+    "continuations": []
   },
   "checkpoints": [
-    {
-      "task_id": "tune-only-settings-v1",
-      "phase": "completed",
-      "phase_num": 5,
-      "description": "Task 'tune-only-settings-v1' completed successfully.",
-      "status": "completed",
-      "timestamp": 1793436177.7243598,
-      "timestamp_str": "2026-10-31 11:42:57",
-      "agent": "claude-code:20b8d1d8"
-    },
-    {
-      "task_id": "review-fixes-v1",
-      "phase": "in_progress",
-      "phase_num": 2,
-      "description": "[1/2] Pre-publish review fixes: M1 backend - atomic rename retried 5x on EPERM/EBUSY/EACCES (PRINCIPLE-013; likely cause of the Llama tune failure), loopback guards on tune cancel and steps PUT, TunedSettings caches profiles by mtime and taskSubsetHash memoized; M2 UI - fully tuned models show 'Tuned' instead of a no-op Continue; then publish private",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793437413.5573454,
-      "timestamp_str": "2026-10-31 12:03:33",
-      "agent": "claude-code:20b8d1d8",
-      "impact_assessment": {
-        "why": "Review before first push found a principle gap and three defects",
-        "benefits": "Tunes survive transient Windows file locks, remote clients cannot cancel tunes or rewrite steps, chat stops re-parsing large profiles",
-        "risks": "contract: tune cancel and steps PUT now 403 from other machines; dependency: none; concurrency: rename retry adds up to ~1.5s on persistent failure; state: none",
-        "mitigation": "Tests first for each; failure after retries still surfaces"
-      }
-    },
     {
       "task_id": "review-fixes-v1",
       "phase": "in_progress",
@@ -254,6 +226,34 @@
       "status": "completed",
       "timestamp": 1793443798.7226577,
       "timestamp_str": "2026-10-31 13:49:58",
+      "agent": "claude-opus-5.5"
+    },
+    {
+      "task_id": "suite-v10",
+      "phase": "planning",
+      "phase_num": 2,
+      "description": "[1/2] Suite v10 adds 30 own math and 40 own recall items; [2/2] rungs grow to 12/24/48 so tune choices rest on more items",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793444170.6817868,
+      "timestamp_str": "2026-10-31 13:56:10",
+      "agent": "claude-opus-5.5",
+      "impact_assessment": {
+        "why": "Tune scores rested on 11-24 items per task, so no difference was significant (p 0.375-1); the user asked for enough items for proper statistics",
+        "benefits": "Every task offers at least 51 items and the final rung scores up to 48, so McNemar can separate real gains",
+        "risks": "contract: SUITE_VERSION 10 marks saved profiles stale with a warning; dependency: none; concurrency: none; state: tunes take about twice as long per stage",
+        "mitigation": "Answers verified by independent tests; generated recall items deterministic; ADR-038 records cost and staleness"
+      }
+    },
+    {
+      "task_id": "suite-v10",
+      "phase": "verification",
+      "phase_num": 4,
+      "description": "Milestone 1 items in; 302/302 tests with rungs unchanged; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793446065.5357642,
+      "timestamp_str": "2026-10-31 14:27:45",
       "agent": "claude-opus-5.5"
     }
   ]

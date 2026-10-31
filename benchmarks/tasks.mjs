@@ -15,7 +15,7 @@ export const TASKS = Object.freeze([
       "instruction", "format", "comprehension", "knowledge", "facts", "public-knowledge", "public-truthful",
     ]),
   }),
-  Object.freeze({ id: "code", label: "Code", categories: Object.freeze(["code", "code-long", "bugfix", "bugfix-long", "public-code"]) }),
+  Object.freeze({ id: "code", label: "Code", categories: Object.freeze(["code", "code-long", "code-repo", "bugfix", "bugfix-long", "bugfix-repo", "public-code"]) }),
   Object.freeze({ id: "math", label: "Math", categories: Object.freeze(["reasoning", "public-math"]) }),
   Object.freeze({ id: "recall", label: "Long context", categories: Object.freeze(["context", "recall"]) }),
 ]);
