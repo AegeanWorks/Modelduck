@@ -107,15 +107,16 @@ device. It is off by default so a missing driver never prevents chat from workin
   speed and per-test rates; reports from older suites show only when asked.
 - **Settings tuner** - **Bench → Tune** finds the best settings for each installed
   model on this PC, in order: device (CPU or GPU, measured), quality load settings
-  (context, KV cache), speed settings (threads, batch, flash, mmap; Fastest and Light
+  (context, KV cache), speed settings (threads, batch, flash, mmap; Fastest/Light
   presets), then sampling and system prompt for each task (chat, code, math, long
-  context). Each finished step is saved and applied at once, so a tune can stop
-  anywhere; **Run all** tunes models side by side in CPU and GPU lanes. **Tune
+  context). A setting changes only on a significant paired gain; a model that
+  cannot load stops the tune. Each finished step is saved and applied at once, so a
+  tune can stop anywhere; **Run all** tunes models side by side in CPU and GPU lanes. **Tune
   settings** edits the values each setting is tried at and the lanes for this PC.
-  In chat, the task picker by the message box chooses which tuned preset applies,
-  and each answer shows what was applied; **Settings** has the tuned on/off switch
-  and Fastest/Light. Tune with other heavy programs closed: CPU timings swing with
-  background load, and a small model's CPU-or-GPU choice can flip with them.
+  In chat, the task picker chooses which tuned preset applies, and each answer
+  shows what was applied; **Settings** has the tuned on/off switch
+  and Fastest/Light. Tune with heavy programs closed: CPU timings swing with load,
+  and a small model's CPU-or-GPU choice can flip with them.
 - **Small surface area** — Node's standard HTTP server and a vanilla UI. No build
   step, no framework, no CDN, no account.
 - **AI benchmark gate** - two phases: model reload/quantization/KV-cache settings,

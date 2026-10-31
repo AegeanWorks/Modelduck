@@ -24,6 +24,9 @@ export const DEFAULT_TUNE_OPTIONS = Object.freeze({
   toleranceItems: 1,
   keepFraction: 0.5,
   speedTie: 0.03,
+  // A challenger that is better only on quality must beat the current setting in a paired
+  // test at this level, divided by the number of challengers, or the current setting stays (ADR-042).
+  changeAlpha: 0.2,
 });
 
 export const STAGES = Object.freeze(["device", "quality", "speed", "sampling", "prompt"]);
@@ -84,6 +87,12 @@ async function sweep(context, { stage, task, axis, current, rungs, forced, cost 
       context.onEvent({ type: "candidate", stage, task, axis: axis.name, rung: itemIds.length, patch: entry.patch, rate, latencyMs, outputTokens, tokensPerSecond, runs: measurements.runs });
     }
     record.rungs.push({ size: itemIds.length, candidates: survivors.map((entry) => ({ patch: entry.patch, ...publicStats(entry.stats) })) });
+    // Nothing loads, the current settings included: the machine changed (a driver, memory), not the setting.
+    // Choosing among failures would store them as results, so the tune stops here instead.
+    if (survivors.every((entry) => entry.stats.failed)) {
+      measurements.stop(`The model could not load with any ${axis.name} tried, the current one included: ${survivors[0].stats.error ?? "every answer failed"}`);
+      return { ...record, aborted: true, winner: null };
+    }
     if (level === levels.length - 1) break;
     const keep = Math.max(2, Math.ceil(survivors.length * options.keepFraction));
     const ranked = [...survivors].sort(byQuality(cost));
@@ -91,11 +100,23 @@ async function sweep(context, { stage, task, axis, current, rungs, forced, cost 
   }
   const top = Math.max(...survivors.filter((entry) => !entry.stats.failed).map((entry) => entry.stats.rate), 0);
   const tolerance = (options.toleranceItems / levels.at(-1).length) * 100;
-  const winner = choose(survivors, Math.max(top, context.stageBest) - tolerance, options.speedTie, cost);
+  const chosen = choose(survivors, Math.max(top, context.stageBest) - tolerance, options.speedTie, cost);
   const incumbent = survivors.find((entry) => entry.incumbent);
+  // The best of many noisy rates is optimistic, so a quality-only gain must be real to move the setting.
+  const challengers = Math.max(1, candidates.length - 1);
+  const bar = options.changeAlpha / challengers;
+  const evidence = paired(incumbent.stats, chosen.stats);
+  const unproven = chosen !== incumbent && !incumbent.stats.failed && chosen.stats.rate > incumbent.stats.rate &&
+    !(evidence.c > evidence.b && evidence.pValue <= bar);
+  const winner = unproven ? incumbent : chosen;
+  const kept = unproven
+    ? `Kept ${JSON.stringify(Object.values(incumbent.patch)[0])}: the best challenger, ${JSON.stringify(Object.values(chosen.patch)[0])}, ` +
+      `scored ${chosen.stats.rate}% against ${incumbent.stats.rate}% (paired p=${evidence.pValue}), short of the p ≤ ${round(bar, 4)} a change needs.`
+    : undefined;
   context.stageBest = Math.max(context.stageBest, winner.stats.rate);
   return {
     ...record,
+    ...(kept && { kept }),
     previous: incumbent.patch,
     winner: winner.patch,
     changed: winner !== incumbent,
@@ -127,7 +148,7 @@ async function descend(context, { stage, task = null, axes, start, rungs, forced
       }
       const record = { pass, ...result };
       context.sweeps.push(record);
-      context.onEvent({ type: "sweep", stage, task, axis: axis.name, pass, winner: result.winner, changed: Boolean(result.changed), runs: context.measurements.runs });
+      context.onEvent({ type: "sweep", stage, task, axis: axis.name, pass, winner: result.winner, changed: Boolean(result.changed), ...(result.kept && { kept: result.kept }), runs: context.measurements.runs });
       if (result.changed) {
         current = { ...current, ...result.winner };
         changed = true;
@@ -276,7 +297,8 @@ export async function tune({
   }
 
   state.runs = (resume?.runs ?? 0) + context.measurements.runs;
-  return resultFrom(state, { budgetExhausted: context.measurements.exhausted, options: { ...settings, seeds: [...settings.seeds] } });
+  const { stopped } = context.measurements;
+  return resultFrom(state, { budgetExhausted: context.measurements.exhausted && !stopped, stopped, options: { ...settings, seeds: [...settings.seeds] } });
 }
 
 /** A task's final rate, CI, answer length and the change against the untuned settings. */
@@ -294,7 +316,7 @@ async function taskStats(context, final, untuned, items) {
  * What a profile stores: only tuned keys, so anything not tuned yet keeps its
  * default when applied. Stage status tells how far the tune got.
  */
-export function resultFrom(state, { budgetExhausted = false, options = null } = {}) {
+export function resultFrom(state, { budgetExhausted = false, stopped = null, options = null } = {}) {
   const tasks = {};
   for (const task of new Set([...Object.keys(state.sampling), ...Object.keys(state.prompt)])) {
     const sampling = state.sampling[task];
@@ -321,6 +343,7 @@ export function resultFrom(state, { budgetExhausted = false, options = null } = 
     sweeps: state.sweeps,
     runs: state.runs,
     budgetExhausted,
+    ...(stopped && { stopped }),
     options,
   };
 }

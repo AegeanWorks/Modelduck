@@ -78,7 +78,8 @@ function run(overrides = {}) {
     rungs: RUNGS,
     hardware: { logicalCores: 12 },
     ...AXES,
-    options: { seeds: [42, 7, 1234], passes: 2 },
+    // These tests check selection mechanics on 4-8 items, so the significance rule is off (any gain counts); it has its own tests.
+    options: { seeds: [42, 7, 1234], passes: 2, changeAlpha: Infinity },
     ...overrides,
   });
   return { model, result };
@@ -159,7 +160,7 @@ test("progress is reported after every axis, so a stopped tune keeps what it fou
 });
 
 test("a run budget stops the tune with partial progress marked", async () => {
-  const done = await run({ options: { seeds: [42, 7, 1234], passes: 2, maxRuns: 12 } }).result;
+  const done = await run({ options: { seeds: [42, 7, 1234], passes: 2, maxRuns: 12, changeAlpha: Infinity } }).result;
   assert.equal(done.budgetExhausted, true);
   assert.ok(["partial", "pending"].includes(done.stages.quality));
   assert.ok(done.runs <= 12 + 8);
@@ -413,4 +414,69 @@ test("choosing the device re-probes it even when it was probed before", async ()
   assert.ok(model.calls.length > 0);
   assert.equal(done.stages.device, "done");
   assert.equal(done.stages.quality, "pending");
+});
+
+/** A prompt-only tune on 20 items where the suite prompt gets half right and each rival a known number more. */
+async function promptTune(rivals) {
+  const gains = { "Be precise.": 0, ...rivals };
+  const items = ids("math", 20);
+  return tune({
+    evaluate: async (settings, itemIds) => ({
+      memoryBytes: 1,
+      prompts: itemIds.map((id) => {
+        const index = Number(id.split("-")[1]);
+        return { id, passed: index < 10 + gains[settings.systemPrompt] ? 1 : 0, total: 1, ms: 10, tokensPerSecond: 10, outputTokens: 10, digest: id };
+      }),
+    }),
+    base: { ...BASE, temperature: 0 },
+    tasks: ["math"],
+    stages: ["prompt"],
+    rungs: { ...RUNGS, math: [items] },
+    hardware: { logicalCores: 12 },
+    ...AXES,
+    promptAxes: [{ name: "systemPrompt", patches: Object.keys(gains).map((systemPrompt) => ({ systemPrompt })), full: true }],
+    options: { seeds: [42], passes: 1 },
+  });
+}
+
+test("a challenger one lucky item ahead does not replace the current setting", async () => {
+  const { tasks, sweeps } = await promptTune({ "Lucky guess.": 1, "Also lucky.": 1 });
+  assert.equal(tasks.math.settings.systemPrompt, "Be precise.");
+  const sweep = sweeps.find((entry) => entry.axis === "systemPrompt");
+  assert.equal(sweep.changed, false);
+  assert.match(sweep.kept, /Lucky guess\.|Also lucky\./, "the sweep says which challenger was best");
+  assert.match(sweep.kept, /p=1/);
+  assert.match(sweep.kept, /0\.1\b/, "the bar is corrected for two challengers (0.2 / 2)");
+});
+
+test("a challenger with a clear paired gain replaces the current setting", async () => {
+  const { tasks, sweeps } = await promptTune({ "Lucky guess.": 1, "Work it out.": 10 });
+  assert.equal(tasks.math.settings.systemPrompt, "Work it out.");
+  const sweep = sweeps.find((entry) => entry.axis === "systemPrompt");
+  assert.equal(sweep.changed, true);
+  assert.equal(sweep.kept, undefined);
+  assert.ok(sweep.pValue <= 0.1);
+});
+
+test("when nothing can load, the tune stops with the reason instead of choosing among failures", async () => {
+  const calls = [];
+  const evaluate = async (settings, itemIds) => {
+    calls.push(settings);
+    return { prompts: itemIds.map((id) => ({ id, passed: 0, total: 1, error: "load failed: no GPU binary", ms: null })) };
+  };
+  const result = await tune({
+    evaluate,
+    base: BASE,
+    tasks: ["math"],
+    rungs: RUNGS,
+    hardware: { logicalCores: 12 },
+    ...AXES,
+    options: { seeds: [42], passes: 2 },
+  });
+  assert.match(result.stopped, /could not load.*no GPU binary/i);
+  assert.equal(result.stages.quality, "pending", "nothing is marked tuned");
+  assert.equal(result.tasks.math, undefined, "no preset is made from failed answers");
+  // The first rung of the first axis (with the baseline measurement), then nothing: no other axis, no later stage.
+  assert.ok(calls.every((call) => call.kvCache === BASE.kvCache && call.temperature === 0), "it stops before any other axis");
+  assert.ok(calls.length <= AXES.qualityAxes[0].patches.length + 2);
 });

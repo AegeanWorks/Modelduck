@@ -24,10 +24,17 @@ export class Measurements {
     this.maxRuns = maxRuns;
     this.runs = 0;
     this.slots = new Map();
+    // Why measuring stopped early (the model cannot load at all), or null.
+    this.stopped = null;
   }
 
   get exhausted() {
-    return this.runs >= this.maxRuns;
+    return this.runs >= this.maxRuns || this.stopped !== null;
+  }
+
+  /** Stop every further measurement; later stages see the budget as spent and end. */
+  stop(reason) {
+    this.stopped ??= reason;
   }
 
   async measure(settings, itemIds, seed) {

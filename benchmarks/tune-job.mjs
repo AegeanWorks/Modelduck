@@ -100,6 +100,14 @@ export async function runTune(target, { tasks, stages = STAGES, only = null, ste
     process.off("exit", cleanUp);
     return lock.unregister();
   });
+  // A tune that could not load the model at all has nothing to save; what earlier axes found is already saved.
+  if (result.stopped) {
+    throw new AppError("The tune stopped: the model could not be loaded", {
+      code: "tune_load_failed",
+      why: result.stopped,
+      fix: "Check the GPU driver and free memory (a restart often clears a stuck GPU), or pick the CPU backend, then run the tune again. Results saved before this point are kept.",
+    });
+  }
   return { skipped: false, warnings, profile: await save(result), result };
 }
 
