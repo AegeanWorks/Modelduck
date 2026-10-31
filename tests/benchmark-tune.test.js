@@ -554,3 +554,12 @@ test("system prompts are screened on a quarter of the items, and only clear lose
   assert.equal(new Set(asked.get("Close behind.")).size, 48, "a close one is measured on everything");
   assert.equal(sweep.winner.systemPrompt, "Be precise.");
 });
+
+test("every newly measured answer reaches the run record once, cached ones never twice", async () => {
+  let recorded = 0;
+  const { model, result } = run({ onAnswers: (settings, seed, answers) => { recorded += answers.length; } });
+  const done = await result;
+  const measured = model.calls.reduce((sum, call) => sum + call.itemIds.length, 0);
+  assert.equal(recorded, measured);
+  assert.equal(recorded, done.runs);
+});

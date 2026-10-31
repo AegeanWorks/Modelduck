@@ -200,12 +200,10 @@ written to the benchmark history.
 Baseline files are `benchmarks/baseline-model.json` and
 `benchmarks/baseline-chat.json`; the local SQLite and JSONL history live in
 `benchmarks/history.sqlite` and `benchmarks/history.jsonl`. The **Bench** button
-in ModelDuck starts either phase locally, streams item-level progress from the
-child runner, and shows both phases, every test percentage, runtime, suite/test
-hash and the linked commit. When the model phase finishes, four recommendation
-cards (best quality, best overall, best coding, fastest within a 5-point loss)
-offer apply-ready settings; **Fill settings** only populates the form. Outside the
-app, run both phases directly for every generation-affecting change. A quality
+in ModelDuck starts either phase with live progress and shows every test
+percentage, runtime, suite/test hash and the linked commit; four recommendation
+cards (best quality, overall, coding, fastest within 5 points) only fill the
+settings form. Run both phases for every generation-affecting change. A quality
 drop exits 1; a speed drop over 20% is only a warning. Generated code runs in a
 `node --permission` sandbox with a 5-second timeout, never with file or network
 access.
@@ -257,10 +255,11 @@ so no latency winner is claimed from a single run.
 | Item | Default | Override |
 |---|---|---|
 | Models | `~/.modelduck/models` | `--models <folder>` |
-| Chats | `~/.modelduck/chats.json` (200 most recently used) and `chats.archive.json` (older chats, restored when opened; never dropped) | `--home <folder>` |
+| Chats | `~/.modelduck/chats.json` (200 most recent) and `chats.archive.json` (older, never dropped) | `--home <folder>` |
 | Settings | `~/.modelduck/settings.json` | `--home <folder>` |
 | Server settings + key hashes | `~/.modelduck/server-settings.json` | `--home <folder>` |
-| Tuned model profiles | `~/.modelduck/profiles/<model>.json` (load settings, per-task presets and tune statistics) | `--home <folder>` |
+| Tuned model profiles | `~/.modelduck/profiles/<model>.json` (load settings and per-task presets) | `--home <folder>` |
+| Tune runs | `~/.modelduck/tune-runs/` (every run's results and every answer) | `--home <folder>` |
 | Tune steps | `~/.modelduck/tune-grid.json` (the values each setting is tried at) | `--home <folder>` |
 | Downloads | `~/.modelduck/models/*.part` | `--models <folder>` |
 
@@ -462,6 +461,7 @@ modelduck/
 │   ├── tune-steps.js    <- the user's tune step lists
 │   ├── tune-scheduler.js <- tunes several models in CPU and GPU lanes
 │   ├── tune-lock.js     <- pauses other tunes while one times answers
+│   ├── tune-runs.js     <- a record of every tune run
 │   ├── engine-errors.js <- actionable load and generation error mapping
 │   ├── model-registry.js <- GGUF scan/import/delete and metadata
 │   ├── gguf-guard.js <- bounded GGUF header check before any parser runs
@@ -548,6 +548,7 @@ modelduck/
 │   ├── engine-system-prompt.test.js
 │   ├── engine-memory.test.js
 │   ├── tune-lock.test.js
+│   ├── tune-runs.test.js
 │   ├── tune-scheduler.test.js
 │   ├── tune-steps.test.js
 │   ├── tune-steps-store.test.js

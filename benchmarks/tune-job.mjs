@@ -10,10 +10,11 @@ import { createModelRegistry } from "../src/model-registry.js";
 import { systemInfo } from "../src/system.js";
 import { createTimingLock } from "../src/tune-lock.js";
 import { readSteps } from "../src/tune-steps.js";
+import { startRun } from "../src/tune-runs.js";
 import { SYSTEM_PROMPT } from "./suite.mjs";
 import { tuneRungs } from "./tasks.mjs";
 import { STAGES, resultFrom, tune } from "./tune.mjs";
-import { promptAxes, qualityAxes, samplingAxes, speedAxes } from "./tune-grid.mjs";
+import { expectedAnswers, promptAxes, qualityAxes, samplingAxes, speedAxes } from "./tune-grid.mjs";
 import { createEvaluator } from "./tune-evaluate.mjs";
 
 /** One installed model, ready to tune or measure: where it is, its profile name and what it runs on. */
@@ -83,6 +84,27 @@ export async function runTune(target, { tasks, stages = STAGES, only = null, ste
   // start stops it here, in a second, instead of after a round of failed answers (ADR-044).
   const probes = stages.includes("device") && (!only?.length || only.includes("device"));
   const startOn = plan.resume?.device?.settings?.gpuBackend ?? saved?.profile.load?.settings?.gpuBackend ?? base.gpuBackend ?? "cpu";
+  // Every run is recorded with every answer, whatever its outcome (ADR-050).
+  const run = await startRun(path.join(target.paths.home, "tune-runs"), {
+    profileId: target.profileId,
+    model: target.entry.fileName,
+    request: { stages, tasks, only, force, maxRuns, passes, rerun: plan.rerun ?? [] },
+    fingerprint: target.fingerprint,
+    expectedAnswers: expectedAnswers(used, { logicalCores, tasks, stages, only }),
+  });
+  const earlierSweeps = plan.resume?.sweeps?.length ?? 0;
+  const earlierAnswers = plan.resume?.runs ?? 0;
+  const snapshot = (state) => {
+    const result = resultFrom(state);
+    return { answers: state.runs - earlierAnswers, sweeps: state.sweeps.slice(earlierSweeps), result: { load: result.load, speed: result.speed, device: result.device, tasks: result.tasks, stages: result.stages } };
+  };
+  const onAnswers = (settings, seed, answers) => {
+    void run.answers(answers.map((answer) => ({
+      settings, seed, item: answer.id, passed: answer.passed, total: answer.total, ms: answer.ms ?? null,
+      outputTokens: answer.outputTokens ?? null, tokensPerSecond: answer.tokensPerSecond ?? null, digest: answer.digest ?? null, error: answer.error ?? null,
+    })));
+  };
+  let lastState = null;
   const result = await withEngine(target, async (engine) => {
     if (!probes && startOn !== "cpu") {
       await engine.startBackend(startOn).catch((error) => {
@@ -125,12 +147,21 @@ export async function runTune(target, { tasks, stages = STAGES, only = null, ste
       promptAxes: promptAxes(used.prompt),
       options: { ...(maxRuns > 0 && { maxRuns }), ...(passes > 0 && { passes }) },
       onEvent,
-      onProgress: (state) => save(resultFrom(state)),
+      onAnswers,
+      onProgress: async (state) => {
+        lastState = state;
+        await save(resultFrom(state));
+        await run.update(snapshot(state));
+      },
     });
+  }).catch(async (error) => {
+    await run.finish({ outcome: "failed", error: error.why ?? error.message, ...(lastState && snapshot(lastState)) });
+    throw error;
   }).finally(() => {
     process.off("exit", cleanUp);
     return lock.unregister();
   });
+  await run.finish({ outcome: result.stopped ? "stopped" : "done", error: result.stopped ?? null, ...snapshot({ ...result.progress, sweeps: result.sweeps, runs: result.runs }) });
   // A tune that could not load the model at all has nothing to save; what earlier axes found is already saved.
   if (result.stopped) {
     throw new AppError("The tune stopped: the model could not be loaded", {

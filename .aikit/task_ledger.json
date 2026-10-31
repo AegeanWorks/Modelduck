@@ -5,23 +5,12 @@
     "last_phase": "verification",
     "active_phase": 4,
     "status": "in_progress",
-    "updated_at": 1793457088.2578228,
+    "updated_at": 1793457279.5338728,
     "owner": "claude-opus-5.5",
     "started_by": "claude-opus-5.5",
     "continuations": []
   },
   "checkpoints": [
-    {
-      "task_id": "part-runs",
-      "phase": "verification",
-      "phase_num": 4,
-      "description": "Part runs in; 310/310 tests, gate 4/4, real device-only run kept the rest; checklists: passed",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793447130.4042432,
-      "timestamp_str": "2026-10-31 14:45:30",
-      "agent": "claude-opus-5.5"
-    },
     {
       "task_id": "part-runs",
       "phase": "completed",
@@ -259,6 +248,17 @@
       "status": "in_progress",
       "timestamp": 1793457088.2578228,
       "timestamp_str": "2026-10-31 17:31:28",
+      "agent": "claude-opus-5.5"
+    },
+    {
+      "task_id": "tune-stats-v1",
+      "phase": "verification",
+      "phase_num": 4,
+      "description": "Milestone 2 run records in; 328/328 tests, gate 4/4; real run check deferred until the baseline finishes; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793457279.5338728,
+      "timestamp_str": "2026-10-31 17:34:39",
       "agent": "claude-opus-5.5"
     }
   ]

@@ -205,6 +205,8 @@ export async function tune({
   timing = { acquire: async () => {}, release: async () => {} },
   // (settings, sizes) => { contextSize, reason }: the context that fits in free memory (ADR-043).
   contextBudget = null,
+  // (settings, seed, answers) for every newly measured answer.
+  onAnswers = () => {},
   modelLayers = 0,
   qualityAxes = defaultQualityAxes(),
   speedAxes = defaultSpeedAxes(hardware),
@@ -219,7 +221,7 @@ export async function tune({
   const threadCap = hardware.logicalCores ? Math.max(1, Math.floor(hardware.logicalCores * 0.75)) : Infinity;
   const start = (base.threads ?? 0) > threadCap ? { ...base, threads: threadCap } : base;
   const state = resume ? { ...emptyProgress(), ...structuredClone(resume) } : emptyProgress();
-  const context = { options: settings, measurements: new Measurements(evaluate, settings.maxRuns), sweeps: state.sweeps, onEvent, stageBest: -Infinity, valid: isValidCombination, contextBudget };
+  const context = { options: settings, measurements: new Measurements(evaluate, settings.maxRuns, onAnswers), sweeps: state.sweeps, onEvent, stageBest: -Infinity, valid: isValidCombination, contextBudget };
   const report = async () => {
     state.runs = (resume?.runs ?? 0) + context.measurements.runs;
     await onProgress(state);

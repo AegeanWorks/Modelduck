@@ -19,9 +19,11 @@ const settingsKey = (settings) => JSON.stringify(Object.keys(settings).sort().ma
 
 /** Per-item result cache with a run budget; a rung only asks for the items it has not seen. */
 export class Measurements {
-  constructor(evaluate, maxRuns) {
+  constructor(evaluate, maxRuns, onAnswers = () => {}) {
     this.evaluate = evaluate;
     this.maxRuns = maxRuns;
+    // Called with every newly measured answer, for the run record (ADR-050).
+    this.onAnswers = onAnswers;
     this.runs = 0;
     this.slots = new Map();
     // Why measuring stopped early (the model cannot load at all), or null.
@@ -46,6 +48,7 @@ export class Measurements {
       if (this.exhausted) return null;
       const out = await this.evaluate(settings, missing, seed);
       this.runs += missing.length;
+      this.onAnswers(settings, seed, out.prompts);
       for (const prompt of out.prompts) slot.items.set(prompt.id, prompt);
       slot.memoryBytes = out.memoryBytes ?? slot.memoryBytes;
     }
