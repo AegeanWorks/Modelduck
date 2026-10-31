@@ -469,6 +469,7 @@
           <button class="bench-tab" type="button" role="tab" id="bench-tab-models" data-bench-tab="models" aria-controls="bench-panel-models" aria-selected="false">Models</button>
           <button class="bench-tab" type="button" role="tab" id="bench-tab-runs" data-bench-tab="runs" aria-controls="bench-panel-runs" aria-selected="false">Runs</button>
           <button class="bench-tab" type="button" role="tab" id="bench-tab-settings" data-bench-tab="settings" aria-controls="bench-panel-settings" aria-selected="false">Tune settings</button>
+          <button class="bench-tab" type="button" role="tab" id="bench-tab-suite" data-bench-tab="suite" aria-controls="bench-panel-suite" aria-selected="false">Benchmark</button>
           <button class="bench-tab" type="button" role="tab" id="bench-tab-gate" data-bench-tab="gate" aria-controls="bench-panel-gate" aria-selected="false">Benchmark gate</button>
         </div>
         <section class="benchmark-run bench-panel" id="bench-panel-tune" role="tabpanel" aria-labelledby="bench-tab-tune" data-bench-panel="tune">
@@ -526,6 +527,10 @@
             </div>
             <p class="benchmark-progress" id="tune-settings-note">Lists are comma-separated. Values outside what the app accepts are dropped and listed here.</p>
           </div>
+        </section>
+        <section class="benchmark-run bench-panel" id="bench-panel-suite" role="tabpanel" aria-labelledby="bench-tab-suite" data-bench-panel="suite" hidden>
+          <p class="tune-intro">What the tuner asks each model: every task's question types, where the questions come from, how answers are checked, and how many are held back to check a preset on questions it was never tuned on.</p>
+          <div class="bench-suite" id="bench-suite"></div>
         </section>
         <section class="bench-panel benchmark-reports" id="benchmark-reports" role="tabpanel" aria-labelledby="bench-tab-gate" data-bench-panel="gate" hidden>
           <p class="tune-intro">The full benchmark run and the statistics of earlier runs. Not needed for tuning.</p>

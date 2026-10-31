@@ -106,6 +106,7 @@ const els = {
   tuneRuns: $("tune-runs"),
   benchTabs: document.querySelector(".bench-tabs"),
   benchTabDot: $("bench-tab-dot"),
+  benchSuite: $("bench-suite"),
   tuneContinue: $("tune-continue"),
   tuneLive: $("tune-live"),
   tuneRunsList: $("tune-runs-list"),
@@ -157,6 +158,7 @@ const state = {
   benchmarkTimer: null,
   tuneOverview: null,
   tuneJob: null,
+  benchSuite: null,
   tuneTimer: null,
   tuneDefaults: null,
   chatBase: null,
@@ -2107,6 +2109,62 @@ const TYPE_NAMES = {
   reasoning: "Word problems", "public-math": "GSM8K word problems (public)", context: "Reason over a long document", recall: "Look up in a long document",
 };
 
+/** How the suite checks an answer, in plain words. */
+const CHECK_NAMES = {
+  exact: "exact answer", choice: "chosen letter", number: "final number", oneOf: "one of the accepted answers",
+  contains: "contains a phrase", containsAny: "contains one of several phrases", containsAll: "contains every required phrase",
+  notContains: "leaves out a phrase", regex: "matches a pattern", json: "valid JSON", jsonValue: "JSON with the right values",
+  jsSyntax: "code that parses", jsTests: "code that passes its tests", commaCount: "number of commas", bulletCount: "number of bullets",
+  maxWords: "word limit", noUppercase: "no capital letters",
+};
+
+const SOURCE_NAMES = { own: "ModelDuck's own" };
+
+/** The suite's tasks and question types, fetched once (ADR-058). */
+async function loadBenchSuite() {
+  if (state.benchSuite) return;
+  try {
+    state.benchSuite = await request("/api/benchmarks/suite");
+    renderBenchSuite(state.benchSuite);
+  } catch (error) {
+    showError(error);
+  }
+}
+
+function renderBenchSuite(suite) {
+  const heldShare = Math.round(suite.holdoutShare * 100);
+  const intro = Object.assign(document.createElement("p"), {
+    className: "bench-suite-total",
+    textContent: `Suite version ${suite.suiteVersion}: ${suite.items} questions in ${suite.tasks.length} tasks. About ${heldShare}% of every question type is held back.`,
+  });
+  els.benchSuite.replaceChildren(intro);
+  for (const task of suite.tasks) {
+    const section = document.createElement("section");
+    section.className = "bench-suite-task";
+    section.appendChild(Object.assign(document.createElement("h4"), { textContent: `${TASK_NAMES[task.id] ?? task.label} — ${task.items} questions` }));
+    section.appendChild(Object.assign(document.createElement("p"), {
+      className: "tune-intro",
+      textContent: `Tuned on ${task.tunedOn}, in rounds of ${task.rungs.join(", ")} questions; ${task.held} held back.`,
+    }));
+    const table = document.createElement("table");
+    table.className = "benchmark-table";
+    const head = table.createTHead().insertRow();
+    for (const text of ["Question type", "Questions", "Held back", "From", "Checked by"]) head.appendChild(Object.assign(document.createElement("th"), { textContent: text }));
+    const body = table.createTBody();
+    for (const type of task.types) {
+      body.insertRow().append(
+        tuneCell(TYPE_NAMES[type.category] ?? type.category),
+        tuneCell(String(type.items)),
+        tuneCell(String(type.held)),
+        tuneCell(type.sources.map((source) => SOURCE_NAMES[source] ?? source).join(", ")),
+        tuneCell(type.checks.map((check) => CHECK_NAMES[check] ?? check).join(", ")),
+      );
+    }
+    section.appendChild(table);
+    els.benchSuite.appendChild(section);
+  }
+}
+
 const rightOf = (entry, key) => (entry ? `${entry[key]} of ${entry.items}` : "–");
 
 /** Right answers per question type for every task: preset against defaults, tuned and unseen (ADR-056). */
@@ -2677,6 +2735,7 @@ function showBenchTab(name) {
     // A private window keeps the tab for this visit only.
   }
   if (chosen === "runs") void loadTuneRuns();
+  if (chosen === "suite") void loadBenchSuite();
 }
 
 function renderTuneLive(job) {

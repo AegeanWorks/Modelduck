@@ -5,29 +5,12 @@
     "last_phase": "phase 4",
     "active_phase": 4,
     "status": "in_progress",
-    "updated_at": 1793475339.0431433,
+    "updated_at": 1793475640.0080183,
     "owner": "claude-opus-5.5",
     "started_by": "claude-opus-5.5",
     "continuations": []
   },
   "checkpoints": [
-    {
-      "task_id": "continue-v1",
-      "phase": "planning",
-      "phase_num": 2,
-      "description": "[1/2] continue option in planner, CLI, scheduler and server, never forcing; [2/2] Continue where you left off section and Continue buttons on unfinished runs",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793471580.86741,
-      "timestamp_str": "2026-10-31 21:33:00",
-      "agent": "claude-opus-5.5",
-      "impact_assessment": {
-        "why": "The user wants to continue a stopped or interrupted run where it left off",
-        "benefits": "A stopped tune finishes without measuring finished parts again",
-        "risks": "contract: planTune gains continueRun, tune start accepts continue; dependency: none; concurrency: none; state: none",
-        "mitigation": "Failing-first tests; real interrupted run continued; ADR-051"
-      }
-    },
     {
       "task_id": "continue-v1",
       "phase": "verification",
@@ -255,6 +238,17 @@
       "status": "in_progress",
       "timestamp": 1793475339.0431433,
       "timestamp_str": "2026-10-31 22:35:39",
+      "agent": "claude-opus-5.5"
+    },
+    {
+      "task_id": "bench-types",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "[3/3] GET /api/benchmarks/suite and a Benchmark tab show the suite per task and question type (ADR-058); Edge-reviewed. checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793475640.0080183,
+      "timestamp_str": "2026-10-31 22:40:40",
       "agent": "claude-opus-5.5"
     }
   ]

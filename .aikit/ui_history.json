@@ -418,5 +418,19 @@
     "final_snapshot_digest": "",
     "final_snapshot_entries": 0,
     "surface_digest": "917daab5063a98ff1163ec8d08d6aaffed443cd5fd9c4a4ae6c648f53e6566ff"
+  },
+  {
+    "schema": 1,
+    "surface": "app",
+    "baseline_commit": "823242c07a859e11ba5545d1825df2adbf7ed3d4",
+    "contract_hash": "c6a291e913a9c8f174aadf7fb264b0941c55e9f4999a9a43152f1fb616845d11",
+    "started_at": 1793475363.154259,
+    "finished_at": 1793475631.0951362,
+    "strikes": 1,
+    "reviewer": "Claude (AI; headless Edge review of the Benchmark tab in a scratch profile: four tasks with question types, counts, held-back counts, sources and checks in plain words; the tab is remembered on reopen; no console errors; delegated by the user on 2026-11-01)",
+    "allowed_removals": [],
+    "final_snapshot_digest": "",
+    "final_snapshot_entries": 0,
+    "surface_digest": "929e5774cb98186ec55fba4ae8de88c6f0d70e145777dd2024aa41a349f56240"
   }
 ]

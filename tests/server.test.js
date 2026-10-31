@@ -796,3 +796,13 @@ test("a tune is streamed live: the job at once, then each change, until the page
   await new Promise((resolve) => setTimeout(resolve, 50));
   assert.equal(listeners.size, 0, "a closed page stops listening");
 });
+
+test("the benchmark suite route describes every task's questions", async (t) => {
+  const harness = await makeHarness(t);
+  const response = await fetch(`${harness.base}/api/benchmarks/suite`);
+  assert.equal(response.status, 200);
+  const suite = await response.json();
+  assert.ok(suite.suiteVersion >= 12);
+  assert.deepEqual(suite.tasks.map((task) => task.id), ["chat", "code", "math", "recall"]);
+  assert.ok(suite.tasks.every((task) => task.types.length && task.held > 0 && task.tunedOn > 0));
+});

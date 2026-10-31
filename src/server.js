@@ -28,6 +28,7 @@ import { answersFile, listRuns, loadRun, summarizeAnswers } from "./tune-runs.js
 import { TunedSettings } from "./tuned-settings.js";
 import { readSteps, writeSteps } from "./tune-steps.js";
 import { DEFAULT_STEPS, estimateTune, settingNames } from "../benchmarks/tune-grid.mjs";
+import { suiteSummary } from "../benchmarks/tasks.mjs";
 import { handleOpenAI } from "./openai.js";
 import { settingPresets } from "./config.js";
 import { systemInfo } from "./system.js";
@@ -366,6 +367,11 @@ export function createHttpServer({
 
     if (pathname === "/api/benchmarks" && method === "GET") {
       sendJson(res, 200, await loadBenchmarkReport({ benchmarkDir }));
+      return;
+    }
+
+    if (pathname === "/api/benchmarks/suite" && method === "GET") {
+      sendJson(res, 200, suiteSummary());
       return;
     }
 
