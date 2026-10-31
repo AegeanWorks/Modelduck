@@ -65,6 +65,8 @@ export const DIRECTIVE_PROMPTS = freezeDeep([
 ]);
 
 const TOKEN_STEPS = [64, 128, 256, 512, 1024, 2048];
+// The least answer length a reasoning candidate is tried with.
+export const REASONING_TOKENS = 1024;
 
 /** The user's chosen steps (2026-10-30). */
 export const DEFAULT_STEPS = freezeDeep({
@@ -256,7 +258,11 @@ export function samplingAxes(taskId, steps = DEFAULT_STEPS.sampling) {
 export function promptAxes(steps = DEFAULT_STEPS.prompt) {
   return Object.freeze([
     axis("systemPrompt", "systemPrompt", steps.systemPrompt, { full: true }),
-    axis("reasoning", "reasoning", steps.reasoning),
+    // Thinking first needs room: a reasoning candidate gets at least REASONING_TOKENS, and the preset keeps them (ADR-046).
+    axis("reasoning", "reasoning", steps.reasoning, {
+      extraKeys: ["maxTokens"],
+      widen: (current, patch) => (patch.reasoning === "off" ? patch : { ...patch, maxTokens: Math.max(Number(current.maxTokens) || 0, REASONING_TOKENS) }), // aikit:allow-secret token budget
+    }),
     axis("promptRepeat", "promptRepeat", steps.promptRepeat),
   ]);
 }

@@ -158,13 +158,16 @@ export function changedAnswers(reference, stats) {
 
 export const matches = (settings, patch) => Object.entries(patch).every(([key, value]) => settings[key] === value);
 export const pick = (settings, keys) => Object.fromEntries(keys.filter((key) => key in settings).map((key) => [key, settings[key]]));
-export const axisKeys = (axes) => [...new Set(axes.flatMap((axis) => axis.patches.flatMap(Object.keys)))];
+// `extraKeys` are settings an axis may also change through `widen` (reasoning's answer length).
+export const axisKeys = (axes) => [...new Set(axes.flatMap((axis) => [...axis.patches.flatMap(Object.keys), ...(axis.extraKeys ?? [])]))];
 
 /** The axis values to measure on top of `current`; impossible combinations are listed instead of run. */
 export function candidatesFor(axis, current, valid) {
   const candidates = [];
   const skipped = [];
-  for (const [index, patch] of axis.patches.entries()) {
+  for (const [index, listed] of axis.patches.entries()) {
+    // An axis may adjust a value to what it needs on top of `current` (ADR-046).
+    const patch = axis.widen ? axis.widen(current, listed) : listed;
     const incumbent = matches(current, patch);
     if (!incumbent && !valid({ ...current, ...patch })) skipped.push(patch);
     else candidates.push({ patch, index, incumbent });

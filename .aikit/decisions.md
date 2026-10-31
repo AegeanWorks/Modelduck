@@ -350,3 +350,10 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
 - **Context**: The tune printed "Estimate at ~3 s/answer … one pass ≈ 9.3 h" before starting. On the GPU an answer often takes about 0.2 s, so the figure was far off, and the app showed no time at all while a tune ran.
 - **Decision**: `expectedAnswers` counts the answers a run asks in one pass, only for its chosen stages or settings (a memory-budget axis asks none; sampling and prompt count every seed, so it is an upper bound). The tune measures its own pace, and `timeLeft` turns answers so far, expected answers and elapsed time into "about 25 min left", "less than a minute left", or "finishing up (a second pass)" once the count passes the estimate instead of inventing a number. The CLI prints it on every candidate line and adds it to each progress event; the Bench panel shows it on the running model's row. `estimateTune` no longer counts the budgeted context axis.
 - **Consequences**: A real CPU sampling run of SmolLM2 settled at about 19-20 minutes after the first minute; since the count is an upper bound, real runs finish sooner than the first estimates.
+
+### ADR-046: Reasoning is tried with room to answer
+- **Date**: 2026-10-31
+- **Status**: Accepted
+- **Context**: The prompt stage tried reasoning off against deep (ADR-041) at the task's tuned answer length, often 512 tokens. A model told to think before answering can be cut off before it answers, so deep lost for lack of room rather than on merit.
+- **Decision**: An axis may `widen` a value on top of the current settings and name the further settings it changes in `extraKeys`. The reasoning axis tries every value other than off with an answer length of at least `REASONING_TOKENS` (1024), or the task's own length if larger, and the stored preset keeps that length, so a winning deep is not cut off in use. Temperature and answer length are already re-tuned against each other by the descent's second pass.
+- **Consequences**: Reasoning trials cost more tokens. A synthetic task that deep solves only with room now picks deep with 1024 tokens.

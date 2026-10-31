@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { promptAxes } from "../benchmarks/tune-grid.mjs";
 import { measurePresets, tune } from "../benchmarks/tune.mjs";
 
 const ids = (prefix, count) => Array.from({ length: count }, (_value, index) => `${prefix}-${index}`);
@@ -500,4 +501,28 @@ test("with a memory budget, the context size comes from free memory, not from sh
   assert.ok(sweeps.some((sweep) => sweep.axis === "kvCache" && sweep.rungs.length > 0), "the KV cache is still measured");
   const contexts = new Set(model.calls.filter((call) => call.itemIds.some((id) => id.startsWith("mix"))).map((call) => call.settings.contextSize));
   assert.deepEqual([...contexts], [4096], "quality questions only ran at the budgeted size");
+});
+
+test("reasoning on is tried with room to answer, and the preset keeps that room", async () => {
+  const items = ids("math", 20);
+  const seen = [];
+  const { tasks } = await tune({
+    evaluate: async (settings, itemIds) => {
+      seen.push({ reasoning: settings.reasoning, maxTokens: settings.maxTokens });
+      // Thinking first helps only when the answer is not cut off.
+      const thinks = settings.reasoning === "deep" && settings.maxTokens >= 1024;
+      return { prompts: itemIds.map((id, index) => ({ id, passed: thinks || index < 10 ? 1 : 0, total: 1, ms: 10, outputTokens: 10, digest: id })) };
+    },
+    base: { ...BASE, temperature: 0, maxTokens: 256 },
+    tasks: ["math"],
+    stages: ["prompt"],
+    rungs: { ...RUNGS, math: [items] },
+    hardware: { logicalCores: 12 },
+    ...AXES,
+    promptAxes: promptAxes({ systemPrompt: ["Be precise."], reasoning: ["off", "deep"], promptRepeat: [1] }),
+    options: { seeds: [42], passes: 1 },
+  });
+  assert.ok(seen.some((call) => call.reasoning === "deep" && call.maxTokens === 1024), "deep was tried with 1024 tokens");
+  assert.equal(tasks.math.settings.reasoning, "deep");
+  assert.equal(tasks.math.settings.maxTokens, 1024, "the preset keeps the room deep needs");
 });
