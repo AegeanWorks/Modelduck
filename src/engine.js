@@ -145,6 +145,23 @@ export class LlamaEngine {
     return { ...fit, estimateBytes: estimate.total, contextSize: contextTokens, kvCache: kvLabel };
   }
 
+  /**
+   * Free memory for a load on `gpuBackend`: VRAM on a GPU, RAM on the CPU. The loaded
+   * model's weights count as free, since a new load replaces it. Null when the GPU's
+   * free memory cannot be read (no GPU runtime yet, or another backend).
+   */
+  async availableMemory({ gpuBackend = "cpu" } = {}) {
+    const loaded = this.#state.status === "ready" ? Number(this.#state.model?.size) || 0 : 0;
+    if (gpuBackend === "cpu") return this.#availableMemory() + loaded;
+    if (!this.#llama?.gpu || this.#gpuBackend !== gpuBackend) return null;
+    try {
+      const vram = await this.#llama.getVramState();
+      return vram.free + loaded;
+    } catch {
+      return null;
+    }
+  }
+
   get loadedId() {
     return this.#state.model?.id ?? null;
   }

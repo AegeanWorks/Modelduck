@@ -4,6 +4,7 @@ import { DEFAULT_SETTINGS, resolvePaths } from "../src/config.js";
 import { LlamaEngine } from "../src/engine.js";
 import { AppError } from "../src/errors.js";
 import { getCatalogModel } from "../src/model-catalog.js";
+import { budgetContext } from "../src/memory-fit.js";
 import { currentFingerprint, loadProfile, measuredUnderAfter, planTune, profileFromTune, profileIdFor, saveProfile } from "../src/model-profiles.js";
 import { createModelRegistry } from "../src/model-registry.js";
 import { systemInfo } from "../src/system.js";
@@ -77,26 +78,42 @@ export async function runTune(target, { tasks, stages = STAGES, only = null, ste
   // Even if the process is stopped mid-tune, its registration must not linger.
   const cleanUp = () => lock.unregisterSync();
   process.once("exit", cleanUp);
-  const result = await withEngine(target, (engine) => tune({
-    evaluate: createEvaluator({ engine, modelId: target.entry.id, beforeAnswer: () => lock.pauseIfNeeded() }),
-    timing: { acquire: () => lock.acquire(), release: () => lock.release() },
-    base,
-    tasks,
-    stages,
-    only,
-    resume: plan.resume,
-    rungs: tuneRungs(tasks),
-    hardware: { logicalCores },
-    deviceBackends: used.device.backends,
-    modelLayers: target.entry.kvShape?.layers ?? 0,
-    qualityAxes: qualityAxes(used.load),
-    speedAxes: speedAxes({ logicalCores }, used.load),
-    samplingAxes: (task) => samplingAxes(task, used.sampling),
-    promptAxes: promptAxes(used.prompt),
-    options: { ...(maxRuns > 0 && { maxRuns }), ...(passes > 0 && { passes }) },
-    onEvent,
-    onProgress: (state) => save(resultFrom(state)),
-  })).finally(() => {
+  const result = await withEngine(target, (engine) => {
+    const evaluate = createEvaluator({ engine, modelId: target.entry.id, beforeAnswer: () => lock.pauseIfNeeded() });
+    // Context size is a memory budget: the largest listed size that fits on the chosen device (ADR-043).
+    const contextBudget = async (settings, sizes) => {
+      await evaluate.ensureLoaded(settings).catch(() => {});
+      return budgetContext({
+        steps: sizes,
+        modelBytes: target.entry.size,
+        shape: target.entry.kvShape,
+        kvCache: settings.kvCache ?? "f16",
+        availableBytes: await engine.availableMemory({ gpuBackend: settings.gpuBackend ?? "cpu" }),
+        trainContext: target.entry.contextLength ?? Infinity,
+      });
+    };
+    return tune({
+      evaluate,
+      contextBudget,
+      timing: { acquire: () => lock.acquire(), release: () => lock.release() },
+      base,
+      tasks,
+      stages,
+      only,
+      resume: plan.resume,
+      rungs: tuneRungs(tasks),
+      hardware: { logicalCores },
+      deviceBackends: used.device.backends,
+      modelLayers: target.entry.kvShape?.layers ?? 0,
+      qualityAxes: qualityAxes(used.load),
+      speedAxes: speedAxes({ logicalCores }, used.load),
+      samplingAxes: (task) => samplingAxes(task, used.sampling),
+      promptAxes: promptAxes(used.prompt),
+      options: { ...(maxRuns > 0 && { maxRuns }), ...(passes > 0 && { passes }) },
+      onEvent,
+      onProgress: (state) => save(resultFrom(state)),
+    });
+  }).finally(() => {
     process.off("exit", cleanUp);
     return lock.unregister();
   });

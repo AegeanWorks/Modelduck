@@ -105,8 +105,8 @@ device. It is off by default so a missing driver never prevents chat from workin
 - **Benchmark panel** - folded under the tuner: run either phase, read per-test
   rates; reports from older suites show only when asked.
 - **Settings tuner** - **Bench → Tune** finds the best settings for each installed
-  model on this PC, in order: device (CPU or GPU, measured), quality load settings
-  (context, KV cache), speed settings (threads, batch, flash, mmap; Fastest/Light
+  model on this PC, in order: device (CPU or GPU, measured), context (largest that
+  fits in free memory) and KV cache, speed settings (threads, batch, flash, mmap; Fastest/Light
   presets), then sampling and system prompt for each task (chat, code, math, long
   context). A setting changes only on a significant paired gain; a model that
   cannot load stops the tune. Each finished step is saved and applied at once, so a
@@ -117,8 +117,8 @@ device. It is off by default so a missing driver never prevents chat from workin
   shows what was applied; **Settings** has the tuned on/off switch
   and Fastest/Light. Tune with heavy programs closed: CPU timings swing with load,
   and a small model's CPU-or-GPU choice can flip with them.
-- **Small surface area** — Node's HTTP server and a vanilla UI. No build step,
-  framework, CDN or account.
+- **Small surface area** — Node's HTTP server, a vanilla UI; no build, framework,
+  CDN or account.
 - **AI benchmark gate** - two phases: model reload/quantization/KV-cache settings,
   then sampling/prompting settings, with test hashes so result changes are not
   confused with test edits.
@@ -469,9 +469,9 @@ modelduck/
 │   ├── chat-store.js <- atomic, quarantine-safe conversation storage
 │   ├── settings.js <- validated persisted settings
 │   ├── generation-manifest.js <- prompt/history/template fingerprints
-│   ├── benchmark-report.js <- baseline/JSONL summary for the Bench panel
-│   ├── benchmark-runner.js <- one benchmark child at a time, JSON progress
-│   ├── benchmark-base.js <- model-phase choice for a chat run
+│   ├── benchmark-report.js <- report summary for the Bench panel
+│   ├── benchmark-runner.js <- one benchmark child, JSON progress
+│   ├── benchmark-base.js <- chat-run base choice
 │   ├── openai.js <- OpenAI-compatible models/chat endpoints
 │   ├── http.js <- JSON, SSE, static serving, loopback guard
 │   ├── jit.js <- just-in-time loading and idle unload
@@ -502,7 +502,7 @@ modelduck/
 │   ├── stats.mjs
 │   ├── tasks.mjs        <- chat/code/math/recall items and tuning rungs
 │   ├── tune.mjs         <- staged, resumable settings search
-│   ├── tune-measure.mjs <- candidate scoring, statistics and the run cache
+│   ├── tune-measure.mjs <- candidate scoring, statistics, run cache
 │   ├── tune-speed.mjs   <- speed stage, Fastest and Light presets
 │   ├── tune-device.mjs  <- stage 0: CPU or GPU, per model
 │   ├── tune-grid.mjs    <- load and sampling search spaces
@@ -546,6 +546,7 @@ modelduck/
 │   ├── jit-tuned.test.js
 │   ├── engine-parallel.test.js
 │   ├── engine-system-prompt.test.js
+│   ├── engine-memory.test.js
 │   ├── tune-lock.test.js
 │   ├── tune-scheduler.test.js
 │   ├── tune-steps.test.js

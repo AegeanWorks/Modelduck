@@ -54,6 +54,34 @@ function largestContextWithin(budget, { modelBytes, shape, kvCache }) {
   return Math.floor(room / perToken / CONTEXT_STEP) * CONTEXT_STEP;
 }
 
+const gib = (bytes) => `${(bytes / 1024 ** 3).toFixed(1)} GiB`;
+
+/**
+ * The context size a tune uses (ADR-043): the largest of `steps` whose load fits comfortably
+ * in `availableBytes` (the device's free memory) and the model was trained for. The short test
+ * questions cannot tell context sizes apart, so memory decides; with nothing fitting, or the KV
+ * shape unknown, the smallest step is used.
+ */
+export function budgetContext({ steps, modelBytes, shape, kvCache = "f16", availableBytes, trainContext = Infinity }) {
+  const sizes = [...steps].map(Number).filter((size) => size > 0).sort((left, right) => left - right);
+  const smallest = sizes[0];
+  if (!kvBytesPerToken(shape, kvCache) || !(availableBytes > 0)) {
+    return { contextSize: smallest, reason: `Free memory or the model's KV shape is unknown, so the smallest listed context (${smallest}) is used.` };
+  }
+  const fits = (size) => estimateLoad({ modelBytes, shape, contextSize: size, kvCache }).total <= availableBytes * COMFORTABLE_RATIO;
+  const usable = sizes.filter((size) => size <= trainContext && fits(size));
+  if (!usable.length) {
+    return { contextSize: smallest, reason: `No listed size fits comfortably in ${gib(availableBytes)} free, so the smallest (${smallest}) is used.` };
+  }
+  const contextSize = usable.at(-1);
+  const capped = sizes.some((size) => size > contextSize && size > trainContext && fits(size));
+  return {
+    contextSize,
+    reason: `${contextSize} is the largest listed context that fits comfortably in ${gib(availableBytes)} free with a ${kvCache} KV cache` +
+      `${capped ? `; the model was trained for ${trainContext}` : ""}.`,
+  };
+}
+
 /**
  * "comfortable" under 60 % of available memory, "tight" up to 75 %, and
  * "will_not_fit" above that. "unknown" when the KV shape is missing, which

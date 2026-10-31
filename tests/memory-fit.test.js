@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { estimateLoad, fitVerdict, kvBytesPerToken } from "../src/memory-fit.js";
+import { budgetContext, estimateLoad, fitVerdict, kvBytesPerToken } from "../src/memory-fit.js";
 
 const GIB = 1024 ** 3;
 const QWEN_1_5B = { layers: 28, kvHeads: 2, headDim: 128 };
@@ -37,4 +37,29 @@ test("verdicts are comfortable, tight or will not fit, with the largest safe con
 
   const unknown = fitVerdict({ estimate: estimateLoad({ modelBytes: GIB, shape: null, contextSize: 4096, kvCache: "f16" }), availableBytes: 8 * GIB });
   assert.equal(unknown.verdict, "unknown");
+});
+
+const STEPS = [2048, 4096, 8192, 16384];
+
+test("the context budget is the largest listed size that fits comfortably, capped by the trained context", () => {
+  const llama = { modelBytes: 1.83 * GIB, shape: LLAMA_3B, kvCache: "f16", steps: STEPS };
+  // 16k f16 KV for Llama 3B is 1.75 GiB: with 16 GiB of VRAM it fits easily.
+  assert.equal(budgetContext({ ...llama, availableBytes: 16 * GIB, trainContext: 131072 }).contextSize, 16384);
+  // With 4.5 GiB free, 60% is 2.7 GiB: weights (1.83) and reserve (0.25) leave room for 4096 (0.44 GiB KV) but not 8192 (0.88).
+  const tight = budgetContext({ ...llama, availableBytes: 4.5 * GIB, trainContext: 131072 });
+  assert.equal(tight.contextSize, 4096);
+  assert.match(tight.reason, /4096.*fits.*4\.5 GiB free/);
+  // A quantized KV cache takes less memory, so the same memory holds a larger context.
+  assert.ok(budgetContext({ ...llama, kvCache: "q4_0", availableBytes: 4.5 * GIB, trainContext: 131072 }).contextSize > 4096);
+  // Never above what the model was trained on.
+  assert.equal(budgetContext({ ...llama, availableBytes: 16 * GIB, trainContext: 8192 }).contextSize, 8192);
+});
+
+test("the context budget falls back to the smallest size, and says so, when nothing fits or memory is unknown", () => {
+  const tiny = budgetContext({ modelBytes: 1.83 * GIB, shape: LLAMA_3B, kvCache: "f16", steps: STEPS, availableBytes: 1 * GIB, trainContext: 131072 });
+  assert.equal(tiny.contextSize, 2048);
+  assert.match(tiny.reason, /no listed size fits/i);
+  const unknown = budgetContext({ modelBytes: GIB, shape: null, kvCache: "f16", steps: STEPS, availableBytes: 8 * GIB, trainContext: 32768 });
+  assert.equal(unknown.contextSize, 2048);
+  assert.match(unknown.reason, /unknown/i);
 });

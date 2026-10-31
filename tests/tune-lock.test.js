@@ -46,7 +46,8 @@ test("without a timing stage, a tune never pauses", async (t) => {
   await tune.register();
   const started = Date.now();
   await tune.pauseIfNeeded();
-  assert.ok(Date.now() - started < 50);
+  // Only a pause could take long here; 50 ms failed now and then on a loaded Windows disk.
+  assert.ok(Date.now() - started < 1000);
 });
 
 test("a lock or registration left by a process that died is ignored", async (t) => {

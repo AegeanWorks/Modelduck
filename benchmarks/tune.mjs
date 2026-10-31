@@ -139,7 +139,11 @@ async function descend(context, { stage, task = null, axes, start, rungs, forced
       if (isDone(pass, axis.name)) continue;
       if (context.measurements.exhausted) return { current, aborted: true };
       let result;
-      if (axis.greedyNoop && current.temperature === 0) {
+      if (axis.budget && context.contextBudget) {
+        const choice = await context.contextBudget(current, axis.patches.map((patch) => patch.contextSize));
+        const winner = { contextSize: choice.contextSize };
+        result = { stage, task, axis: axis.name, budget: true, reason: choice.reason, rungs: [], previous: { contextSize: current.contextSize }, winner, changed: winner.contextSize !== current.contextSize };
+      } else if (axis.greedyNoop && current.temperature === 0) {
         // min-p, top-p and top-k only drop unlikely tokens; a greedy answer cannot change.
         result = { stage, task, axis: axis.name, skippedReason: "temperature 0 (greedy): this setting cannot change the answer", rungs: [], winner: null, changed: false };
       } else {
@@ -148,7 +152,7 @@ async function descend(context, { stage, task = null, axes, start, rungs, forced
       }
       const record = { pass, ...result };
       context.sweeps.push(record);
-      context.onEvent({ type: "sweep", stage, task, axis: axis.name, pass, winner: result.winner, changed: Boolean(result.changed), ...(result.kept && { kept: result.kept }), runs: context.measurements.runs });
+      context.onEvent({ type: "sweep", stage, task, axis: axis.name, pass, winner: result.winner, changed: Boolean(result.changed), ...(result.kept && { kept: result.kept }), ...(result.reason && { reason: result.reason }), runs: context.measurements.runs });
       if (result.changed) {
         current = { ...current, ...result.winner };
         changed = true;
@@ -181,6 +185,8 @@ export async function tune({
   parallel = 1,
   // Held while a stage times answers, so tunes running side by side pause (ADR-033).
   timing = { acquire: async () => {}, release: async () => {} },
+  // (settings, sizes) => { contextSize, reason }: the context that fits in free memory (ADR-043).
+  contextBudget = null,
   modelLayers = 0,
   qualityAxes = defaultQualityAxes(),
   speedAxes = defaultSpeedAxes(hardware),
@@ -195,7 +201,7 @@ export async function tune({
   const threadCap = hardware.logicalCores ? Math.max(1, Math.floor(hardware.logicalCores * 0.75)) : Infinity;
   const start = (base.threads ?? 0) > threadCap ? { ...base, threads: threadCap } : base;
   const state = resume ? { ...emptyProgress(), ...structuredClone(resume) } : emptyProgress();
-  const context = { options: settings, measurements: new Measurements(evaluate, settings.maxRuns), sweeps: state.sweeps, onEvent, stageBest: -Infinity, valid: isValidCombination };
+  const context = { options: settings, measurements: new Measurements(evaluate, settings.maxRuns), sweeps: state.sweeps, onEvent, stageBest: -Infinity, valid: isValidCombination, contextBudget };
   const report = async () => {
     state.runs = (resume?.runs ?? 0) + context.measurements.runs;
     await onProgress(state);

@@ -213,7 +213,9 @@ const axis = (name, key, values, extra = {}) =>
 
 /** Stage 1: load settings that can change answers; context first so KV runs on the size recall needs. */
 export function qualityAxes(steps = DEFAULT_STEPS.load) {
-  return Object.freeze([axis("contextSize", "contextSize", steps.contextSize), axis("kvCache", "kvCache", steps.kvCache)]);
+  // The test questions are short, so no context size answers better than another; a tune with a
+  // memory budget picks the largest listed size that fits instead of measuring them (ADR-043).
+  return Object.freeze([{ ...axis("contextSize", "contextSize", steps.contextSize), budget: true }, axis("kvCache", "kvCache", steps.kvCache)]);
 }
 
 /** Stage 2: load settings that only change speed, measured on a fixed workload. */

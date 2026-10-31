@@ -118,7 +118,7 @@ export function createEvaluator({ engine, modelId, prompts = PROMPTS, systemProm
     }
   }
 
-  return async function evaluate(settings, itemIds, seed) {
+  const evaluate = async function evaluate(settings, itemIds, seed) {
     const items = itemIds.map((id) => {
       const prompt = byId.get(id);
       if (prompt) return prompt;
@@ -148,4 +148,7 @@ export function createEvaluator({ engine, modelId, prompts = PROMPTS, systemProm
     await Promise.all(Array.from({ length: Math.min(width, items.length) }, worker));
     return { prompts: results, memoryBytes };
   };
+  // The context budget loads the model first so the GPU's free memory can be read (ADR-043).
+  evaluate.ensureLoaded = ensureLoaded;
+  return evaluate;
 }

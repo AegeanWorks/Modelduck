@@ -480,3 +480,24 @@ test("when nothing can load, the tune stops with the reason instead of choosing 
   assert.ok(calls.every((call) => call.kvCache === BASE.kvCache && call.temperature === 0), "it stops before any other axis");
   assert.ok(calls.length <= AXES.qualityAxes[0].patches.length + 2);
 });
+
+test("with a memory budget, the context size comes from free memory, not from short questions", async () => {
+  const asked = [];
+  const { model, result } = run({
+    qualityAxes: [{ ...AXES.qualityAxes[0], budget: true }, AXES.qualityAxes[1]],
+    contextBudget: async (settings, sizes) => {
+      asked.push({ kvCache: settings.kvCache, sizes });
+      return { contextSize: settings.kvCache === "q8_0" ? 8192 : 4096, reason: "4096 is the largest listed context that fits comfortably" };
+    },
+  });
+  const { load, sweeps } = await result;
+  const context = sweeps.find((sweep) => sweep.axis === "contextSize");
+  assert.equal(context.budget, true);
+  assert.match(context.reason, /fits comfortably/);
+  assert.deepEqual(context.rungs, [], "no context size was measured on questions");
+  assert.deepEqual(asked[0].sizes, [2048, 4096, 8192]);
+  assert.equal(load.settings.contextSize, 4096);
+  assert.ok(sweeps.some((sweep) => sweep.axis === "kvCache" && sweep.rungs.length > 0), "the KV cache is still measured");
+  const contexts = new Set(model.calls.filter((call) => call.itemIds.some((id) => id.startsWith("mix"))).map((call) => call.settings.contextSize));
+  assert.deepEqual([...contexts], [4096], "quality questions only ran at the budgeted size");
+});

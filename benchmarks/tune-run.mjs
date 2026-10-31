@@ -115,7 +115,7 @@ async function main() {
       if (event.type === "candidate") {
         log(options, `${where} ${event.axis} ${JSON.stringify(event.patch)} @${event.rung}: ${event.rate}% · ${event.latencyMs} ms · ${event.runs} answers`);
       } else {
-        log(options, `${where} pass ${event.pass} ${event.axis} -> ${JSON.stringify(event.winner)}${event.changed ? " (changed)" : ""}${event.kept ? ` — ${event.kept}` : ""}`);
+        log(options, `${where} pass ${event.pass} ${event.axis} -> ${JSON.stringify(event.winner)}${event.changed ? " (changed)" : ""}${event.kept ? ` — ${event.kept}` : ""}${event.reason ? ` — ${event.reason}` : ""}`);
       }
       emit(options, { ...event, type: `tune-${event.type}`, phase: "tune" });
     },
