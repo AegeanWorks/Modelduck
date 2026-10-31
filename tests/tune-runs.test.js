@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { answersFile, listRuns, loadRun, startRun } from "../src/tune-runs.js";
+import { answersFile, listRuns, loadRun, startRun, summarizeAnswers } from "../src/tune-runs.js";
 
 async function runsDir(t) {
   const dir = await mkdtemp(path.join(os.tmpdir(), "modelduck-runs-"));
@@ -50,4 +50,20 @@ test("a run id that could leave the folder is refused", async (t) => {
   await assert.rejects(loadRun(dir, "../profiles/x"), (error) => error.code === "tune_run_bad_id");
   assert.throws(() => answersFile(dir, "..\\secret"), (error) => error.code === "tune_run_bad_id");
   assert.equal(await loadRun(dir, "2026-01-01T00-00-00-000Z-1"), null, "an unknown run is simply missing");
+});
+
+test("a run's answers are summarised: how many, how many right, errors, typical and slow times, tokens", async (t) => {
+  const dir = await runsDir(t);
+  const run = await startRun(dir, { profileId: "a", model: "a.gguf", request: REQUEST });
+  const ms = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000];
+  await run.answers(ms.map((time, index) => ({ settings: {}, seed: 42, item: `i-${index}`, passed: index < 7 ? 1 : 0, total: 1, ms: time, outputTokens: 20 + index, error: index === 9 ? "load failed" : null })));
+  await run.finish({ outcome: "done" });
+  const summary = await summarizeAnswers(dir, run.id);
+  assert.equal(summary.answers, 10);
+  assert.equal(summary.right, 70, "7 of 10 checks passed");
+  assert.equal(summary.errors, 1);
+  assert.equal(summary.ms.median, 500);
+  assert.equal(summary.ms.p90, 900);
+  assert.equal(summary.outputTokens.mean, 24.5);
+  assert.deepEqual(await summarizeAnswers(dir, "2026-01-01T00-00-00-000Z-1"), { answers: 0, right: null, errors: 0, ms: null, outputTokens: null }, "a run without answers summarises to nothing");
 });

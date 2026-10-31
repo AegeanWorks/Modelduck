@@ -237,6 +237,7 @@ export function resolvePaths({ home, models, env = process.env } = {}) {
     settings: path.join(resolvedHome, "settings.json"),
     serverSettings: path.join(resolvedHome, "server-settings.json"),
     profiles: path.join(resolvedHome, "profiles"),
+    tuneRuns: path.join(resolvedHome, "tune-runs"),
     tuneGrid: path.join(resolvedHome, "tune-grid.json"),
     lock: path.join(resolvedHome, ".lock"),
   };

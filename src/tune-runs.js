@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { createInterface } from "node:readline";
 
 import { AppError } from "./errors.js";
 import { ensureDirectory, readJsonWithQuarantine, writeJsonAtomic } from "./fs-atomic.js";
@@ -100,4 +101,52 @@ export async function listRuns(dir, { isAlive = isAliveDefault } = {}) {
     runs.push(summary);
   }
   return runs.sort((left, right) => right.startedAt.localeCompare(left.startedAt));
+}
+
+/** Nearest-rank percentile of sorted numbers: the median of ten is the fifth. */
+const percentile = (sorted, share) => sorted[Math.max(0, Math.ceil(share * sorted.length) - 1)];
+
+/**
+ * A run's answers in a few numbers, read line by line so a large run never loads at once:
+ * how many, the share of checks passed, errors, median and 90th-percentile time, tokens.
+ */
+export async function summarizeAnswers(dir, id) {
+  const file = answersFile(dir, id);
+  const times = [];
+  let answers = 0;
+  let passed = 0;
+  let total = 0;
+  let errors = 0;
+  let tokens = 0;
+  let counted = 0;
+  try {
+    const lines = createInterface({ input: fs.createReadStream(file, { encoding: "utf8" }), crlfDelay: Infinity });
+    for await (const line of lines) {
+      let row;
+      try {
+        row = JSON.parse(line);
+      } catch {
+        continue; // a line cut off by a crash
+      }
+      answers += 1;
+      passed += Number(row.passed) || 0;
+      total += Number(row.total) || 0;
+      if (row.error) errors += 1;
+      if (Number.isFinite(row.ms)) times.push(row.ms);
+      if (Number.isFinite(row.outputTokens)) {
+        tokens += row.outputTokens;
+        counted += 1;
+      }
+    }
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+  times.sort((left, right) => left - right);
+  return {
+    answers,
+    right: total ? Math.round((passed / total) * 1000) / 10 : null,
+    errors,
+    ms: times.length ? { median: percentile(times, 0.5), p90: percentile(times, 0.9) } : null,
+    outputTokens: counted ? { mean: Math.round((tokens / counted) * 10) / 10 } : null,
+  };
 }

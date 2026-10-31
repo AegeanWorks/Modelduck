@@ -85,7 +85,7 @@ export async function runTune(target, { tasks, stages = STAGES, only = null, ste
   const probes = stages.includes("device") && (!only?.length || only.includes("device"));
   const startOn = plan.resume?.device?.settings?.gpuBackend ?? saved?.profile.load?.settings?.gpuBackend ?? base.gpuBackend ?? "cpu";
   // Every run is recorded with every answer, whatever its outcome (ADR-050).
-  const run = await startRun(path.join(target.paths.home, "tune-runs"), {
+  const run = await startRun(target.paths.tuneRuns, {
     profileId: target.profileId,
     model: target.entry.fileName,
     request: { stages, tasks, only, force, maxRuns, passes, rerun: plan.rerun ?? [] },

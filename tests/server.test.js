@@ -8,6 +8,7 @@ import test from "node:test";
 import { makeHarness } from "./helpers.js";
 import { AppError } from "../src/errors.js";
 import { currentFingerprint, profileFromTune, profileIdFor, saveProfile } from "../src/model-profiles.js";
+import { startRun } from "../src/tune-runs.js";
 
 function parseSse(text) {
   return text
@@ -741,4 +742,25 @@ test("Run all can start stale profiles over while fresh ones resume", async (t) 
     await fetch(`${harness.base}/api/tune/start`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ models: "all", forceStale: true, ...part }) });
     assert.deepEqual(starts.at(-1).models.map((model) => Boolean(model.force)), [false, false], JSON.stringify(part));
   }
+});
+
+test("tune runs are listed, opened with an answer summary, and their answers downloaded", async (t) => {
+  const harness = await makeHarness(t);
+  const run = await startRun(harness.paths.tuneRuns, { profileId: "qwen", model: "qwen.gguf", request: { stages: ["prompt"] } });
+  await run.answers([{ settings: {}, seed: 42, item: "code-1", passed: 1, total: 1, ms: 120 }, { settings: {}, seed: 42, item: "code-2", passed: 0, total: 1, ms: 180 }]);
+  await run.finish({ outcome: "done", sweeps: [{ axis: "systemPrompt" }] });
+
+  const list = await (await fetch(`${harness.base}/api/tune/runs`)).json();
+  assert.deepEqual(list.runs.map((entry) => [entry.id, entry.outcome]), [[run.id, "done"]]);
+  const detail = await (await fetch(`${harness.base}/api/tune/runs/${run.id}`)).json();
+  assert.deepEqual(detail.run.sweeps, [{ axis: "systemPrompt" }]);
+  assert.equal(detail.answers.answers, 2);
+  assert.equal(detail.answers.right, 50);
+  const download = await fetch(`${harness.base}/api/tune/runs/${run.id}/answers`);
+  assert.equal(download.status, 200);
+  assert.match(download.headers.get("content-disposition"), /attachment; filename="tune-run-.+\.jsonl"/);
+  assert.equal((await download.text()).trim().split("\n").length, 2);
+
+  assert.equal((await fetch(`${harness.base}/api/tune/runs/..%2Fprofiles`)).status, 400);
+  assert.equal((await fetch(`${harness.base}/api/tune/runs/2026-01-01T00-00-00-000Z-1`)).status, 404);
 });

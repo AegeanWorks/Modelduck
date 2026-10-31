@@ -134,6 +134,7 @@ async function main() {
     benchmarks,
     tunes,
     profilesDir: paths.profiles,
+    tuneRunsDir: paths.tuneRuns,
     tuneStepsFile: paths.tuneGrid,
   });
   const info = systemInfo();

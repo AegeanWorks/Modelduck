@@ -214,6 +214,7 @@ export async function makeHarness(
     jit,
     logger: SILENT_LOGGER,
     profilesDir: paths.profiles,
+    tuneRunsDir: paths.tuneRuns,
     tuneStepsFile: paths.tuneGrid,
     profileFingerprint: (entry) => currentFingerprint(entry, { nodeLlamaCpp: "test" }),
     ...(benchmarkDir ? { benchmarkDir } : {}),

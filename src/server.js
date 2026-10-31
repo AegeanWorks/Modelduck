@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import fs from "node:fs";
 import http from "node:http";
 import { fileURLToPath } from "node:url";
 
@@ -23,6 +24,7 @@ import {
 } from "./http.js";
 import { publicCatalog } from "./model-catalog.js";
 import { currentFingerprint, isPartRun, listProfiles, loadProfile, profileIdFor } from "./model-profiles.js";
+import { answersFile, listRuns, loadRun, summarizeAnswers } from "./tune-runs.js";
 import { TunedSettings } from "./tuned-settings.js";
 import { readSteps, writeSteps } from "./tune-steps.js";
 import { DEFAULT_STEPS, estimateTune, settingNames } from "../benchmarks/tune-grid.mjs";
@@ -82,6 +84,7 @@ export function createHttpServer({
   publicDir = PUBLIC_DIR,
   benchmarkDir = BENCHMARK_DIR,
   profilesDir = null,
+  tuneRunsDir = null,
   profileFingerprint = currentFingerprint,
   tuneStepsFile = null,
 }) {
@@ -456,6 +459,29 @@ export function createHttpServer({
         });
       }
       sendJson(res, 200, { models });
+      return;
+    }
+
+    // Every tune run with its statistics and answers (ADR-050).
+    if (pathname === "/api/tune/runs" && method === "GET") {
+      sendJson(res, 200, { runs: tuneRunsDir ? await listRuns(tuneRunsDir) : [] });
+      return;
+    }
+    const runMatch = pathname.match(/^\/api\/tune\/runs\/([^/]+)(\/answers)?$/);
+    if (runMatch && method === "GET") {
+      const id = decodeURIComponent(runMatch[1]);
+      const run = tuneRunsDir ? await loadRun(tuneRunsDir, id) : null;
+      if (!run) {
+        throw new AppError("Tune run not found", { code: "tune_run_missing", status: 404, why: `There is no saved tune run ${id}.`, fix: "Pick a run from the list of tune runs." });
+      }
+      if (!runMatch[2]) {
+        sendJson(res, 200, { run, answers: await summarizeAnswers(tuneRunsDir, id) });
+        return;
+      }
+      res.writeHead(200, { "content-type": "application/x-ndjson; charset=utf-8", "content-disposition": `attachment; filename="tune-run-${id}.jsonl"` });
+      const stream = fs.createReadStream(answersFile(tuneRunsDir, id));
+      stream.on("error", () => res.end());
+      stream.pipe(res);
       return;
     }
 
