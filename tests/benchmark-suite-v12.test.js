@@ -42,8 +42,8 @@ const REPLIES = {
 const passesAll = (item, reply) => item.checks.every((check) => evaluateTextCheck(check, reply).passed);
 
 test("suite v12 adds 30 chat items and 12 long-context items, all in their tasks", () => {
-  assert.equal(SUITE_VERSION, 12);
-  assert.equal(PROMPTS.length, 268 + 42);
+  assert.ok(SUITE_VERSION >= 12);
+  assert.ok(PROMPTS.length >= 268 + 42, "the exact total is pinned by the latest suite test");
   assert.equal(new Set(PROMPTS.map((prompt) => prompt.id)).size, PROMPTS.length, "ids stay unique");
   const chatIds = new Set(taskPrompts("chat").map((prompt) => prompt.id));
   const recallIds = new Set(taskPrompts("recall").map((prompt) => prompt.id));

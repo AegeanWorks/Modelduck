@@ -129,10 +129,8 @@ phase (`npm run bench`) changes one load setting at a time across models, and th
 **model usage** phase (`npm run bench:chat`) compares sampling and prompting on a
 chosen configuration.
 
-Three small model classes are the default required set: SmolLM2 135M (tiny), Qwen2.5
-0.5B (general) and Qwen2.5 Coder 1.5B (code). `--full-matrix` / `npm run bench:full`
-adds Qwen2.5 1.5B, Llama 3.2 3B and Phi-3.5 Mini plus their KV-cache variants; that
-deeper review takes hours on a CPU and is opt-in. Suite v12 runs 310 items: 250
+The default set is SmolLM2 135M, Qwen2.5 0.5B and Qwen2.5 Coder 1.5B. `--full-matrix` / `npm run bench:full`
+adds Qwen2.5 1.5B, Llama 3.2 3B and Phi-3.5 Mini with KV-cache variants (hours on a CPU). Suite v13 runs 344 items: 284
 questions ModelDuck authored (code, multi-file codebases, bug fixes, chat, math,
 long context, comprehension, facts) plus 60 items copied from
 permissively licensed public benchmarks (GSM8K 16, MMLU 12,
@@ -496,6 +494,7 @@ modelduck/
 │   ├── repo-items-v10.mjs
 │   ├── repo-items-v11.mjs
 │   ├── own-items-v12.mjs
+│   ├── own-items-v13.mjs
 │   ├── recommend.mjs
 │   ├── stats.mjs
 │   ├── tasks.mjs        <- chat/code/math/recall items and tuning rungs
@@ -535,7 +534,9 @@ modelduck/
 │   ├── benchmark-suite-v10.test.js
 │   ├── benchmark-suite-v11.test.js
 │   ├── benchmark-suite-v12.test.js
+│   ├── benchmark-suite-v13.test.js
 │   ├── reference-solutions-v9.js
+│   ├── reference-solutions-v13.js
 │   ├── benchmark-test-hash.test.js
 │   ├── benchmark-tasks.test.js
 │   ├── benchmark-tune.test.js

@@ -4,12 +4,16 @@ import test from "node:test";
 import { CODING_CATEGORIES } from "../benchmarks/recommend.mjs";
 import { PROMPTS, SUITE_VERSION } from "../benchmarks/suite.mjs";
 import { taskPrompts } from "../benchmarks/tasks.mjs";
+import { moreLongBugPrompts, moreLongCodePrompts } from "../benchmarks/own-items-v13.mjs";
 
-const count = (category) => PROMPTS.filter((prompt) => prompt.category === category).length;
+// The v9 items alone; suite v13 adds long items of its own (tests/benchmark-suite-v13.test.js).
+const V13 = new Set([...moreLongCodePrompts(), ...moreLongBugPrompts()].map((prompt) => prompt.id));
+const V9_ON = PROMPTS.filter((prompt) => !V13.has(prompt.id));
+const count = (category) => V9_ON.filter((prompt) => prompt.category === category).length;
 
 test("suite v9 adds our own coding and bug-fix questions, long ones included", () => {
   assert.ok(SUITE_VERSION >= 9);
-  assert.equal(PROMPTS.filter((prompt) => (prompt.category.includes("code") || prompt.category.includes("bugfix")) && !prompt.category.endsWith("-repo")).length, 88);
+  assert.equal(V9_ON.filter((prompt) => (prompt.category.includes("code") || prompt.category.includes("bugfix")) && !prompt.category.endsWith("-repo")).length, 88);
   assert.equal(count("code"), 30);
   assert.equal(count("code-long"), 6);
   assert.equal(count("bugfix"), 26);

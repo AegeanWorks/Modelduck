@@ -5,23 +5,12 @@
     "last_phase": "phase 4",
     "active_phase": 4,
     "status": "in_progress",
-    "updated_at": 1793476573.5214612,
+    "updated_at": 1793476895.142344,
     "owner": "claude-opus-5.5",
     "started_by": "claude-opus-5.5",
     "continuations": []
   },
   "checkpoints": [
-    {
-      "task_id": "answer-reading",
-      "phase": "verification",
-      "phase_num": 4,
-      "description": "Milestone 1 answer readers in; 337/337 tests, gate 4/4, probe 21/22; checklists: passed",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793472201.0177805,
-      "timestamp_str": "2026-10-31 21:43:21",
-      "agent": "claude-opus-5.5"
-    },
     {
       "task_id": "answer-reading",
       "phase": "verification",
@@ -249,6 +238,17 @@
       "status": "in_progress",
       "timestamp": 1793476573.5214612,
       "timestamp_str": "2026-10-31 22:56:13",
+      "agent": "claude-opus-5.5"
+    },
+    {
+      "task_id": "suite-v13",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "[2/3] suite v13: 34 items for knowledge, long functions, long bug fixes and math, with references, failing buggy versions and derived answers (ADR-060). checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793476895.142344,
+      "timestamp_str": "2026-10-31 23:01:35",
       "agent": "claude-opus-5.5"
     }
   ]

@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { PROMPTS, SMOKE_PROMPT_IDS, checkCount, evaluateTextCheck, runJavaScriptTests } from "../benchmarks/suite.mjs";
 import { REFERENCE_V9 } from "./reference-solutions-v9.js";
+import { referenceV13 } from "./reference-solutions-v13.js";
 
 /** Reference solutions: every executable case must pass with these, proving the expectations. */
 const REFERENCE = {
@@ -38,12 +39,12 @@ test("v8 suite: unique ids, new families present, smoke ids resolve", () => {
   const categories = new Set(PROMPTS.map((prompt) => prompt.category));
   for (const family of ["code", "bugfix", "comprehension", "recall", "facts"]) assert.ok(categories.has(family), family);
   for (const id of SMOKE_PROMPT_IDS) assert.ok(ids.includes(id), id);
-  assert.equal(executable.length, 66);
+  assert.equal(executable.length, 66 + 12, "v13 adds six long functions and six long bug fixes");
 });
 
 test("every executable case is satisfied by a reference solution", () => {
   for (const { prompt, check } of executable) {
-    const reference = REFERENCE[check.entry] ?? REFERENCE_V9[check.entry];
+    const reference = REFERENCE[check.entry] ?? REFERENCE_V9[check.entry] ?? referenceV13(check.entry);
     assert.ok(reference, `no reference for ${check.entry}`);
     for (const testCase of check.cases) {
       assert.deepEqual(reference(...structuredClone(testCase.args)), testCase.expect, `${prompt.id} ${JSON.stringify(testCase.args)}`);
@@ -126,7 +127,7 @@ const PUBLIC_REFERENCE = {
 test("public items carry source and license, and translated code cases hold", () => {
   const publicItems = PROMPTS.filter((prompt) => prompt.category.startsWith("public-"));
   assert.equal(publicItems.length, 60);
-  assert.equal(PROMPTS.length - publicItems.length, 250, "ModelDuck's own questions stay in the suite");
+  assert.equal(PROMPTS.length - publicItems.length, 250 + 34, "ModelDuck's own questions stay in the suite");
   for (const prompt of publicItems) {
     assert.ok(prompt.source?.dataset && prompt.source?.license, prompt.id);
     for (const check of prompt.checks.filter((item) => item.type === "jsTests")) {

@@ -3,9 +3,10 @@ import { moreMathPrompts, moreRecallPrompts } from "./own-items-v10.mjs";
 import { repoPrompts } from "./repo-items-v10.mjs";
 import { moreRepoPrompts } from "./repo-items-v11.mjs";
 import { moreChatPrompts, moreContextPrompts } from "./own-items-v12.mjs";
+import { moreKnowledgePrompts, moreLongBugPrompts, moreLongCodePrompts, moreMathPromptsV13 } from "./own-items-v13.mjs";
 import { publicPrompts } from "./public-items.mjs";
 
-export const SUITE_VERSION = 12;
+export const SUITE_VERSION = 13;
 
 export const SYSTEM_PROMPT =
   "You are a precise assistant. Follow the requested output format exactly. " +
@@ -267,6 +268,10 @@ export const PROMPTS = [
   ...moreRecallPrompts(),
   ...moreChatPrompts(),
   ...moreContextPrompts(),
+  ...moreKnowledgePrompts(),
+  ...moreLongCodePrompts(),
+  ...moreLongBugPrompts(),
+  ...moreMathPromptsV13(),
   ...factPrompts(),
   ...publicPrompts(),
 ];

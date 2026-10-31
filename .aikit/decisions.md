@@ -448,3 +448,10 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
 - **Context**: ADR-056 shows right answers per question type, but most types have under 15 items, so a row where the preset is two answers behind the defaults was marked as worse even when that is within noise.
 - **Decision**: Each `byType` entry carries `p`, the exact McNemar test of that type's own paired answers (items the defaults got right and the preset lost, against the reverse). Details and a run's detail add a column: "clearly better" or "clearly worse" when p < 0.05, otherwise "too few to tell"; only a clearly worse type is marked.
 - **Consequences**: Profiles tuned before this have no `p`; their rows show "–" and keep the old marking. The task-level paired test stays the decision rule.
+
+### ADR-060: Suite v13 fills the thin question types and gives math 48 tuning items
+- **Date**: 2026-11-01
+- **Status**: Accepted
+- **Context**: The Benchmark tab (ADR-058) showed knowledge with 3 items, long functions and long bug fixes with 6 each, and math tuning on 38 items while chat and code tune on 48, so per-type results (ADR-056, ADR-059) could rarely tell anything apart.
+- **Decision**: `benchmarks/own-items-v13.mjs` adds 9 knowledge questions, 6 long functions to write (an LRU cache, a query-string parser, a dependency sort, a text table, the next calendar day, a Sudoku check), 6 long functions with more than one bug each, and 13 math word problems. Each long function passes its cases with a reference in `tests/reference-solutions-v13.js`, each buggy function fails at least two of its cases, and each math answer is worked out again independently in `tests/benchmark-suite-v13.test.js`. With 64 math items, the last quarter of each bucket (16) is held back and math tunes on 48.
+- **Consequences**: 344 items, suite v13: every saved profile and the tune:gate baseline are stale until re-tuned. The exact suite totals are now pinned by the v13 test; the v12 test checks at least its own total, and the v9 counts are taken over the v9 items only, so no earlier check got looser about what it covers.
