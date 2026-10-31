@@ -69,7 +69,7 @@ test("the prompt stage tries the baseline and all 21 directives, fully scored, t
   assert.equal(prompts[0], SYSTEM_PROMPT);
   assert.deepEqual(prompts.slice(1), DIRECTIVE_PROMPTS);
   assert.equal(axes[0].full, true, "every prompt gets a full score, no elimination");
-  assert.deepEqual(values(axes, "reasoning"), ["off", "auto"]);
+  assert.deepEqual(values(axes, "reasoning"), ["off", "deep"], "reasoning is tried off and fully on");
   assert.deepEqual(values(axes, "promptRepeat"), [1, 2]);
 });
 

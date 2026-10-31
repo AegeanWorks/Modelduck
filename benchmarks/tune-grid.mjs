@@ -93,7 +93,8 @@ export const DEFAULT_STEPS = freezeDeep({
   prompt: {
     // The prompt the earlier stages answered with comes first, as the reference.
     systemPrompt: [SYSTEM_PROMPT, ...DIRECTIVE_PROMPTS],
-    reasoning: ["off", "auto"],
+    // Off against fully on: "deep" asks the model to think before answering; "auto" is only a nudge.
+    reasoning: ["off", "deep"],
     promptRepeat: [1, 2],
   },
 });
