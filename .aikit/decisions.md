@@ -441,3 +441,10 @@ contract, a dependency, a data format or the architecture; IDs are consecutive a
 - **Context**: The suite is what sets ModelDuck apart, but what it asks was only visible in the source: which question types each task has, how many items, where they come from, how answers are checked and how many are held back.
 - **Decision**: `suiteSummary()` in `benchmarks/tasks.mjs` derives, per task, the items, the held-back items, the items tuned on and the rung sizes, and per question type the items, held-back items, sources (own or the public dataset) and check types, from the suite itself. `GET /api/benchmarks/suite` returns it, and a Benchmark tab in the Tune and benchmark dialog shows it in plain words.
 - **Consequences**: The description cannot drift from the suite, since it is computed from the same items and split the tuner uses.
+
+### ADR-059: Per-type results say when they are too few to tell
+- **Date**: 2026-11-01
+- **Status**: Accepted
+- **Context**: ADR-056 shows right answers per question type, but most types have under 15 items, so a row where the preset is two answers behind the defaults was marked as worse even when that is within noise.
+- **Decision**: Each `byType` entry carries `p`, the exact McNemar test of that type's own paired answers (items the defaults got right and the preset lost, against the reverse). Details and a run's detail add a column: "clearly better" or "clearly worse" when p < 0.05, otherwise "too few to tell"; only a clearly worse type is marked.
+- **Consequences**: Profiles tuned before this have no `p`; their rows show "–" and keep the old marking. The task-level paired test stays the decision rule.

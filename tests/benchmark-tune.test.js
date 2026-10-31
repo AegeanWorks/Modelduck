@@ -628,8 +628,9 @@ test("each task's result and its unseen check are broken down by question type",
     promptAxes: [{ name: "systemPrompt", patches: ["Be precise.", "Other."].map((systemPrompt) => ({ systemPrompt })), full: true }],
     options: { seeds: [42], passes: 1 },
   });
-  assert.deepEqual(tasks.math.stats.byType, { easy: { items: 10, right: 10, defaultRight: 10 }, hard: { items: 10, right: 8, defaultRight: 0 } });
-  assert.deepEqual(tasks.math.holdout.byType.easy, { items: 8, right: 8, defaultRight: 8 }, "held-back items 0-7 are all easy");
+  // p is each type's own paired test: 8 hard items gained and none lost separates them; no change does not.
+  assert.deepEqual(tasks.math.stats.byType, { easy: { items: 10, right: 10, defaultRight: 10, p: 1 }, hard: { items: 10, right: 8, defaultRight: 0, p: 0.0078 } });
+  assert.deepEqual(tasks.math.holdout.byType.easy, { items: 8, right: 8, defaultRight: 8, p: 1 }, "held-back items 0-7 are all easy");
 });
 
 test("a shared quality setting that clearly hurts one task is reverted, naming the task", async () => {

@@ -1,38 +1,16 @@
 {
   "version": 1,
   "active_task": {
-    "task_id": "bench-types",
+    "task_id": "suite-v13",
     "last_phase": "phase 4",
-    "active_phase": 5,
-    "status": "completed",
-    "updated_at": 1793475640.0080183,
+    "active_phase": 4,
+    "status": "in_progress",
+    "updated_at": 1793476283.8336768,
     "owner": "claude-opus-5.5",
     "started_by": "claude-opus-5.5",
-    "continuations": [],
-    "completed_at": 1793475670.7122183
+    "continuations": []
   },
   "checkpoints": [
-    {
-      "task_id": "continue-v1",
-      "phase": "verification",
-      "phase_num": 4,
-      "description": "Milestone 2 Continue section in; tests pass, gate 4/4, Edge review with a real interrupted run; checklists: passed",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793472030.5301423,
-      "timestamp_str": "2026-10-31 21:40:30",
-      "agent": "claude-opus-5.5"
-    },
-    {
-      "task_id": "continue-v1",
-      "phase": "completed",
-      "phase_num": 5,
-      "description": "Task 'continue-v1' completed successfully.",
-      "status": "completed",
-      "timestamp": 1793472030.9470372,
-      "timestamp_str": "2026-10-31 21:40:30",
-      "agent": "claude-opus-5.5"
-    },
     {
       "task_id": "answer-reading",
       "phase": "planning",
@@ -249,6 +227,34 @@
       "status": "completed",
       "timestamp": 1793475670.7122195,
       "timestamp_str": "2026-10-31 22:41:10",
+      "agent": "claude-opus-5.5"
+    },
+    {
+      "task_id": "suite-v13",
+      "phase": "phase 2",
+      "phase_num": 2,
+      "description": "[1/3] per-type rows say 'too few to tell' unless a paired test separates preset and defaults; [2/3] suite v13: thin types (knowledge, long code, long bug fixes, math) to at least 12 and math to 64 so it tunes on 48; [3/3] harder codebase items: fixes from a stack trace or failing test output, and edits that change two functions together",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793476239.1336281,
+      "timestamp_str": "2026-10-31 22:50:39",
+      "agent": "claude-opus-5.5",
+      "impact_assessment": {
+        "why": "Per-type counts are too small to read, several types have 3-6 questions, and codebase items are single-step",
+        "benefits": "Per-type results that can be trusted, a sharper coding signal for complex codebases",
+        "risks": "contract: suite v13 makes every profile and the tune:gate baseline stale; state: none; dependency: none; concurrency: the v12 baseline run was stopped",
+        "mitigation": "References for every new item pass and plausible wrong answers fail in tests; baseline re-made on v13 after the change"
+      }
+    },
+    {
+      "task_id": "suite-v13",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "[1/3] byType entries carry each type's paired p (ADR-059); the column follows in the UI task. checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793476283.8336768,
+      "timestamp_str": "2026-10-31 22:51:23",
       "agent": "claude-opus-5.5"
     }
   ]

@@ -7,6 +7,7 @@ import {
 } from "./tune-grid.mjs";
 import { Measurements, axisKeys, candidatesFor, costDelta, paired, pick, publicStats, round, score } from "./tune-measure.mjs";
 import { deviceStage } from "./tune-device.mjs";
+import { mcnemarExact } from "./stats.mjs";
 import { speedStage } from "./tune-speed.mjs";
 
 /**
@@ -408,12 +409,21 @@ async function taskStats(context, final, untuned, items) {
 function byType(context, chosen, before, items) {
   if (!context.typeOf) return {};
   const types = {};
+  const flips = {};
   for (const id of items) {
-    const entry = (types[context.typeOf(id) ?? "other"] ??= { items: 0, right: 0, defaultRight: 0 });
+    const type = context.typeOf(id) ?? "other";
+    const entry = (types[type] ??= { items: 0, right: 0, defaultRight: 0 });
+    const flip = (flips[type] ??= { lost: 0, gained: 0 });
+    const right = Boolean(chosen.majority.get(id));
+    const defaultRight = Boolean(before?.majority.get(id));
     entry.items += 1;
-    if (chosen.majority.get(id)) entry.right += 1;
-    if (before?.majority.get(id)) entry.defaultRight += 1;
+    if (right) entry.right += 1;
+    if (defaultRight) entry.defaultRight += 1;
+    if (defaultRight && !right) flip.lost += 1;
+    if (right && !defaultRight) flip.gained += 1;
   }
+  // Each type's own paired test, so a difference too small to tell apart says so (ADR-059).
+  if (before) for (const [type, entry] of Object.entries(types)) entry.p = round(mcnemarExact(flips[type].lost, flips[type].gained), 4);
   return { byType: types };
 }
 
