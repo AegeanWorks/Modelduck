@@ -3,25 +3,15 @@
   "active_task": {
     "task_id": "tune-budget-v1",
     "last_phase": "verification",
-    "active_phase": 4,
-    "status": "in_progress",
+    "active_phase": 5,
+    "status": "completed",
     "updated_at": 1793453801.8513017,
     "owner": "claude-opus-5.5",
     "started_by": "claude-opus-5.5",
-    "continuations": []
+    "continuations": [],
+    "completed_at": 1793453828.9677637
   },
   "checkpoints": [
-    {
-      "task_id": "suite-v10",
-      "phase": "verification",
-      "phase_num": 4,
-      "description": "Milestone 1 items in; 302/302 tests with rungs unchanged; checklists: passed",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793446065.5357642,
-      "timestamp_str": "2026-10-31 14:27:45",
-      "agent": "claude-opus-5.5"
-    },
     {
       "task_id": "suite-v10",
       "phase": "verification",
@@ -259,6 +249,16 @@
       "status": "in_progress",
       "timestamp": 1793453801.8513017,
       "timestamp_str": "2026-10-31 16:36:41",
+      "agent": "claude-opus-5.5"
+    },
+    {
+      "task_id": "tune-budget-v1",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'tune-budget-v1' completed successfully.",
+      "status": "completed",
+      "timestamp": 1793453828.9677656,
+      "timestamp_str": "2026-10-31 16:37:08",
       "agent": "claude-opus-5.5"
     }
   ]

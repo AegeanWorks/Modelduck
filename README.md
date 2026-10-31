@@ -111,12 +111,11 @@ device. It is off by default so a missing driver never prevents chat from workin
   context). A setting changes only on a significant paired gain; a model that
   cannot load stops the tune. Each finished step is saved and applied at once, so a
   tune can stop anywhere; a stage in a model's row runs just that stage again, and
-  **Run all** tunes models side by side in CPU and GPU lanes. **Tune
+  **Run all** tunes models side by side in CPU and GPU lanes, each with its time left. **Tune
   settings** edits the values each setting is tried at and the lanes for this PC.
   In chat, the task picker chooses which tuned preset applies, and each answer
   shows what was applied; **Settings** has the tuned on/off switch
-  and Fastest/Light. Tune with heavy programs closed: CPU timings swing with load,
-  and a small model's CPU-or-GPU choice can flip with them.
+  and Fastest/Light. Tune with heavy programs closed: CPU timings swing with load.
 - **Small surface area** — Node's HTTP server, a vanilla UI; no build, framework,
   CDN or account.
 - **AI benchmark gate** - two phases: model reload/quantization/KV-cache settings,
