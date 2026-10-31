@@ -99,6 +99,8 @@ export function tuneRungs(taskIds = TASKS.map((task) => task.id), prompts = PROM
   const rungs = Object.fromEntries(taskIds.map((taskId) => [taskId, taskRungs(taskId, prompts)]));
   rungs.load = [0, 1].map((index) => taskIds.flatMap((taskId) => rungs[taskId][index] ?? rungs[taskId].at(-1)));
   rungs.speed = [speedItems(prompts)];
+  // Each task's share of the last load level, to check the shared quality settings per task (ADR-057).
+  rungs.loadByTask = Object.fromEntries(taskIds.map((taskId) => [taskId, rungs[taskId][1] ?? rungs[taskId].at(-1)]));
   rungs.holdout = Object.fromEntries(taskIds.map((taskId) => [taskId, taskHoldout(taskId, prompts)]));
   return rungs;
 }

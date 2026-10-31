@@ -59,7 +59,7 @@ export function profileFromTune(result, { catalogId, fingerprint, measuredUnder 
     ...(measuredUnder && { measuredUnder }),
     // The device (CPU or GPU backend) each part was measured on (ADR-044).
     ...(measuredOn && { measuredOn }),
-    load: { settings: pick(result.load.settings, LOAD_KEYS), stats: result.load.stats ?? null },
+    load: { settings: pick(result.load.settings, LOAD_KEYS), stats: result.load.stats ?? null, ...(result.load.perTask && { perTask: result.load.perTask, reverted: result.load.reverted ?? null }) },
     device: result.device ?? null,
     speed: result.speed ?? null,
     tasks: Object.fromEntries(Object.entries(result.tasks).map(([task, preset]) => [task, { settings: { ...preset.settings }, stats: preset.stats ?? null, ...(preset.holdout && { holdout: preset.holdout }) }])),

@@ -264,8 +264,13 @@ export async function tune({
 
   if (wants("quality", state.quality, qualityAxes)) {
     const keys = keysFor(state.quality, qualityAxes);
-    const outcome = await descend(context, { stage: "quality", axes: chosen(qualityAxes), start: loadNow(), rungs: rungs.load, forced: GREEDY, cost: parallel > 1 ? "tokens" : "latency", ...progressFor(state.quality, keys) });
+    const before = loadNow();
+    const outcome = await descend(context, { stage: "quality", axes: chosen(qualityAxes), start: before, rungs: rungs.load, forced: GREEDY, cost: parallel > 1 ? "tokens" : "latency", ...progressFor(state.quality, keys) });
     if (!outcome.aborted) {
+      // The quality settings are shared by every task: one that clearly hurts a task goes back (ADR-057).
+      const check = await perTaskCheck(context, before, outcome.current, keys, rungs.loadByTask);
+      if (check?.reverted) outcome.current = { ...outcome.current, ...pick(before, keys) };
+      Object.assign(state.quality, { perTask: check?.perTask ?? null, reverted: check?.reverted ?? null });
       const done = finished(state.quality, qualityAxes);
       const stats = done ? await score(context.measurements, { ...outcome.current, ...GREEDY }, rungs.load.at(-1), settings.seeds) : null;
       Object.assign(state.quality, { status: done ? "done" : "partial", settings: pick(outcome.current, keys), stats: stats ? publicStats(stats) : state.quality.stats });
@@ -362,6 +367,28 @@ async function holdoutCheck(context, final, untuned, items) {
   };
 }
 
+/**
+ * The shared quality settings against those before the stage, on each task's own load items,
+ * paired. A task significantly worse (at `changeAlpha`, uncorrected, to protect every task)
+ * reverts the change; the measurements are already cached from the sweep.
+ */
+async function perTaskCheck(context, before, after, keys, loadByTask) {
+  const changed = keys.some((key) => before[key] !== after[key]);
+  if (!changed || !loadByTask) return null;
+  const perTask = {};
+  let reverted = null;
+  for (const [task, items] of Object.entries(loadByTask)) {
+    const now = await score(context.measurements, { ...after, ...GREEDY }, items, context.options.seeds);
+    const then = await score(context.measurements, { ...before, ...GREEDY }, items, context.options.seeds);
+    if (!now || !then) continue;
+    const evidence = paired(then, now);
+    const worse = evidence.b > evidence.c && evidence.pValue <= context.options.changeAlpha;
+    perTask[task] = { rate: now.rate, before: then.rate, pValue: evidence.pValue, worse };
+    if (worse) reverted ??= task;
+  }
+  return { perTask, reverted };
+}
+
 /** A task's final rate, CI, answer length and the change against the untuned settings. */
 async function taskStats(context, final, untuned, items) {
   const chosen = await score(context.measurements, final, items, context.options.seeds);
@@ -407,7 +434,7 @@ export function resultFrom(state, { budgetExhausted = false, stopped = null, opt
   }
   const status = (entry) => entry?.status ?? "pending";
   return {
-    load: { settings: { ...state.device.settings, ...state.quality.settings, ...state.speed.settings }, stats: state.quality.stats },
+    load: { settings: { ...state.device.settings, ...state.quality.settings, ...state.speed.settings }, stats: state.quality.stats, ...(state.quality.perTask && { perTask: state.quality.perTask, reverted: state.quality.reverted }) },
     device: state.device.status === "done" ? { settings: state.device.settings, probe: state.device.probe, reason: state.device.reason } : null,
     speed: state.speed.fastest ? { fastest: state.speed.fastest, light: state.speed.light } : null,
     tasks,

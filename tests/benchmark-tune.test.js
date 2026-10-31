@@ -631,3 +631,28 @@ test("each task's result and its unseen check are broken down by question type",
   assert.deepEqual(tasks.math.stats.byType, { easy: { items: 10, right: 10, defaultRight: 10 }, hard: { items: 10, right: 8, defaultRight: 0 } });
   assert.deepEqual(tasks.math.holdout.byType.easy, { items: 8, right: 8, defaultRight: 8 }, "held-back items 0-7 are all easy");
 });
+
+test("a shared quality setting that clearly hurts one task is reverted, naming the task", async () => {
+  const math = ids("math", 20);
+  const recall = ids("recall", 6);
+  // q4_0 answers every math item and no recall item; f16 the other way round.
+  const evaluate = async (settings, itemIds) => ({
+    prompts: itemIds.map((id) => ({ id, passed: (settings.kvCache === "q4_0") === id.startsWith("math") ? 1 : 0, total: 1, ms: 10, outputTokens: 10, digest: id })),
+  });
+  const { load, sweeps } = await tune({
+    evaluate,
+    base: { ...BASE, kvCache: "f16", flashAttention: "on" },
+    tasks: ["math", "recall"],
+    stages: ["quality"],
+    rungs: { ...RUNGS, load: [[...math, ...recall]], loadByTask: { math, recall } },
+    hardware: { logicalCores: 12 },
+    ...AXES,
+    qualityAxes: [{ name: "kvCache", patches: ["f16", "q4_0"].map((kvCache) => ({ kvCache })) }],
+    options: { seeds: [42], passes: 1 },
+  });
+  assert.equal(sweeps.find((sweep) => sweep.axis === "kvCache").winner.kvCache, "q4_0", "the mixed items chose q4_0");
+  assert.equal(load.settings.kvCache, "f16", "but long context lost clearly, so it went back");
+  assert.equal(load.perTask.recall.worse, true);
+  assert.equal(load.perTask.math.worse, false);
+  assert.equal(load.reverted, "recall");
+});

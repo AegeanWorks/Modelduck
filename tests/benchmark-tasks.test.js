@@ -41,7 +41,8 @@ test("the first rung mixes categories instead of taking the first ones in suite 
 
 test("tune rungs give each task its rungs and the load stage every task's first two rungs", () => {
   const rungs = tuneRungs(["math", "recall"]);
-  assert.deepEqual(Object.keys(rungs).sort(), ["holdout", "load", "math", "recall", "speed"]);
+  assert.deepEqual(Object.keys(rungs).sort(), ["holdout", "load", "loadByTask", "math", "recall", "speed"]);
+  assert.deepEqual(rungs.loadByTask.math, taskRungs("math")[1], "each task's share of the last load level");
   assert.deepEqual(rungs.speed, [speedItems()]);
   assert.deepEqual(rungs.math, taskRungs("math"));
   assert.equal(rungs.load.length, 2);
