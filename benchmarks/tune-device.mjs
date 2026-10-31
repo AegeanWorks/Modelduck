@@ -1,11 +1,12 @@
 import { costDelta, publicStats, score } from "./tune-measure.mjs";
 
 /**
- * Stage 0 (ADR-031): where does this model run fastest? Measures the fixed
- * speed workload on the CPU and on each GPU backend with every layer
- * offloaded (half the layers only if that fails to load). A GPU wins only
- * when it is measurably faster and answers at least as many items as the CPU,
- * since its different rounding can change answers.
+ * Stage 0 (ADR-031, ADR-066): where does this model run fastest? Measures the
+ * fixed speed workload on the CPU and on each GPU backend with every layer
+ * offloaded; when that will not load, smaller offloads (three quarters, half,
+ * a quarter) are tried in turn, so a model too big for VRAM can still use some
+ * GPU layers. A GPU wins only when it is measurably faster and answers at least
+ * as many items as the CPU, since its different rounding can change answers.
  */
 
 const CPU = Object.freeze({ gpuBackend: "cpu", gpuLayers: 0 });
@@ -16,9 +17,12 @@ const passedOf = (entry) => Math.round((entry.stats.rate / 100) * entry.stats.it
 
 function candidatePatches(backends, layers) {
   const gpus = backends.filter((backend) => backend !== "cpu");
+  const smaller = layers > 1
+    ? [...new Set([Math.ceil(layers * 0.75), Math.ceil(layers * 0.5), Math.ceil(layers * 0.25)])].filter((count) => count >= 1 && count < layers)
+    : [];
   return {
     first: [CPU, ...gpus.map((gpuBackend) => ({ gpuBackend, gpuLayers: "max" }))],
-    fallback: (gpuBackend) => (layers > 1 ? { gpuBackend, gpuLayers: Math.ceil(layers / 2) } : null),
+    fallback: (gpuBackend) => smaller.map((gpuLayers) => ({ gpuBackend, gpuLayers })),
   };
 }
 
@@ -46,8 +50,13 @@ export async function deviceStage(context, { backends, layers = 0, start, items,
   for (const patch of first) {
     const entry = await measure(patch);
     if (!entry) return { aborted: true };
-    const half = entry.stats.failed && patch.gpuBackend !== "cpu" ? fallback(patch.gpuBackend) : null;
-    if (half && !(await measure(half))) return { aborted: true };
+    // A GPU that cannot load all layers tries smaller offloads until one loads (ADR-066).
+    const fallbacks = entry.stats.failed && patch.gpuBackend !== "cpu" ? fallback(patch.gpuBackend) : [];
+    for (const attempt of fallbacks) {
+      const smaller = await measure(attempt);
+      if (!smaller) return { aborted: true };
+      if (!smaller.stats.failed) break;
+    }
   }
 
   const cpu = entries[0];

@@ -91,7 +91,7 @@ test("the Light speed preset and a task's tuned prompt settings are applied", as
   await saveProfile(dir, profileFromTune(
     {
       load: { settings: { contextSize: 8192, threads: 8 } },
-      speed: { fastest: { threads: 8 }, light: { threads: 4 } },
+      speed: { fastest: { threads: 8 }, light: { threads: 4 }, quiet: { threads: 2 } },
       tasks: { math: { settings: { temperature: 0, systemPrompt: "Think from first principles.", reasoning: "auto" } } },
       stages: { quality: "done", speed: "done", sampling: { math: "done" }, prompt: { math: "done" } },
       sweeps: [],
@@ -106,6 +106,9 @@ test("the Light speed preset and a task's tuned prompt settings are applied", as
   assert.equal(resolved.settings.systemPrompt, "Think from first principles.");
   assert.equal(resolved.settings.reasoning, "auto");
   assert.equal(resolved.speedPreset, "light");
+  const quiet = await new TunedSettings({ profilesDir: dir, registry, settings: { value: { ...DEFAULT_SETTINGS, speedPreset: "quiet" } }, fingerprint }).resolve("m1", "math");
+  assert.equal(quiet.settings.threads, 2);
+  assert.equal(quiet.speedPreset, "quiet");
 });
 
 test("only quality was tuned: those keys apply and everything else stays default", async (t) => {
@@ -121,9 +124,10 @@ test("only quality was tuned: those keys apply and everything else stays default
   assert.equal(resolved.stages.speed, "pending");
 });
 
-test("the speed preset setting defaults to fastest and accepts light", () => {
+test("the speed preset setting defaults to fastest and accepts light and quiet", () => {
   assert.equal(normalizeSettings({}).speedPreset, "fastest");
   assert.equal(normalizeSettings({ speedPreset: "light" }).speedPreset, "light");
+  assert.equal(normalizeSettings({ speedPreset: "quiet" }).speedPreset, "quiet");
   assert.equal(normalizeSettings({ speedPreset: "turbo" }).speedPreset, "fastest");
 });
 

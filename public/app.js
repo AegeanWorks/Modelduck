@@ -102,6 +102,7 @@ const els = {
   tuneCancel: $("tune-cancel"),
   tuneProgress: $("tune-progress"),
   tuneModels: $("tune-models"),
+  tuneRecommend: $("tune-recommend"),
   tuneBest: $("tune-best"),
   tuneRuns: $("tune-runs"),
   benchTabs: document.querySelector(".bench-tabs"),
@@ -622,8 +623,9 @@ function appendMessage(message, index, total) {
   if (!isUser && message.manifest?.digest) label.title = `Generation fingerprint ${message.manifest.digest}`;
   if (!isUser && message.tuned) {
     const tuned = message.tuned;
-    label.textContent += ` · tuned: ${tuned.task ?? "load only"} · ${tuned.speedPreset}${tuned.warnings?.length ? " ⚠" : ""}`;
-    label.title = [label.title, `Profile ${tuned.catalogId}`, tuned.systemPrompt ? `System prompt: ${tuned.systemPrompt}` : "", ...(tuned.warnings ?? [])].filter(Boolean).join("\n");
+    const worse = tuned.typeWarnings ?? [];
+    label.textContent += ` · tuned: ${tuned.task ?? "load only"} · ${tuned.speedPreset}${Number.isFinite(tuned.rate) ? ` · ${tuned.rate}%` : ""}${tuned.warnings?.length || worse.length ? " ⚠" : ""}`;
+    label.title = [label.title, `Profile ${tuned.catalogId}`, tuned.systemPrompt ? `System prompt: ${tuned.systemPrompt}` : "", ...(tuned.warnings ?? []), ...worse.map((entry) => `Clearly worse on ${TYPE_NAMES[entry.type] ?? entry.type} (${entry.right}/${entry.items} vs ${entry.defaultRight}/${entry.items}, p=${entry.p})`)].filter(Boolean).join("\n");
   }
   foot.appendChild(label);
 
@@ -1357,7 +1359,7 @@ function openSettings() {
   if (!settings) return;
   els.settingSystem.value = settings.systemPrompt;
   els.settingTuned.checked = settings.useTunedProfile !== false;
-  els.settingSpeedPreset.value = settings.speedPreset === "light" ? "light" : "fastest";
+  els.settingSpeedPreset.value = ["fastest", "light", "quiet"].includes(settings.speedPreset) ? settings.speedPreset : "fastest";
   els.settingTemp.value = settings.temperature;
   els.settingTopp.value = settings.topP;
   els.settingTopk.value = settings.topK;
@@ -2209,7 +2211,7 @@ function perTaskText(load) {
 
 /** A preset against the defaults on items it was never tuned on (ADR-054). */
 function unseenText(holdout) {
-  if (!holdout) return "–";
+  if (!holdout || !Number.isFinite(holdout.rate) || !Number.isFinite(holdout.defaultRate)) return "–";
   const delta = holdout.vsDefault?.rateDelta ?? holdout.rate - holdout.defaultRate;
   return `${holdout.rate}% vs ${holdout.defaultRate}% default (${delta >= 0 ? "+" : ""}${delta} pts, p=${holdout.vsDefault?.pValue ?? "–"})${holdout.fellBack ? "; worse, so the defaults apply" : ""}`;
 }
@@ -2222,6 +2224,20 @@ function tuneDetails(model) {
   const profile = model.profile;
   const box = document.createElement("div");
   box.className = "tune-details";
+  const actions = document.createElement("p");
+  actions.className = "tune-profile-actions";
+  const exportButton = Object.assign(document.createElement("button"), { type: "button", className: "small-btn", textContent: "Export profile" });
+  exportButton.dataset.profileExport = model.profileId;
+  const importLabel = Object.assign(document.createElement("label"), { className: "small-btn", textContent: "Import profile" });
+  const importInput = Object.assign(document.createElement("input"), { type: "file", accept: ".json,application/json" });
+  importInput.hidden = true;
+  importInput.addEventListener("change", () => {
+    if (importInput.files?.[0]) void importProfile(importInput.files[0]);
+    importInput.value = "";
+  });
+  importLabel.appendChild(importInput);
+  actions.append(exportButton, importLabel);
+  box.appendChild(actions);
   const line = (label, text) => {
     const row = document.createElement("p");
     row.append(Object.assign(document.createElement("strong"), { textContent: `${label}: ` }), text);
@@ -2243,6 +2259,7 @@ function tuneDetails(model) {
     const preset = profile?.tasks?.[task];
     const stats = preset?.stats;
     const versus = stats?.vsDefault;
+    const rate = Number.isFinite(stats?.rate) ? `${stats.rate}%` : stats ? "imported, not measured here" : "not tuned";
     // Run one stage for just this task, on top of the saved results.
     const run = document.createElement("td");
     for (const stage of ["sampling", "prompt"]) {
@@ -2253,7 +2270,7 @@ function tuneDetails(model) {
     }
     body.insertRow().append(
       tuneCell(TASK_NAMES[task]),
-      tuneCell(stats ? `${stats.rate}%` : "not tuned"),
+      tuneCell(rate),
       tuneCell(stats?.ci95 ? `${stats.ci95.low}–${stats.ci95.high}%` : "–", "The true rate lies in this range with 95% confidence"),
       tuneCell(versus ? `${versus.rateDelta >= 0 ? "+" : ""}${versus.rateDelta} pts (p=${versus.pValue})` : "–", "Paired against the app defaults; p below 0.05 means the gain is unlikely to be chance"),
       tuneCell(unseenText(preset?.holdout), UNSEEN_TITLE),
@@ -2309,13 +2326,13 @@ function tuneTried(sweeps) {
         chip.title = `${dropped.behind} items behind the leader on the first ${dropped.of}, so it was not measured further.`;
         tried.append(chip, " ");
       }
-      const decision = sweep.kept
+      const decision = sweep.groupGuard ?? (sweep.kept
         ? sweep.kept
         : sweep.changed
           ? `Changed from ${patchText(sweep.previous)} to ${patchText(sweep.winner)}${Number.isFinite(sweep.pValue) && !timed ? ` (paired p=${sweep.pValue})` : ""}.` +
             // Profiles tuned before ADR-042 could move on noise; say so instead of presenting it as a finding.
             (!timed && !sweep.kept && sweep.pValue > 0.2 && sweep.c > sweep.b ? ` Not significant: today's tuner would have kept ${patchText(sweep.previous)}.` : "")
-          : `Kept ${patchText(sweep.winner)}: nothing did better.`;
+          : `Kept ${patchText(sweep.winner)}: nothing did better.`);
       const skipped = sweep.skipped?.length ? ` Skipped: ${sweep.skipped.map((entry) => patchText(entry.patch ?? entry)).join(", ")}.` : "";
       body.insertRow().append(tuneCell(SETTING_GUIDE[sweep.axis]?.[1] ?? sweep.axis, SETTING_GUIDE[sweep.axis]?.[2] ?? ""), tried, tuneCell(`${decision}${skipped}`));
     }
@@ -2527,6 +2544,34 @@ async function loadTuneSweeps(model) {
   renderTuneModels();
 }
 
+async function exportProfile(profileId) {
+  try {
+    const recipe = await request(`/api/profiles/${encodeURIComponent(profileId)}/export`);
+    const blob = new Blob([`${JSON.stringify(recipe, null, 2)}\n`], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = Object.assign(document.createElement("a"), { href: url, download: `${profileId}.modelduck-profile.json` });
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    showError(error);
+  }
+}
+
+async function importProfile(file) {
+  try {
+    const recipe = JSON.parse(await file.text());
+    const result = await request("/api/profiles/import", { method: "POST", body: recipe });
+    await loadTuneOverview();
+    if (result.warnings?.length) {
+      showError({ info: { message: `Imported, with warnings: ${result.warnings.join(" ")}`, why: "The profile was measured on another machine, suite or runtime.", fix: "Re-tune the parts that changed." } });
+    }
+  } catch (error) {
+    showError(error);
+  }
+}
+
 function tuneCell(text, title = "") {
   const cell = document.createElement("td");
   cell.textContent = text;
@@ -2572,6 +2617,14 @@ function renderTuneModels() {
     for (const warning of model.warnings.filter((text) => !text.startsWith("Measured before that") && !(suiteChanged && text.startsWith("The tune's test items changed")))) {
       nameCell.appendChild(Object.assign(document.createElement("small"), { className: "tune-stale", textContent: `⚠ ${warning.split(/[;:]/)[0]}`, title: warning }));
     }
+    for (const [task, warnings] of Object.entries(model.typeWarnings ?? {})) {
+      const text = warnings.map((entry) => `${TYPE_NAMES[entry.type] ?? entry.type} ${entry.right}/${entry.items} vs ${entry.defaultRight}/${entry.items}`).join(", ");
+      nameCell.appendChild(Object.assign(document.createElement("small"), {
+        className: "tune-stale",
+        textContent: `⚠ ${TASK_NAMES[task] ?? task} preset worse on ${text}`,
+        title: "The task preset answers these question types significantly worse than the defaults. Run that task's Sampling or Prompt stage, or use the defaults.",
+      }));
+    }
     row.appendChild(nameCell);
     const device = profile?.device?.settings;
     row.appendChild(tuneCell(device ? (device.gpuBackend === "cpu" ? "CPU" : `${device.gpuBackend} GPU`) : "–", profile?.device?.reason ?? ""));
@@ -2585,8 +2638,8 @@ function renderTuneModels() {
       progress.appendChild(rerun);
     }
     row.appendChild(progress);
-    const rated = TUNE_TASKS.filter((task) => profile?.tasks?.[task]?.stats);
-    row.appendChild(tuneCell(rated.map((task) => `${TASK_NAMES[task]} ${Number(Number(profile.tasks[task].stats.rate).toFixed(1))}%`).join(" · ") || "–"));
+    const rated = TUNE_TASKS.filter((task) => Number.isFinite(profile?.tasks?.[task]?.stats?.rate));
+    row.appendChild(tuneCell(rated.map((task) => `${TASK_NAMES[task]} ${Number(profile.tasks[task].stats.rate.toFixed(1))}%`).join(" · ") || "–"));
     const action = document.createElement("td");
     const button = document.createElement("button");
     button.type = "button";
@@ -2632,7 +2685,7 @@ function renderTuneBest(models, repeated) {
   const percent = (rate) => `${Number(Number(rate).toFixed(1))}%`;
   const device = (model) => (model.profile?.load?.settings?.gpuBackend ?? "cpu") === "cpu" ? "CPU" : `${model.profile.load.settings.gpuBackend} GPU`;
   const rated = (task) => models
-    .filter((model) => model.profile?.tasks?.[task]?.stats)
+    .filter((model) => Number.isFinite(model.profile?.tasks?.[task]?.stats?.rate))
     .map((model) => ({ model, stats: model.profile.tasks[task].stats, current: !model.stale?.length }))
     .sort((left, right) => Number(right.current) - Number(left.current) || right.stats.rate - left.stats.rate || (right.stats.ci95?.low ?? 0) - (left.stats.ci95?.low ?? 0));
   const rows = TUNE_TASKS.map((task) => [task, rated(task)]).filter(([, entries]) => entries.length);
@@ -2824,7 +2877,47 @@ async function loadTuneOverview() {
   for (const model of state.tuneOverview.filter((item) => state.tuneOpen.has(item.id) && item.profile)) void loadTuneSweeps(model);
   state.tuneJob = status.job ?? null;
   renderTuneJob();
+  void loadRecommendations();
   if (state.tuneJob?.status === "running") startTuneLive();
+}
+
+/** What to run on this PC: measured models first, catalog estimates after (ADR-069). */
+async function loadRecommendations() {
+  try {
+    const data = await request("/api/recommendations?task=chat");
+    const box = els.tuneRecommend;
+    const title = Object.assign(document.createElement("h3"), { textContent: "Recommended for this PC" });
+    const note = Object.assign(document.createElement("p"), {
+      className: "benchmark-progress",
+      textContent: `Free memory ${(data.memory.free / 1024 ** 3).toFixed(1)} GiB. Measured models are ranked by right answers on chat, then speed; catalog entries are estimates until downloaded and tuned.`,
+    });
+    const table = document.createElement("table");
+    table.className = "benchmark-table";
+    const head = table.createTHead().insertRow();
+    for (const label of ["Model", "On chat", "Speed", "Memory", "Fit"]) head.appendChild(Object.assign(document.createElement("th"), { textContent: label }));
+    const body = table.createTBody();
+    for (const row of data.installed) {
+      body.insertRow().append(
+        tuneCell(row.name, row.fileName),
+        tuneCell(Number.isFinite(row.rate) ? `${row.rate}%` : "not tuned"),
+        tuneCell(Number.isFinite(row.tokensPerSecond) ? `${row.tokensPerSecond} tok/s` : "–"),
+        tuneCell(`${(row.memoryBytes / 1024 ** 3).toFixed(1)} GiB`, `at ${row.contextSize} context`),
+        tuneCell(row.fit, row.why),
+      );
+    }
+    for (const row of data.catalog) {
+      body.insertRow().append(
+        tuneCell(`${row.name} (not installed)`, row.id),
+        tuneCell("–"),
+        tuneCell("–"),
+        tuneCell(`${(row.totalBytes / 1024 ** 3).toFixed(1)} GiB`, "weights and runtime; the KV cache adds more"),
+        tuneCell("fits (estimated)", `Download ${row.params ?? ""} ${row.quant ?? ""} and tune it to measure speed.`.trim()),
+      );
+    }
+    box.replaceChildren(title, note, table);
+  } catch (error) {
+    els.tuneRecommend.replaceChildren();
+  }
 }
 
 async function pollTune() {
@@ -3267,6 +3360,11 @@ function bindEvents() {
     if (resume) void continueTuneRun(resume.dataset.tuneContinue);
   });
   els.tuneModels.addEventListener("click", (event) => {
+    const exportProfileButton = event.target.closest("[data-profile-export]");
+    if (exportProfileButton) {
+      void exportProfile(exportProfileButton.dataset.profileExport);
+      return;
+    }
     const details = event.target.closest("[data-tune-details]");
     if (details) {
       const id = details.dataset.tuneDetails;

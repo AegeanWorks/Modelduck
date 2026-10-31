@@ -64,6 +64,18 @@ export const DIRECTIVE_PROMPTS = freezeDeep([
   "Keep the names, order and formatting of the input.",
 ]);
 
+/** Coding directives, tried on the code task only (ADR-070). */
+export const CODE_PROMPTS = freezeDeep([
+  "Return only the code, with no example usage or explanation.",
+  "Write complete, runnable code with no placeholders or TODOs.",
+  "Fix only the bug and leave every other line unchanged.",
+  "Use the exact function name, parameters and return type requested.",
+  "Read every file of the codebase before changing a function.",
+  "Change the fewest functions and files needed to satisfy the request.",
+  "Check the code against the failing test before you answer.",
+  "Handle empty, invalid and boundary inputs explicitly.",
+]);
+
 const TOKEN_STEPS = [64, 128, 256, 512, 1024, 2048];
 // The least answer length a reasoning candidate is tried with.
 export const REASONING_TOKENS = 1024;
@@ -254,16 +266,21 @@ export function samplingAxes(taskId, steps = DEFAULT_STEPS.sampling) {
   ]);
 }
 
-/** Stage 4: prompt wording for one task. Every system prompt gets a full score on the task's whole set. */
-export function promptAxes(steps = DEFAULT_STEPS.prompt) {
+/** Stage 4: prompt wording for one task. Every system prompt gets a full score on the task's whole set; code uses its own directives and also tries reasoning "auto" (ADR-070). */
+export function promptAxes(steps = DEFAULT_STEPS.prompt, task = null) {
+  const systemPrompts = Array.isArray(steps.systemPrompt) ? steps.systemPrompt : DEFAULT_STEPS.prompt.systemPrompt;
+  const reasoningSteps = Array.isArray(steps.reasoning) ? steps.reasoning : DEFAULT_STEPS.prompt.reasoning;
+  const promptRepeats = Array.isArray(steps.promptRepeat) ? steps.promptRepeat : DEFAULT_STEPS.prompt.promptRepeat;
+  const customPrompts = JSON.stringify(systemPrompts) !== JSON.stringify(DEFAULT_STEPS.prompt.systemPrompt);
+  const customReasoning = JSON.stringify(reasoningSteps) !== JSON.stringify(DEFAULT_STEPS.prompt.reasoning);
   return Object.freeze([
-    axis("systemPrompt", "systemPrompt", steps.systemPrompt, { full: true }),
+    axis("systemPrompt", "systemPrompt", task === "code" && !customPrompts ? [SYSTEM_PROMPT, ...CODE_PROMPTS] : systemPrompts, { full: true }),
     // Thinking first needs room: a reasoning candidate gets at least REASONING_TOKENS, and the preset keeps them (ADR-046).
-    axis("reasoning", "reasoning", steps.reasoning, {
+    axis("reasoning", "reasoning", task === "code" && !customReasoning ? ["off", "auto", "deep"] : reasoningSteps, {
       extraKeys: ["maxTokens"],
       widen: (current, patch) => (patch.reasoning === "off" ? patch : { ...patch, maxTokens: Math.max(Number(current.maxTokens) || 0, REASONING_TOKENS) }), // aikit:allow-secret token budget
     }),
-    axis("promptRepeat", "promptRepeat", steps.promptRepeat),
+    axis("promptRepeat", "promptRepeat", promptRepeats),
   ]);
 }
 
@@ -312,7 +329,7 @@ export function estimateTune(steps, { logicalCores = 8, tasks = ["chat", "code",
   for (const task of tasks) {
     const sizes = rungs[task].map((rung) => rung.length);
     sampling[task] = stageCost(samplingAxes(task, steps.sampling), sizes, seeds, secondsPerAnswer);
-    prompt[task] = stageCost(promptAxes(steps.prompt), sizes, seeds, secondsPerAnswer);
+    prompt[task] = stageCost(promptAxes(steps.prompt, task), sizes, seeds, secondsPerAnswer);
   }
   const perTask = (entries) => Object.values(entries).reduce((sum, entry) => sum + entry.seconds, 0);
   const onePassSeconds = Math.round(device.seconds + quality.seconds + speed.seconds + perTask(sampling) + perTask(prompt));
@@ -335,7 +352,7 @@ export function expectedAnswers(steps, { logicalCores = 8, tasks = ["chat", "cod
   for (const task of tasks) {
     const sizes = rungs[task].map((rung) => rung.length);
     if (stages.includes("sampling")) total += cost(samplingAxes(task, steps.sampling), sizes, seeds);
-    if (stages.includes("prompt")) total += cost(promptAxes(steps.prompt), sizes, seeds);
+    if (stages.includes("prompt")) total += cost(promptAxes(steps.prompt, task), sizes, seeds);
     // The final preset and the defaults on the held-back items (ADR-054).
     if (!only && (stages.includes("sampling") || stages.includes("prompt"))) total += 2 * (rungs.holdout?.[task]?.length ?? 0) * seeds;
   }

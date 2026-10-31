@@ -10,6 +10,7 @@ import {
   FINGERPRINT_KEYS,
   PROFILE_SCHEMA,
   currentFingerprint,
+  importRecipe,
   listProfiles,
   loadProfile,
   measuredOnAfter,
@@ -18,8 +19,10 @@ import {
   planTune,
   presetFor,
   profileFromTune,
+  profileRecipe,
   profileIdFor,
   saveProfile,
+  typeWarnings,
 } from "../src/model-profiles.js";
 
 const FINGERPRINT = Object.freeze({
@@ -40,7 +43,7 @@ const TUNE = {
     code: { settings: { temperature: 0.2, maxTokens: 1024 }, stats: { rate: 75, vsDefault: { rateDelta: 10, b: 0, c: 2, pValue: 0.5 } } },
     math: { settings: { temperature: 0, maxTokens: 768 }, stats: { rate: 60 } },
   },
-  speed: { fastest: { threads: 8, batchSize: 512 }, light: { threads: 4, batchSize: 512 } },
+  speed: { fastest: { threads: 8, batchSize: 512 }, light: { threads: 4, batchSize: 512 }, quiet: { threads: 2, batchSize: 512 } },
   stages: { device: "done", quality: "done", speed: "done", sampling: { code: "done", math: "done" }, prompt: { code: "done", math: "partial" } },
   progress: { quality: { status: "done" }, sweeps: [] },
   sweeps: [{ stage: "speed", axis: "threads", rungs: [] }],
@@ -71,11 +74,77 @@ test("a tune becomes a profile with load settings, task presets and its statisti
   assert.equal(value.sweeps.length, 1);
 });
 
+test("a profile records which items its search used", () => {
+  const tunedOn = { math: { items: 48, ids: ["m-1", "m-2"], excluded: ["m-3"], fellBack: false } };
+  const value = profileFromTune({ ...TUNE, tunedOn }, { catalogId: "qwen2.5-0.5b-instruct-q4", fingerprint: FINGERPRINT });
+  assert.deepEqual(value.tunedOn, tunedOn);
+  assert.equal("tunedOn" in profile(), false, "a tune without a filtered search omits it");
+});
+
 test("a task preset is the tuned load settings, the speed preset and that task's settings", () => {
   assert.deepEqual(presetFor(profile(), "code"), { contextSize: 8192, threads: 8, kvCache: "q8_0", batchSize: 512, temperature: 0.2, maxTokens: 1024 });
   assert.equal(presetFor(profile(), "code", "light").threads, 4, "Light keeps half the threads free");
+  assert.equal(presetFor(profile(), "code", "quiet").threads, 2, "Quiet keeps three quarters of the threads free");
+  const legacy = { ...profile(), speed: { fastest: { threads: 8 }, light: { threads: 4 } } };
+  assert.equal(presetFor(legacy, "code", "quiet").threads, 4, "a profile from before Quiet falls back to Light");
   assert.deepEqual(presetFor(profile(), "recall"), { contextSize: 8192, threads: 8, kvCache: "q8_0", batchSize: 512 }, "an untuned task keeps its default sampling");
   assert.equal(presetFor(null, "code"), null);
+});
+
+test("a profile recipe carries settings and a receipt, and imports back", () => {
+  const recipe = profileRecipe(profile());
+  assert.equal(recipe.kind, "modelduck-profile");
+  assert.equal(recipe.catalogId, "qwen2.5-0.5b-instruct-q4");
+  assert.equal("sweeps" in recipe, false, "the sweep log is not portable");
+  assert.equal(recipe.receipt.rates.code.rate, 75);
+  const imported = importRecipe(recipe);
+  assert.deepEqual(imported.load.settings, { contextSize: 8192, threads: 8, kvCache: "q8_0" });
+  assert.deepEqual(imported.tasks.code.settings, { temperature: 0.2, maxTokens: 1024 });
+  assert.equal(imported.tasks.math.settings.maxTokens, 768);
+  assert.equal(imported.search.imported, true);
+  assert.equal(imported.stages, null, "an imported profile is not marked as tuned here");
+  assert.equal(imported.speed.quiet.threads, 2);
+});
+
+test("an imported recipe drops unknown and out-of-range settings", () => {
+  const recipe = {
+    ...profileRecipe(profile()),
+    load: { settings: { threads: 9999, kvCache: "q4_0", gpuBackend: "vulkan", gpuLayers: "max" } },
+    tasks: { code: { settings: { temperature: 5, maxTokens: 1024, evil: true }, stats: { rate: 75 } }, poetry: { settings: { temperature: 0 } } },
+  };
+  const imported = importRecipe(recipe);
+  assert.equal(imported.load.settings.threads, undefined, "out of range");
+  assert.equal(imported.load.settings.kvCache, "q4_0");
+  assert.equal(imported.load.settings.gpuBackend, "vulkan");
+  assert.equal(imported.load.settings.gpuLayers, "max");
+  assert.equal(imported.tasks.code.settings.temperature, undefined, "out of range");
+  assert.equal(imported.tasks.code.settings.maxTokens, 1024);
+  assert.equal(imported.tasks.code.settings.evil, undefined);
+  assert.equal(imported.tasks.poetry, undefined, "unknown task");
+});
+
+test("an imported recipe keeps the item subset it was tuned on", () => {
+  const tunedOn = { code: { items: 48, ids: ["c-1", "c-2"], excluded: ["c-3"], fellBack: false }, poetry: { items: 9, ids: ["p-1"] } };
+  const imported = importRecipe({ ...profileRecipe(profile()), tunedOn });
+  assert.deepEqual(imported.tunedOn.code, tunedOn.code);
+  assert.equal(imported.tunedOn.poetry, undefined, "an unknown task is dropped");
+});
+
+test("a recipe that is not a ModelDuck profile is refused", () => {
+  assert.throws(() => importRecipe({ kind: "other", schema: 1 }), (error) => error.code === "profile_recipe_invalid");
+  const recipe = profileRecipe(profile());
+  assert.throws(() => importRecipe({ ...recipe, catalogId: "../escape" }), (error) => error.code === "profile_recipe_invalid");
+  assert.throws(() => importRecipe({ ...recipe, load: {}, tasks: {} }), (error) => error.code === "profile_recipe_empty");
+});
+
+test("a preset's clearly worse question types are named", () => {
+  const value = structuredClone(profile());
+  value.tasks.code.stats.byType = {
+    bugfix: { items: 12, right: 4, defaultRight: 9, p: 0.03 },
+    code: { items: 10, right: 10, defaultRight: 10, p: 1 },
+  };
+  assert.deepEqual(typeWarnings(value).code.map((entry) => entry.type), ["bugfix"]);
+  assert.deepEqual(typeWarnings(profile()), {}, "a profile without type statistics says nothing");
 });
 
 test("a profile keeps its speed presets, stage status and progress", () => {

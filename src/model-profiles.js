@@ -2,9 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { AppError } from "./errors.js";
+import { normalizeSettings } from "./config.js";
 import { readJsonWithQuarantine, writeJsonAtomic } from "./fs-atomic.js";
 import { SUITE_VERSION } from "../benchmarks/suite.mjs";
-import { taskSubsetHash } from "../benchmarks/tasks.mjs";
+import { TASKS, taskSubsetHash } from "../benchmarks/tasks.mjs";
 import { MODEL_CATALOG } from "./model-catalog.js";
 import { systemInfo } from "./system.js";
 
@@ -67,11 +68,13 @@ export function profileFromTune(result, { catalogId, fingerprint, measuredUnder 
     stages: result.stages ?? null,
     progress: result.progress ?? null,
     search: { runs: result.runs, budgetExhausted: result.budgetExhausted, options: result.options ?? null, steps: result.steps ?? null },
+    // Which items the search ran on, when saturated ones were left out (ADR-064).
+    ...(result.tunedOn && { tunedOn: result.tunedOn }),
     sweeps: result.sweeps ?? [],
   };
 }
 
-export const SPEED_PRESETS = Object.freeze(["fastest", "light"]);
+export const SPEED_PRESETS = Object.freeze(["fastest", "light", "quiet"]);
 
 /**
  * The settings to apply for a task: the tuned load settings with the chosen
@@ -80,12 +83,159 @@ export const SPEED_PRESETS = Object.freeze(["fastest", "light"]);
  */
 export function presetFor(profile, taskId, speedPreset = "fastest") {
   if (!profile) return null;
-  const load = { ...profile.load.settings, ...(profile.speed?.[speedPreset] ?? {}) };
+  // A profile from before Quiet falls back to Light rather than to the fastest threads.
+  const preset = profile.speed?.[speedPreset] ?? (speedPreset === "quiet" ? profile.speed?.light : null) ?? {};
+  const load = { ...profile.load.settings, ...preset };
   return { ...pick(load, LOAD_KEYS), ...(profile.tasks?.[taskId]?.settings ?? {}) };
 }
 
 export async function saveProfile(directory, profile) {
   await writeJsonAtomic(fileFor(directory, profile.catalogId), profile);
+}
+
+/** Question types a task's preset answers significantly worse than the defaults (ADR-068). */
+export function typeWarnings(profile) {
+  const warnings = {};
+  for (const [task, preset] of Object.entries(profile?.tasks ?? {})) {
+    const types = preset?.stats?.byType;
+    if (!types) continue;
+    const worse = Object.entries(types)
+      .filter(([, entry]) => Number(entry?.p) < 0.05 && Number(entry?.right) < Number(entry?.defaultRight))
+      .map(([type, entry]) => ({ type, items: entry.items, right: entry.right, defaultRight: entry.defaultRight, p: entry.p }));
+    if (worse.length) warnings[task] = worse;
+  }
+  return warnings;
+}
+
+// A portable profile (ADR-067): what to apply, where it was measured, and a compact receipt.
+export const RECIPE_SCHEMA = 1;
+const TASK_SETTING_KEYS = Object.freeze([
+  "temperature", "maxTokens", "repeatPenalty", "minP", "topP", "topK", "systemPrompt", "reasoning", "promptRepeat",
+]);
+const TASK_IDS = new Set(TASKS.map((task) => task.id));
+const finiteOrNull = (value) => (typeof value === "number" && Number.isFinite(value) ? value : null);
+
+/** Only values the settings form accepts, so an imported recipe cannot inject junk or out-of-range numbers. */
+function knownSettings(input, keys) {
+  const raw = input && typeof input === "object" ? input : {};
+  const normalized = normalizeSettings(raw);
+  return Object.fromEntries(keys.filter((key) => key in raw && JSON.stringify(normalized[key]) === JSON.stringify(raw[key])).map((key) => [key, raw[key]]));
+}
+
+function receiptStats(stats) {
+  if (!stats || typeof stats !== "object") return null;
+  const out = { imported: true };
+  for (const key of ["rate", "items", "seeds", "latencyMs", "outputTokens", "tokensPerSecond"]) {
+    const value = finiteOrNull(stats[key]);
+    if (value !== null) out[key] = value;
+  }
+  if (stats.ci95 && finiteOrNull(stats.ci95.low) !== null && finiteOrNull(stats.ci95.high) !== null) out.ci95 = { low: finiteOrNull(stats.ci95.low), high: finiteOrNull(stats.ci95.high) };
+  if (stats.vsDefault) out.vsDefault = { rateDelta: finiteOrNull(stats.vsDefault.rateDelta), b: finiteOrNull(stats.vsDefault.b), c: finiteOrNull(stats.vsDefault.c), pValue: finiteOrNull(stats.vsDefault.pValue) };
+  return out;
+}
+
+function receiptHoldout(holdout) {
+  if (!holdout || typeof holdout !== "object") return null;
+  return { items: finiteOrNull(holdout.items), rate: finiteOrNull(holdout.rate), defaultRate: finiteOrNull(holdout.defaultRate), fellBack: holdout.fellBack === true };
+}
+
+function cleanSpeed(speed) {
+  if (!speed || typeof speed !== "object") return null;
+  const out = {};
+  for (const name of SPEED_PRESETS) {
+    const preset = knownSettings(speed[name], LOAD_KEYS);
+    if (Object.keys(preset).length) out[name] = preset;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+function cleanTunedOn(tunedOn) {
+  if (!tunedOn || typeof tunedOn !== "object") return null;
+  const ids = (value) => (Array.isArray(value) ? value.filter((id) => typeof id === "string").slice(0, 256) : []);
+  const out = {};
+  for (const [task, entry] of Object.entries(tunedOn)) {
+    if (!TASK_IDS.has(task) || !entry || typeof entry !== "object") continue;
+    out[task] = { items: finiteOrNull(entry.items) ?? 0, ids: ids(entry.ids), excluded: ids(entry.excluded), fellBack: entry.fellBack === true };
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+/** A shareable recipe: settings, fingerprint and receipt, without the sweep log or resume state (ADR-067). */
+export function profileRecipe(profile) {
+  return {
+    schema: RECIPE_SCHEMA,
+    kind: "modelduck-profile",
+    catalogId: profile.catalogId,
+    exportedAt: new Date().toISOString(),
+    createdAt: profile.createdAt ?? null,
+    fingerprint: profile.fingerprint ?? null,
+    load: profile.load ?? null,
+    device: profile.device ?? null,
+    speed: profile.speed ?? null,
+    tasks: profile.tasks ?? {},
+    ...(profile.tunedOn && { tunedOn: profile.tunedOn }),
+    receipt: {
+      stages: profile.stages ?? null,
+      search: profile.search ?? null,
+      rates: Object.fromEntries(Object.entries(profile.tasks ?? {}).map(([task, preset]) => [task, { rate: preset?.stats?.rate ?? null, items: preset?.stats?.items ?? null, holdout: preset?.holdout?.rate ?? null }])),
+    },
+  };
+}
+
+/** Validate an imported recipe and turn it into a profile; unknown or out-of-range values are dropped (ADR-067). */
+export function importRecipe(recipe) {
+  if (!recipe || typeof recipe !== "object" || recipe.kind !== "modelduck-profile" || recipe.schema !== RECIPE_SCHEMA) {
+    throw new AppError("That is not a ModelDuck profile", {
+      code: "profile_recipe_invalid",
+      status: 422,
+      why: "The file is not a ModelDuck profile recipe, or it is from a newer version.",
+      fix: "Export a profile from ModelDuck and import that file.",
+    });
+  }
+  const catalogId = String(recipe.catalogId ?? "");
+  if (!CATALOG_ID.test(catalogId) || catalogId.includes("..")) {
+    throw new AppError("That is not a ModelDuck profile", {
+      code: "profile_recipe_invalid",
+      status: 422,
+      why: `"${catalogId}" is not a model profile name.`,
+      fix: "Export a profile from ModelDuck and import that file.",
+    });
+  }
+  const load = knownSettings(recipe.load?.settings, LOAD_KEYS);
+  const tasks = {};
+  for (const [task, preset] of Object.entries(recipe.tasks ?? {})) {
+    if (!TASK_IDS.has(task) || !preset || typeof preset !== "object") continue;
+    const settings = knownSettings(preset.settings, TASK_SETTING_KEYS);
+    const stats = receiptStats(preset.stats);
+    const holdout = receiptHoldout(preset.holdout);
+    if (Object.keys(settings).length || stats || holdout) tasks[task] = { settings, stats, ...(holdout && { holdout }) };
+  }
+  if (!Object.keys(load).length && !Object.keys(tasks).length) {
+    throw new AppError("That profile has no settings", {
+      code: "profile_recipe_empty",
+      status: 422,
+      why: "The recipe carries neither load settings nor a task preset.",
+      fix: "Export a tuned profile and import that file.",
+    });
+  }
+  const tunedOn = cleanTunedOn(recipe.tunedOn);
+  return {
+    schema: PROFILE_SCHEMA,
+    catalogId,
+    createdAt: typeof recipe.createdAt === "string" ? recipe.createdAt.slice(0, 64) : new Date().toISOString(),
+    fingerprint: pick(recipe.fingerprint ?? {}, FINGERPRINT_KEYS),
+    load: { settings: load, stats: null },
+    device: null,
+    speed: cleanSpeed(recipe.speed),
+    tasks,
+    // Which items the source search used, so the imported profile still says so (ADR-064, ADR-067).
+    ...(tunedOn && { tunedOn }),
+    // An imported profile is applied but not "tuned here"; a re-tune starts from what it carries.
+    stages: null,
+    progress: null,
+    search: { runs: 0, budgetExhausted: false, options: null, steps: null, imported: true },
+    sweeps: [],
+  };
 }
 
 /** The saved profile and the fingerprint keys that changed since it was measured, or null when there is none. */

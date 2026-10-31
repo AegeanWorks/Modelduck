@@ -26,6 +26,20 @@ export const TASK_RUNGS = Object.freeze([12, 24, 48]);
 /** The share of each task never tuned on, to check the chosen preset on unseen items (ADR-054). */
 export const HOLDOUT_SHARE = 0.25;
 
+/** The coding work a preset can be selected for; categories that ask the same kind of question (ADR-070). */
+export const CODE_GROUPS = Object.freeze({
+  write: Object.freeze(["code", "code-long", "public-code"]),
+  fix: Object.freeze(["bugfix", "bugfix-long"]),
+  repo: Object.freeze(["code-repo", "bugfix-repo"]),
+});
+
+const CODE_GROUP_OF = new Map(Object.entries(CODE_GROUPS).flatMap(([group, categories]) => categories.map((category) => [category, group])));
+
+/** The coding view an item's category belongs to, or null for other tasks. */
+export function codeGroupOf(category) {
+  return CODE_GROUP_OF.get(category) ?? null;
+}
+
 function taskOf(taskId) {
   const task = TASKS.find((item) => item.id === taskId);
   if (task) return task;
@@ -103,6 +117,32 @@ export function tuneRungs(taskIds = TASKS.map((task) => task.id), prompts = PROM
   rungs.loadByTask = Object.fromEntries(taskIds.map((taskId) => [taskId, rungs[taskId][1] ?? rungs[taskId].at(-1)]));
   rungs.holdout = Object.fromEntries(taskIds.map((taskId) => [taskId, taskHoldout(taskId, prompts)]));
   return rungs;
+}
+
+/**
+ * Rebuild each task's search rungs from the items that have not saturated for
+ * this model, keeping the rung sizes, and keep the whole tuning set for the
+ * final check (`final`). A task with too few discriminating items keeps every
+ * item, so a filtered search never rests on a handful of questions (ADR-064).
+ */
+export function withDiscriminatingRungs(rungs, saturated = null, taskIds = TASKS.map((task) => task.id).filter((id) => Array.isArray(rungs[id]))) {
+  const search = { ...rungs, final: {} };
+  const tunedOn = {};
+  for (const taskId of taskIds) {
+    const full = rungs[taskId].at(-1);
+    search.final[taskId] = full;
+    const keep = saturated ? full.filter((id) => !saturated.has(id)) : full;
+    if (keep.length < Math.min(TASK_RUNGS[0], full.length)) {
+      tunedOn[taskId] = { items: full.length, ids: full, excluded: [], fellBack: true };
+      continue;
+    }
+    const sizes = [...new Set(rungs[taskId].map((rung) => Math.min(rung.length, keep.length)))];
+    search[taskId] = sizes.map((size) => keep.slice(0, size));
+    tunedOn[taskId] = { items: full.length, ids: keep, excluded: full.filter((id) => !keep.includes(id)), fellBack: false };
+  }
+  search.load = [0, 1].map((index) => taskIds.flatMap((taskId) => search[taskId][index] ?? search[taskId].at(-1)));
+  search.loadByTask = Object.fromEntries(taskIds.map((taskId) => [taskId, search[taskId][1] ?? search[taskId].at(-1)]));
+  return { rungs: search, tunedOn };
 }
 
 /** The speed stage's fixed workload: the first item of every task, plus a second code and recall item for longer prompts. */

@@ -23,15 +23,16 @@ import {
   sseStart,
 } from "./http.js";
 import { publicCatalog } from "./model-catalog.js";
-import { currentFingerprint, isPartRun, listProfiles, loadProfile, profileIdFor } from "./model-profiles.js";
+import { currentFingerprint, importRecipe, isPartRun, listProfiles, loadProfile, profileIdFor, profileRecipe, saveProfile, typeWarnings } from "./model-profiles.js";
 import { answersFile, listRuns, loadRun, summarizeAnswers } from "./tune-runs.js";
 import { TunedSettings } from "./tuned-settings.js";
 import { readSteps, writeSteps } from "./tune-steps.js";
 import { DEFAULT_STEPS, estimateTune, settingNames } from "../benchmarks/tune-grid.mjs";
-import { suiteSummary } from "../benchmarks/tasks.mjs";
 import { handleOpenAI } from "./openai.js";
 import { settingPresets } from "./config.js";
+import { recommendCatalog, recommendModels } from "./recommend.js";
 import { systemInfo } from "./system.js";
+import { TASKS, suiteSummary } from "../benchmarks/tasks.mjs";
 
 // Live tune updates: changes within this window go out together; a comment keeps idle connections open.
 const STREAM_BATCH_MS = 250;
@@ -95,7 +96,7 @@ export function createHttpServer({
 }) {
   const activeChats = new Set();
   const tuned = new TunedSettings({ profilesDir, registry, settings, fingerprint: profileFingerprint });
-  const tunedInfo = (applied) => applied && { catalogId: applied.catalogId, task: applied.task, speedPreset: applied.speedPreset, stages: applied.stages, systemPrompt: applied.settings.systemPrompt ?? null, stale: applied.stale, warnings: applied.warnings };
+  const tunedInfo = (applied) => applied && { catalogId: applied.catalogId, task: applied.task, speedPreset: applied.speedPreset, stages: applied.stages, systemPrompt: applied.settings.systemPrompt ?? null, rate: applied.rate ?? null, typeWarnings: applied.typeWarnings ?? [], stale: applied.stale, warnings: applied.warnings };
 
   async function handleChat(req, res) {
     const body = await readJsonBody(req);
@@ -466,9 +467,31 @@ export function createHttpServer({
           staleParts: loaded?.staleParts ?? [],
           deviceParts: loaded?.deviceParts ?? [],
           warnings: loaded?.warnings ?? [],
+          typeWarnings: loaded ? typeWarnings(loaded.profile) : {},
         });
       }
       sendJson(res, 200, { models });
+      return;
+    }
+
+    // What to run on this machine: measured models first, then catalog estimates (ADR-069).
+    if (pathname === "/api/recommendations" && method === "GET") {
+      const wanted = new URL(req.url, "http://localhost").searchParams.get("task") ?? "chat";
+      const task = TASKS.some((item) => item.id === wanted) ? wanted : "chat";
+      const system = systemInfo();
+      const memory = { free: system.freeMemory, total: system.totalMemory };
+      const models = registry.listPublic().map((model) => ({ ...model, profileId: profileIdFor(model.fileName) }));
+      const profiles = {};
+      for (const model of models) {
+        const loaded = profilesDir ? await loadProfile(profilesDir, model.profileId, await profileFingerprint(model)).catch(() => null) : null;
+        profiles[model.profileId] = loaded?.profile ?? null;
+      }
+      sendJson(res, 200, {
+        task,
+        memory,
+        installed: recommendModels({ models, profiles, memory, task }),
+        catalog: recommendCatalog({ catalog: publicCatalog(), installed: models.map((model) => model.id), memory }),
+      });
       return;
     }
 
@@ -620,6 +643,51 @@ export function createHttpServer({
       return;
     }
 
+    const profileExport = pathname.match(/^\/api\/profiles\/([^/]+)\/export$/);
+    if (profileExport && method === "GET") {
+      if (!profilesDir) throw new AppError("Profiles are unavailable", { status: 503 });
+      const id = decodeURIComponent(profileExport[1]);
+      const entry = registry.listPublic().find((model) => profileIdFor(model.fileName) === id) ?? null;
+      const loaded = await loadProfile(profilesDir, id, await profileFingerprint(entry));
+      if (!loaded) {
+        throw new AppError("This model has not been tuned", {
+          code: "profile_missing",
+          status: 404,
+          why: `There is no saved profile for ${id}.`,
+          fix: "Start a tune for it from the Bench panel, or run npm run tune -- --model <id>.",
+        });
+      }
+      res.setHeader("content-disposition", `attachment; filename="${id}.modelduck-profile.json"`);
+      sendJson(res, 200, profileRecipe(loaded.profile));
+      return;
+    }
+
+    if (pathname === "/api/profiles/import" && method === "POST") {
+      if (!profilesDir) throw new AppError("Profiles are unavailable", { status: 503 });
+      if (!isLoopbackRequest(req)) {
+        throw new AppError("Profiles import only on this computer", {
+          code: "profile_local_only",
+          status: 403,
+          why: "Importing a profile changes this computer's settings.",
+          fix: "Open the ModelDuck UI on the computer running the server.",
+        });
+      }
+      const imported = importRecipe(await readJsonBody(req, { limitBytes: 512 * 1024 }));
+      const entry = registry.listPublic().find((model) => profileIdFor(model.fileName) === imported.catalogId) ?? null;
+      if (!entry) {
+        throw new AppError("That model is not installed", {
+          code: "profile_model_missing",
+          status: 422,
+          why: `The profile is for ${imported.catalogId}, which is not in the model folder.`,
+          fix: "Install that model first, or import a profile for a model you have.",
+        });
+      }
+      await saveProfile(profilesDir, imported);
+      const loaded = await loadProfile(profilesDir, imported.catalogId, await profileFingerprint(entry));
+      sendJson(res, 201, { catalogId: imported.catalogId, imported: true, stale: loaded?.stale ?? [], warnings: loaded?.warnings ?? [] });
+      return;
+    }
+
     const profileMatch = pathname.match(/^\/api\/profiles\/([^/]+)$/);
     if (profileMatch && method === "GET") {
       const id = decodeURIComponent(profileMatch[1]);
@@ -633,7 +701,7 @@ export function createHttpServer({
           fix: "Start a tune for it from the Bench panel, or run npm run tune -- --model <id>.",
         });
       }
-      sendJson(res, 200, loaded);
+      sendJson(res, 200, { ...loaded, typeWarnings: typeWarnings(loaded.profile) });
       return;
     }
 

@@ -78,11 +78,15 @@ export async function speedStage(context, { axes, start, items, forced, logicalC
     if (!changed) break;
   }
   const fastest = pick(current, keys);
+  // Light and Quiet use fewer threads than the fastest setting, chosen from the same measurements.
+  const threadsFor = (cap) => {
+    const entries = (threadEntries ?? []).filter((entry) => entry.patch.threads <= cap);
+    const winner = entries.length ? chooseFastest(entries.map((entry) => ({ ...entry, incumbent: false })), options.speedTie) : null;
+    return winner && winner.patch.threads <= cap
+      ? { ...fastest, threads: winner.patch.threads }
+      : { ...fastest, threads: Math.min(fastest.threads ?? cap, cap) };
+  };
   const half = Math.max(1, Math.floor(logicalCores / 2));
-  const lightEntries = (threadEntries ?? []).filter((entry) => entry.patch.threads <= half);
-  const lightWinner = lightEntries.length ? chooseFastest(lightEntries.map((entry) => ({ ...entry, incumbent: false })), options.speedTie) : null;
-  const light = lightWinner && lightWinner.patch.threads <= half
-    ? { ...fastest, threads: lightWinner.patch.threads }
-    : { ...fastest, threads: Math.min(fastest.threads ?? half, half) };
-  return { current, fastest, light, aborted: false };
+  const quarter = Math.max(1, Math.floor(logicalCores / 4));
+  return { current, fastest, light: threadsFor(half), quiet: threadsFor(quarter), aborted: false };
 }

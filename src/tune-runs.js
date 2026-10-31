@@ -183,3 +183,52 @@ export async function summarizeAnswers(dir, id) {
     outputTokens: counted ? { mean: Math.round((tokens / counted) * 10) / 10 } : null,
   };
 }
+
+/**
+ * Per-item outcomes from every saved run of one model: how often each item was
+ * right or wrong, ignoring errors. `saturated` holds the items no recorded
+ * setting has ever flipped (all right or all wrong after a minimum of looks),
+ * which a tune leaves out of its search (ADR-064).
+ */
+export async function itemOutcomes(dir, { profileId, minObservations = 2 } = {}) {
+  const names = await fs.promises.readdir(dir).catch(() => []);
+  const counts = new Map();
+  for (const name of names.filter((item) => item.endsWith(".json"))) {
+    const record = await readJsonWithQuarantine(path.join(dir, name), null, { logger: quiet });
+    if (record?.schema !== RUN_SCHEMA) continue;
+    if (profileId && record.profileId !== profileId) continue;
+    let file;
+    try {
+      file = answersFile(dir, name.slice(0, -5));
+    } catch {
+      continue; // a file name that cannot be a run id
+    }
+    try {
+      const lines = createInterface({ input: fs.createReadStream(file, { encoding: "utf8" }), crlfDelay: Infinity });
+      for await (const line of lines) {
+        let row;
+        try {
+          row = JSON.parse(line);
+        } catch {
+          continue; // a line cut off by a crash
+        }
+        const total = Number(row.total) || 0;
+        if (row.error || !row.item || !(total > 0)) continue;
+        const entry = counts.get(row.item) ?? { right: 0, wrong: 0 };
+        if ((Number(row.passed) || 0) >= total) entry.right += 1;
+        else entry.wrong += 1;
+        counts.set(row.item, entry);
+      }
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
+    }
+  }
+  const saturated = new Set();
+  const totals = {};
+  for (const [id, entry] of counts) {
+    const seen = entry.right + entry.wrong;
+    if (seen >= minObservations && (entry.right === 0 || entry.wrong === 0)) saturated.add(id);
+    totals[id] = { ...entry, seen };
+  }
+  return { saturated, counts: totals };
+}

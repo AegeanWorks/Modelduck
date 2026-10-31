@@ -10,9 +10,9 @@ import { createModelRegistry } from "../src/model-registry.js";
 import { systemInfo } from "../src/system.js";
 import { createTimingLock } from "../src/tune-lock.js";
 import { readSteps } from "../src/tune-steps.js";
-import { startRun } from "../src/tune-runs.js";
+import { itemOutcomes, startRun } from "../src/tune-runs.js";
 import { PROMPTS, SYSTEM_PROMPT } from "./suite.mjs";
-import { tuneRungs } from "./tasks.mjs";
+import { codeGroupOf, tuneRungs, withDiscriminatingRungs } from "./tasks.mjs";
 import { STAGES, resultFrom, tune } from "./tune.mjs";
 import { expectedAnswers, promptAxes, qualityAxes, samplingAxes, speedAxes } from "./tune-grid.mjs";
 import { createEvaluator } from "./tune-evaluate.mjs";
@@ -69,6 +69,13 @@ export async function runTune(target, { tasks, stages = STAGES, only = null, ste
   const base = tuneBase();
   const logicalCores = target.system.parallelism;
   const used = steps ?? (await readSteps(target.paths.tuneGrid)).steps;
+  // Items no recorded setting has flipped cannot separate settings for this model, so the
+  // search leaves them out; the final check keeps the whole set (ADR-064).
+  const { saturated } = await itemOutcomes(target.paths.tuneRuns, { profileId: target.profileId });
+  // Public coding items may be in the model's training data: they stay in the final check and
+  // the gate, but the search is chosen on ModelDuck's own code items (ADR-070).
+  for (const prompt of PROMPTS) if (prompt.category === "public-code") saturated.add(prompt.id);
+  const { rungs, tunedOn } = withDiscriminatingRungs(tuneRungs(tasks), saturated, tasks);
   const save = async (result) => {
     const measuredUnder = measuredUnderAfter(saved, target.fingerprint, result.stages, plan.rerun ?? []);
     const measuredOn = measuredOnAfter(saved, result.stages, plan.rerun ?? [], result.load.settings.gpuBackend ?? "cpu");
@@ -97,7 +104,7 @@ export async function runTune(target, { tasks, stages = STAGES, only = null, ste
   const earlierSweeps = plan.resume?.sweeps?.length ?? 0;
   const earlierAnswers = plan.resume?.runs ?? 0;
   const snapshot = (state) => {
-    const result = resultFrom(state);
+    const result = resultFrom(state, { tunedOn });
     return { answers: state.runs - earlierAnswers, sweeps: state.sweeps.slice(earlierSweeps), result: { load: result.load, speed: result.speed, device: result.device, tasks: result.tasks, stages: result.stages } };
   };
   const onAnswers = (settings, seed, answers) => {
@@ -134,28 +141,30 @@ export async function runTune(target, { tasks, stages = STAGES, only = null, ste
     return tune({
       evaluate,
       contextBudget,
-      // Question types, so each task's result is broken down (ADR-056).
+      // Question types, so each task's result is broken down (ADR-056), and coding views for the balance rule (ADR-070).
       typeOf: (id) => CATEGORY_OF.get(id) ?? null,
+      groupOf: (id) => codeGroupOf(CATEGORY_OF.get(id)),
       timing: { acquire: () => lock.acquire(), release: () => lock.release() },
       base,
       tasks,
       stages,
       only,
       resume: plan.resume,
-      rungs: tuneRungs(tasks),
+      rungs,
+      tunedOn,
       hardware: { logicalCores },
       deviceBackends: used.device.backends,
       modelLayers: target.entry.kvShape?.layers ?? 0,
       qualityAxes: qualityAxes(used.load),
       speedAxes: speedAxes({ logicalCores }, used.load),
       samplingAxes: (task) => samplingAxes(task, used.sampling),
-      promptAxes: promptAxes(used.prompt),
+      promptAxes: (task) => promptAxes(used.prompt, task),
       options: { ...(maxRuns > 0 && { maxRuns }), ...(passes > 0 && { passes }) },
       onEvent,
       onAnswers,
       onProgress: async (state) => {
         lastState = state;
-        await save(resultFrom(state));
+        await save(resultFrom(state, { tunedOn }));
         await run.update(snapshot(state));
       },
     });
@@ -190,7 +199,7 @@ export function summary(profile, result = null) {
     `Load: ${line(profile.load.settings)}`,
   ];
   if (profile.device) lines.push(`Device: ${profile.device.reason}`);
-  if (profile.speed) lines.push(`Speed presets: Fastest ${line(profile.speed.fastest)} · Light ${line(profile.speed.light)}`);
+  if (profile.speed) lines.push(`Speed presets: Fastest ${line(profile.speed.fastest)} · Light ${line(profile.speed.light)}${profile.speed.quiet ? ` · Quiet ${line(profile.speed.quiet)}` : ""}`);
   for (const [task, preset] of Object.entries(profile.tasks)) {
     const stats = preset.stats;
     const delta = stats?.vsDefault ? ` (${stats.vsDefault.rateDelta >= 0 ? "+" : ""}${stats.vsDefault.rateDelta} pts vs defaults, p=${stats.vsDefault.pValue})` : "";

@@ -5,9 +5,9 @@ import {
   speedAxes as defaultSpeedAxes,
   isValidCombination,
 } from "./tune-grid.mjs";
-import { Measurements, axisKeys, candidatesFor, costDelta, paired, pick, publicStats, round, score } from "./tune-measure.mjs";
+import { Measurements, axisKeys, candidatesFor, costDelta, lookPoints, paired, pick, publicStats, round, score, scoreSequential, solvedCount } from "./tune-measure.mjs";
 import { deviceStage } from "./tune-device.mjs";
-import { mcnemarExact } from "./stats.mjs";
+import { holm, mcnemarExact } from "./stats.mjs";
 import { speedStage } from "./tune-speed.mjs";
 
 /**
@@ -26,15 +26,17 @@ export const DEFAULT_TUNE_OPTIONS = Object.freeze({
   keepFraction: 0.5,
   speedTie: 0.03,
   // A challenger that is better only on quality must beat the current setting in a paired
-  // test at this level, divided by the number of challengers, or the current setting stays (ADR-042).
+  // test at this level, Holm-adjusted across the surviving challengers, or the current setting stays (ADR-042, ADR-063).
   changeAlpha: 0.2,
-  // A fully scored axis (system prompts) first answers this share of its items; a candidate
-  // `screenGap` items behind the leader there stops, unless it is the current setting (ADR-049).
+  // The alpha an early stop may spend over one axis's looks; defaults to changeAlpha.
+  stopAlpha: null,
+  // A rung is checked this many times for an early stop, in equal blocks of items (ADR-063).
+  looks: 4,
+  // A fully scored axis (system prompts) first answers this share of its items.
   screenFraction: 0.25,
-  screenGap: 3,
 });
 
-// A screen of fewer items cannot tell a 3-item gap from noise, so it is skipped.
+// A screen of fewer items cannot tell a significant gap from noise, so it is skipped.
 const MIN_SCREEN_ITEMS = 8;
 
 export const STAGES = Object.freeze(["device", "quality", "speed", "sampling", "prompt"]);
@@ -49,7 +51,7 @@ const emptyStage = () => ({ status: "pending", settings: {}, done: [], stats: nu
 
 /** A fresh progress state: every stage pending, nothing tuned. */
 export function emptyProgress() {
-  return { device: { ...emptyStage(), probe: null, reason: null }, quality: emptyStage(), speed: { ...emptyStage(), fastest: null, light: null }, sampling: {}, prompt: {}, holdout: {}, sweeps: [], runs: 0 };
+  return { device: { ...emptyStage(), probe: null, reason: null }, quality: emptyStage(), speed: { ...emptyStage(), fastest: null, light: null, quiet: null }, sampling: {}, prompt: {}, holdout: {}, sweeps: [], runs: 0 };
 }
 
 const costOf = (entry, cost) => entry.stats[COST[cost].summary] ?? Infinity;
@@ -80,7 +82,61 @@ function choose(candidates, floor, speedTie, cost) {
     left.index - right.index)[0];
 }
 
-/** One axis: successive halving over the rungs (or one full rung), then the selection rule on the last rung. */
+// A coding view needs this many items for its paired test to mean anything.
+const MIN_GROUP_ITEMS = 8;
+
+/** Paired b/c between two runs on one view's items. */
+function groupEvidence(before, after, ids) {
+  let b = 0;
+  let c = 0;
+  for (const id of ids) {
+    const was = before.majority.get(id);
+    const now = after.majority.get(id);
+    if (was === undefined || now === undefined) continue;
+    if (was && !now) b += 1;
+    if (!was && now) c += 1;
+  }
+  return { b, c, pValue: round(mcnemarExact(b, c), 4) };
+}
+
+const groupRate = (stats, ids) => (ids.length ? round((ids.filter((id) => stats.majority.get(id)).length / ids.length) * 100) : null);
+
+/** Per-view rate and paired evidence for a candidate against the current setting. */
+function groupStats(before, after, groups) {
+  return Object.fromEntries(Object.entries(groups).map(([group, ids]) => {
+    const evidence = groupEvidence(before, after, ids);
+    return [group, { items: ids.length, rate: groupRate(after, ids), before: groupRate(before, ids), ...evidence, worse: evidence.b > evidence.c && evidence.pValue < 0.05 }];
+  }));
+}
+
+/**
+ * A coding preset must not buy an overall gain by sacrificing a view (ADR-070). When the
+ * chosen candidate is clearly worse than the current setting on one view, a candidate that
+ * is not worse on any view takes its place; with none, the current setting stays.
+ */
+function balancedChoice({ survivors, incumbent, chosen, itemIds, context, floor, cost }) {
+  if (!context.groupOf) return null;
+  const groups = {};
+  for (const id of itemIds) {
+    const group = context.groupOf(id);
+    if (group) (groups[group] ??= []).push(id);
+  }
+  const usable = Object.fromEntries(Object.entries(groups).filter(([, ids]) => ids.length >= MIN_GROUP_ITEMS));
+  if (Object.keys(usable).length < 2) return null;
+  const chosenGroups = groupStats(incumbent.stats, chosen.stats, usable);
+  const worse = Object.entries(chosenGroups).filter(([, entry]) => entry.worse).map(([group]) => group);
+  if (!worse.length) return { chosen, groups: chosenGroups, guard: null };
+  const safe = survivors.filter((entry) => entry === incumbent || !Object.values(groupStats(incumbent.stats, entry.stats, usable)).some((group) => group.worse));
+  const eligible = safe.filter((entry) => entry.stats.rate >= floor);
+  const replacement = eligible.length ? choose(eligible, floor, context.options.speedTie, cost) : incumbent;
+  return {
+    chosen: replacement,
+    groups: groupStats(incumbent.stats, replacement.stats, usable),
+    guard: `Kept ${JSON.stringify(Object.values(replacement.patch)[0])}: the higher-scoring ${JSON.stringify(Object.values(chosen.patch)[0])} was clearly worse on ${worse.join(", ")}.`,
+  };
+}
+
+/** One axis: successive halving over the rungs (or one full rung), stopping a value that falls significantly behind, then the selection rule on the last rung. */
 async function sweep(context, { stage, task, axis, current, rungs, forced, cost }) {
   const { measurements, options } = context;
   const { candidates, skipped } = candidatesFor(axis, current, context.valid);
@@ -89,53 +145,102 @@ async function sweep(context, { stage, task, axis, current, rungs, forced, cost 
   if (screen >= MIN_SCREEN_ITEMS && screen < levels[0].length) levels = [levels[0].slice(0, screen), levels[0]];
   let survivors = candidates;
   const record = { stage, task, axis: axis.name, skipped, full: Boolean(axis.full), rungs: [] };
+  const looks = levels.map((itemIds) => lookPoints(itemIds.length, options.looks));
+  // Every look spends an equal share of one error budget over the axis (ADR-063). A non-finite
+  // stop alpha turns the screen off, which the mechanics tests need.
+  const stopAlpha = options.stopAlpha ?? options.changeAlpha;
+  const lookBudget = Math.max(1, looks.reduce((sum, points) => sum + points.length, 0));
+  const alphaPerLook = Number.isFinite(stopAlpha) && stopAlpha > 0 ? stopAlpha / lookBudget : null;
   for (const [level, itemIds] of levels.entries()) {
-    for (const entry of survivors) {
-      entry.stats = await score(measurements, { ...current, ...entry.patch, ...forced }, itemIds, options.seeds);
+    // The current setting answers first, so every challenger is compared with a complete reference.
+    const ordered = [...survivors].sort((left, right) => Number(right.incumbent) - Number(left.incumbent));
+    let reference = ordered.find((entry) => entry.incumbent) ?? null;
+    for (const entry of ordered) {
+      const settings = { ...current, ...entry.patch, ...forced };
+      if (entry.incumbent) entry.stats = await score(measurements, settings, itemIds, options.seeds);
+      else {
+        // A challenger stops at the first look where it is significantly worse than the best completed value (ADR-063).
+        entry.stats = await scoreSequential(measurements, settings, itemIds, options.seeds, {
+          lookAt: looks[level],
+          shouldStop: (stats) => {
+            if (alphaPerLook === null || !reference?.stats) return false;
+            const evidence = paired(reference.stats, stats);
+            if (!(evidence.b > evidence.c && evidence.pValue / 2 <= alphaPerLook)) return false;
+            entry.stopped = { p: evidence.pValue, behind: evidence.b - evidence.c };
+            return true;
+          },
+        });
+      }
       if (!entry.stats) return { ...record, aborted: true, winner: null };
       const { rate, latencyMs, outputTokens, tokensPerSecond } = entry.stats;
       context.onEvent({ type: "candidate", stage, task, axis: axis.name, rung: itemIds.length, patch: entry.patch, rate, latencyMs, outputTokens, tokensPerSecond, runs: measurements.runs });
+      // Only a fully answered value can lead; a stopped prefix is compared with, never used as the bar.
+      if (!entry.stats.partial && (!reference?.stats || entry.stats.rate > reference.stats.rate)) reference = entry;
     }
-    record.rungs.push({ size: itemIds.length, candidates: survivors.map((entry) => ({ patch: entry.patch, ...publicStats(entry.stats) })) });
+    record.rungs.push({ size: itemIds.length, candidates: ordered.map((entry) => ({ patch: entry.patch, ...publicStats(entry.stats), partial: Boolean(entry.stats.partial) })) });
     // Nothing loads, the current settings included: the machine changed (a driver, memory), not the setting.
     // Choosing among failures would store them as results, so the tune stops here instead.
-    if (survivors.every((entry) => entry.stats.failed)) {
-      measurements.stop(`The model could not load with any ${axis.name} tried, the current one included: ${survivors[0].stats.error ?? "every answer failed"}`);
+    if (ordered.every((entry) => entry.stats.failed)) {
+      measurements.stop(`The model could not load with any ${axis.name} tried, the current one included: ${ordered[0].stats.error ?? "every answer failed"}`);
       return { ...record, aborted: true, winner: null };
     }
-    if (level === levels.length - 1) break;
-    if (axis.full) {
-      // Screening: only a clear loser stops early; the decision still uses every item.
-      const solved = (entry) => [...entry.stats.majority.values()].filter(Boolean).length;
-      const leader = Math.max(...survivors.filter((entry) => !entry.stats.failed).map(solved));
-      const dropped = survivors.filter((entry) => !entry.incumbent && leader - solved(entry) >= options.screenGap);
-      record.dropped = dropped.map((entry) => ({ patch: entry.patch, solved: solved(entry), of: itemIds.length, behind: leader - solved(entry) }));
-      survivors = survivors.filter((entry) => !dropped.includes(entry));
-      continue;
+    // A stopped value did not finish its rung, so it is out of this sweep (ADR-063).
+    const dropped = ordered.filter((entry) => entry.stats.partial);
+    if (dropped.length) {
+      record.dropped = [...(record.dropped ?? []), ...dropped.map((entry) => ({
+        patch: entry.patch,
+        solved: solvedCount(entry.stats),
+        of: entry.stats.items,
+        behind: entry.stopped?.behind ?? 0,
+        p: entry.stopped?.p ?? null,
+      }))];
+      survivors = ordered.filter((entry) => !entry.stats.partial);
     }
+    if (level === levels.length - 1) break;
+    // Nothing left to compare with: the sweep ends here instead of answering later rungs.
+    if (survivors.length === 1 && survivors[0].incumbent) {
+      record.endedEarly = "only the current setting is left";
+      break;
+    }
+    if (axis.full) continue;
     const keep = Math.max(2, Math.ceil(survivors.length * options.keepFraction));
     const ranked = [...survivors].sort(byQuality(cost));
     survivors = ranked.filter((entry, index) => index < keep || entry.incumbent).sort((left, right) => left.index - right.index);
   }
   const top = Math.max(...survivors.filter((entry) => !entry.stats.failed).map((entry) => entry.stats.rate), 0);
   const tolerance = (options.toleranceItems / levels.at(-1).length) * 100;
-  const chosen = choose(survivors, Math.max(top, context.stageBest) - tolerance, options.speedTie, cost);
+  const floor = Math.max(top, context.stageBest) - tolerance;
+  const rawChosen = choose(survivors, floor, options.speedTie, cost);
   const incumbent = survivors.find((entry) => entry.incumbent);
+  // The code task keeps every coding view in mind, not only the overall rate (ADR-070).
+  const balanced = task && incumbent && context.groupOf && rawChosen.stats.items >= levels.at(-1).length
+    ? balancedChoice({ survivors, incumbent, chosen: rawChosen, itemIds: levels.at(-1), context, floor, cost })
+    : null;
+  const chosen = balanced?.chosen ?? rawChosen;
   // The best of many noisy rates is optimistic, so a quality-only gain must be real to move the setting.
-  const challengers = Math.max(1, candidates.length - 1);
-  const bar = options.changeAlpha / challengers;
+  // Holm covers the challengers that survived the screens, not every value first tried (ADR-042, ADR-063).
+  const challengers = survivors.filter((entry) => entry !== incumbent);
+  const adjusted = holm(challengers.map((entry) => paired(incumbent.stats, entry.stats).pValue));
+  const chosenP = chosen === incumbent ? 1 : adjusted[challengers.indexOf(chosen)] ?? 1;
   const evidence = paired(incumbent.stats, chosen.stats);
   const unproven = chosen !== incumbent && !incumbent.stats.failed && chosen.stats.rate > incumbent.stats.rate &&
-    !(evidence.c > evidence.b && evidence.pValue <= bar);
+    !(evidence.c > evidence.b && chosenP <= options.changeAlpha);
   const winner = unproven ? incumbent : chosen;
+  // The guard only explains the sweep when the value it chose is the one that stands.
+  const guard = balanced?.guard && winner === balanced.chosen ? balanced.guard : undefined;
+  const groups = balanced?.groups && winner === balanced.chosen ? balanced.groups : undefined;
   const kept = unproven
     ? `Kept ${JSON.stringify(Object.values(incumbent.patch)[0])}: the best challenger, ${JSON.stringify(Object.values(chosen.patch)[0])}, ` +
-      `scored ${chosen.stats.rate}% against ${incumbent.stats.rate}% (paired p=${evidence.pValue}), short of the p ≤ ${round(bar, 4)} a change needs.`
+      `scored ${chosen.stats.rate}% against ${incumbent.stats.rate}% (paired p=${evidence.pValue}, Holm p=${round(chosenP, 4)}), short of the p ≤ ${options.changeAlpha} a change needs.`
     : undefined;
-  context.stageBest = Math.max(context.stageBest, winner.stats.rate);
+  // Only a score over the axis's whole rung compares with the next axis (ADR-062).
+  if (winner.stats.items >= levels.at(-1).length) context.stageBest = Math.max(context.stageBest, winner.stats.rate);
   return {
     ...record,
     ...(kept && { kept }),
+    ...(groups && { groups }),
+    ...(guard && { groupGuard: guard }),
+    ...(chosen !== incumbent && { pAdjusted: round(chosenP, 4) }),
     previous: incumbent.patch,
     winner: winner.patch,
     changed: winner !== incumbent,
@@ -199,6 +304,8 @@ export async function tune({
   stages = STAGES,
   only = null,
   resume = null,
+  // Which items the search ran on, when the caller kept saturated ones out (ADR-064).
+  tunedOn = null,
   hardware = {},
   deviceBackends = ["cpu", "vulkan"],
   parallel = 1,
@@ -210,11 +317,13 @@ export async function tune({
   onAnswers = () => {},
   // (itemId) => the item's question type, to break each task's result down (ADR-056).
   typeOf = null,
+  // (itemId) => the coding view ("write", "fix", "repo") an item belongs to, or null (ADR-070).
+  groupOf = null,
   modelLayers = 0,
   qualityAxes = defaultQualityAxes(),
   speedAxes = defaultSpeedAxes(hardware),
   samplingAxes = defaultSamplingAxes,
-  promptAxes = defaultPromptAxes(),
+  promptAxes = defaultPromptAxes,
   options = {},
   onEvent = () => {},
   onProgress = () => {},
@@ -224,7 +333,7 @@ export async function tune({
   const threadCap = hardware.logicalCores ? Math.max(1, Math.floor(hardware.logicalCores * 0.75)) : Infinity;
   const start = (base.threads ?? 0) > threadCap ? { ...base, threads: threadCap } : base;
   const state = resume ? { ...emptyProgress(), ...structuredClone(resume) } : emptyProgress();
-  const context = { options: settings, measurements: new Measurements(evaluate, settings.maxRuns, onAnswers), sweeps: state.sweeps, onEvent, stageBest: -Infinity, valid: isValidCombination, contextBudget, typeOf };
+  const context = { options: settings, measurements: new Measurements(evaluate, settings.maxRuns, onAnswers), sweeps: state.sweeps, onEvent, stageBest: -Infinity, valid: isValidCombination, contextBudget, typeOf, groupOf };
   const report = async () => {
     state.runs = (resume?.runs ?? 0) + context.measurements.runs;
     await onProgress(state);
@@ -296,13 +405,18 @@ export async function tune({
       const light = chosen(speedAxes).some((axis) => axis.name === "threads") || !state.speed.light
         ? { ...fastest, threads: outcome.light.threads }
         : { ...fastest, threads: state.speed.light.threads };
-      Object.assign(state.speed, { status: finished(state.speed, speedAxes) ? "done" : "partial", settings: pick(outcome.current, keys), fastest, light });
+      // Quiet keeps its earlier thread count too, unless threads were re-measured.
+      const quiet = chosen(speedAxes).some((axis) => axis.name === "threads") || !state.speed.quiet
+        ? { ...fastest, threads: outcome.quiet.threads }
+        : { ...fastest, threads: state.speed.quiet.threads };
+      Object.assign(state.speed, { status: finished(state.speed, speedAxes) ? "done" : "partial", settings: pick(outcome.current, keys), fastest, light, quiet });
       await report();
     }
   }
 
   for (const task of tasks) {
-    const items = rungs[task].at(-1);
+    // The search may run on fewer items than the final check, which keeps the whole set (ADR-064).
+    const items = rungs.final?.[task] ?? rungs[task].at(-1);
     const untuned = loadNow();
     let touched = false;
     const sampling = samplingAxes(task);
@@ -319,13 +433,14 @@ export async function tune({
       }
     }
     state.prompt[task] ??= emptyStage();
-    if (wants("prompt", state.prompt[task], promptAxes)) {
+    const prompts = typeof promptAxes === "function" ? promptAxes(task) : promptAxes;
+    if (wants("prompt", state.prompt[task], prompts)) {
       const entry = state.prompt[task];
-      const keys = keysFor(entry, promptAxes);
+      const keys = keysFor(entry, prompts);
       const start = { ...untuned, ...(state.sampling[task]?.settings ?? {}), ...entry.settings };
-      const outcome = await descend(context, { stage: "prompt", task, axes: chosen(promptAxes), start, rungs: rungs[task], cost: "tokens", ...progressFor(entry, keys) });
+      const outcome = await descend(context, { stage: "prompt", task, axes: chosen(prompts), start, rungs: rungs[task], cost: "tokens", ...progressFor(entry, keys) });
       if (!outcome.aborted) {
-        const done = finished(entry, promptAxes);
+        const done = finished(entry, prompts);
         Object.assign(entry, { status: done ? "done" : "partial", settings: pick(outcome.current, keys), stats: done ? await taskStats(context, outcome.current, untuned, items) : entry.stats });
         touched = true;
         await report();
@@ -346,7 +461,7 @@ export async function tune({
 
   state.runs = (resume?.runs ?? 0) + context.measurements.runs;
   const { stopped } = context.measurements;
-  return resultFrom(state, { budgetExhausted: context.measurements.exhausted && !stopped, stopped, options: { ...settings, seeds: [...settings.seeds] } });
+  return resultFrom(state, { budgetExhausted: context.measurements.exhausted && !stopped, stopped, tunedOn, options: { ...settings, seeds: [...settings.seeds] } });
 }
 
 /**
@@ -431,7 +546,7 @@ function byType(context, chosen, before, items) {
  * What a profile stores: only tuned keys, so anything not tuned yet keeps its
  * default when applied. Stage status tells how far the tune got.
  */
-export function resultFrom(state, { budgetExhausted = false, stopped = null, options = null } = {}) {
+export function resultFrom(state, { budgetExhausted = false, stopped = null, options = null, tunedOn = null } = {}) {
   const tasks = {};
   for (const task of new Set([...Object.keys(state.sampling), ...Object.keys(state.prompt)])) {
     const sampling = state.sampling[task];
@@ -446,7 +561,7 @@ export function resultFrom(state, { budgetExhausted = false, stopped = null, opt
   return {
     load: { settings: { ...state.device.settings, ...state.quality.settings, ...state.speed.settings }, stats: state.quality.stats, ...(state.quality.perTask && { perTask: state.quality.perTask, reverted: state.quality.reverted }) },
     device: state.device.status === "done" ? { settings: state.device.settings, probe: state.device.probe, reason: state.device.reason } : null,
-    speed: state.speed.fastest ? { fastest: state.speed.fastest, light: state.speed.light } : null,
+    speed: state.speed.fastest ? { fastest: state.speed.fastest, light: state.speed.light, ...(state.speed.quiet && { quiet: state.speed.quiet }) } : null,
     tasks,
     stages: {
       device: status(state.device),
@@ -461,6 +576,7 @@ export function resultFrom(state, { budgetExhausted = false, stopped = null, opt
     runs: state.runs,
     budgetExhausted,
     ...(stopped && { stopped }),
+    ...(tunedOn && { tunedOn }),
     options,
   };
 }

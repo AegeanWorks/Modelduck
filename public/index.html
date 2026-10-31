@@ -191,6 +191,7 @@
               <select id="setting-speed-preset">
                 <option value="fastest">Fastest</option>
                 <option value="light">Light (leaves half the threads free)</option>
+                <option value="quiet">Quiet (at most a quarter of the threads)</option>
               </select>
             </label>
           </div>
@@ -507,6 +508,7 @@
         </section>
         <section class="benchmark-run bench-panel" id="bench-panel-models" role="tabpanel" aria-labelledby="bench-tab-models" data-bench-panel="models" hidden>
           <p class="tune-intro">Every installed model with its progress per stage, why it may be out of date, and its results; Details shows each task's preset, its result on unseen questions and what was tried.</p>
+          <div class="tune-recommend" id="tune-recommend"></div>
           <div class="tune-models" id="tune-models"></div>
           <div class="tune-best" id="tune-best"></div>
         </section>

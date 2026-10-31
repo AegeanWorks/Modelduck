@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { SYSTEM_PROMPT } from "../benchmarks/suite.mjs";
 import {
+  CODE_PROMPTS,
   DEFAULT_STEPS,
   DIRECTIVE_PROMPTS,
   THINKING_PROMPTS,
@@ -73,6 +74,19 @@ test("the prompt stage tries the baseline and all 21 directives, fully scored, t
   assert.equal(axes[0].full, true, "every prompt gets a full score, no elimination");
   assert.deepEqual(values(axes, "reasoning"), ["off", "deep"], "reasoning is tried off and fully on");
   assert.deepEqual(values(axes, "promptRepeat"), [1, 2]);
+});
+
+test("the code task tries coding directives and reasoning auto, and respects a custom list", () => {
+  const axes = promptAxes(DEFAULT_STEPS.prompt, "code");
+  const prompts = values(axes, "systemPrompt");
+  assert.equal(prompts[0], SYSTEM_PROMPT);
+  assert.deepEqual(prompts.slice(1), CODE_PROMPTS);
+  assert.equal(CODE_PROMPTS.length, 8);
+  assert.equal(new Set(CODE_PROMPTS).size, 8, "no coding directive twice");
+  assert.deepEqual(values(axes, "reasoning"), ["off", "auto", "deep"]);
+  const custom = promptAxes({ ...DEFAULT_STEPS.prompt, systemPrompt: ["Custom."], reasoning: ["off"] }, "code");
+  assert.deepEqual(values(custom, "systemPrompt"), ["Custom."], "a user's prompt list is not replaced");
+  assert.deepEqual(values(custom, "reasoning"), ["off"], "a user's reasoning steps are not replaced");
 });
 
 test("a quantized KV cache with flash attention off is not a real combination", () => {

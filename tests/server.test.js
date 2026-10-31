@@ -507,7 +507,7 @@ test("tuned profiles are listed and read with what changed since they were measu
   const id = profileIdFor(installed.fileName);
   const fingerprint = { ...(await currentFingerprint(installed, { nodeLlamaCpp: "test" })), suiteVersion: 7 };
   await saveProfile(harness.paths.profiles, profileFromTune(
-    { load: { settings: { threads: 8 } }, tasks: { code: { settings: { temperature: 0.2 }, stats: { rate: 80 } } }, sweeps: [], runs: 10, budgetExhausted: false },
+    { load: { settings: { threads: 8 } }, tasks: { code: { settings: { temperature: 0.2 }, stats: { rate: 80, byType: { bugfix: { items: 12, right: 4, defaultRight: 9, p: 0.03 }, code: { items: 10, right: 10, defaultRight: 10, p: 1 } } } } }, sweeps: [], runs: 10, budgetExhausted: false },
     { catalogId: id, fingerprint },
   ));
 
@@ -520,10 +520,62 @@ test("tuned profiles are listed and read with what changed since they were measu
   assert.equal(body.profile.tasks.code.settings.temperature, 0.2);
   assert.deepEqual(body.stale, ["suiteVersion"]);
   assert.match(body.warnings[0], /test suite changed \(v7 → v\d+\)/i);
+  assert.deepEqual(body.typeWarnings.code.map((entry) => entry.type), ["bugfix"], "only the clearly worse type");
 
   const missing = await fetch(`${harness.base}/api/profiles/not-tuned`);
   assert.equal(missing.status, 404);
   assert.equal((await missing.json()).error.code, "profile_missing");
+});
+
+test("recommendations rank installed models and list fitting catalog models", async (t) => {
+  const harness = await makeHarness(t);
+  const response = await fetch(`${harness.base}/api/recommendations?task=code`);
+  assert.equal(response.status, 200);
+  const data = await response.json();
+  assert.equal(data.task, "code");
+  assert.ok(data.memory.free > 0);
+  assert.ok(Array.isArray(data.installed) && Array.isArray(data.catalog));
+  assert.ok(data.installed.every((row) => row.fit !== "will_not_fit"));
+  const fallback = await (await fetch(`${harness.base}/api/recommendations?task=poetry`)).json();
+  assert.equal(fallback.task, "chat", "an unknown task falls back to chat");
+});
+
+test("a profile recipe exports as a file and imports for an installed model", async (t) => {
+  const harness = await makeHarness(t);
+  const [installed] = harness.registry.listPublic();
+  const id = profileIdFor(installed.fileName);
+  const fingerprint = await currentFingerprint(installed, { nodeLlamaCpp: "test" });
+  await saveProfile(harness.paths.profiles, profileFromTune(
+    { load: { settings: { threads: 8 } }, tasks: { code: { settings: { temperature: 0.2 }, stats: { rate: 80 } } }, sweeps: [], runs: 10, budgetExhausted: false },
+    { catalogId: id, fingerprint },
+  ));
+
+  const exported = await fetch(`${harness.base}/api/profiles/${encodeURIComponent(id)}/export`);
+  assert.equal(exported.status, 200);
+  assert.match(exported.headers.get("content-disposition"), /attachment; filename="/);
+  const recipe = await exported.json();
+  assert.equal(recipe.kind, "modelduck-profile");
+  assert.equal("sweeps" in recipe, false, "the sweep log stays local");
+
+  const imported = await fetch(`${harness.base}/api/profiles/import`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ...recipe, tasks: { code: { settings: { temperature: 0.1 }, stats: { rate: 70 } } } }),
+  });
+  assert.equal(imported.status, 201);
+  const body = await imported.json();
+  assert.equal(body.catalogId, id);
+  assert.equal(body.imported, true);
+  const read = await (await fetch(`${harness.base}/api/profiles/${encodeURIComponent(id)}`)).json();
+  assert.equal(read.profile.tasks.code.settings.temperature, 0.1, "the imported settings replace the old ones");
+
+  const missing = await fetch(`${harness.base}/api/profiles/import`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ...recipe, catalogId: "not-installed" }),
+  });
+  assert.equal(missing.status, 422);
+  assert.equal((await missing.json()).error.code, "profile_model_missing");
 });
 
 test("loading and chatting apply the model's tuned profile for the chosen task", async (t) => {
@@ -563,7 +615,7 @@ test("loading and chatting apply the model's tuned profile for the chosen task",
   const done = parseSse(await response.text()).find((event) => event.event === "done");
   assert.equal(chats[0].settings.temperature, 0.15);
   assert.equal(chats[0].settings.maxTokens, 900);
-  assert.deepEqual(done.data.tuned, { catalogId: profileIdFor(installed.fileName), task: "code", speedPreset: "fastest", stages: null, systemPrompt: null, stale: [], warnings: [] });
+  assert.deepEqual(done.data.tuned, { catalogId: profileIdFor(installed.fileName), task: "code", speedPreset: "fastest", stages: null, systemPrompt: null, rate: null, typeWarnings: [], stale: [], warnings: [] });
 
   await harness.settings.update({ useTunedProfile: false });
   await fetch(`${harness.base}/api/chat`, {

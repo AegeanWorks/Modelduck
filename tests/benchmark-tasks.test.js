@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { PROMPTS } from "../benchmarks/suite.mjs";
-import { TASKS, TASK_RUNGS, speedItems, suiteSummary, taskHoldout, taskPrompts, taskRungs, taskSubsetHash, tuneRungs } from "../benchmarks/tasks.mjs";
+import { CODE_GROUPS, TASKS, TASK_RUNGS, codeGroupOf, speedItems, suiteSummary, taskHoldout, taskPrompts, taskRungs, taskSubsetHash, tuneRungs, withDiscriminatingRungs } from "../benchmarks/tasks.mjs";
 
 test("the four tasks cover every suite item exactly once", () => {
   assert.deepEqual(TASKS.map((task) => task.id), ["chat", "code", "math", "recall"]);
@@ -57,11 +57,49 @@ test("the task subset hash is stable and changes with an item definition", () =>
   assert.notEqual(taskSubsetHash(changed), taskSubsetHash());
 });
 
+test("coding categories map to the three tuning views", () => {
+  assert.deepEqual(Object.keys(CODE_GROUPS), ["write", "fix", "repo"]);
+  assert.equal(codeGroupOf("code"), "write");
+  assert.equal(codeGroupOf("code-long"), "write");
+  assert.equal(codeGroupOf("public-code"), "write");
+  assert.equal(codeGroupOf("bugfix"), "fix");
+  assert.equal(codeGroupOf("bugfix-long"), "fix");
+  assert.equal(codeGroupOf("code-repo"), "repo");
+  assert.equal(codeGroupOf("bugfix-repo"), "repo");
+  assert.equal(codeGroupOf("knowledge"), null);
+});
+
 test("the speed workload is six fixed items covering every task", () => {
   const items = speedItems();
   assert.equal(items.length, 6);
   assert.equal(new Set(items).size, 6);
   for (const task of TASKS) assert.ok(items.some((id) => taskPrompts(task.id).some((prompt) => prompt.id === id)), `${task.id} missing`);
+});
+
+test("saturated items leave the search rungs but stay in the final set", () => {
+  const rungs = tuneRungs(["math"]);
+  const full = rungs.math.at(-1);
+  const saturated = new Set(full.slice(0, 20));
+  const { rungs: search, tunedOn } = withDiscriminatingRungs(rungs, saturated, ["math"]);
+  const keep = full.slice(20);
+  assert.equal(search.math.at(-1).length, keep.length);
+  assert.ok(search.math.every((rung) => rung.every((id) => !saturated.has(id))));
+  assert.deepEqual(search.final.math, full, "the final check still uses every tuning item");
+  assert.deepEqual(tunedOn.math.ids, keep);
+  assert.deepEqual(tunedOn.math.excluded, full.slice(0, 20));
+  assert.equal(tunedOn.math.fellBack, false);
+  assert.deepEqual(search.loadByTask.math, search.math[1]);
+});
+
+test("a task left with too few discriminating items keeps its whole search set", () => {
+  const rungs = tuneRungs(["math"]);
+  const full = rungs.math.at(-1);
+  const nearlyAll = new Set(full.slice(0, full.length - 5));
+  const { rungs: search, tunedOn } = withDiscriminatingRungs(rungs, nearlyAll, ["math"]);
+  assert.deepEqual(search.math, rungs.math);
+  assert.equal(tunedOn.math.fellBack, true);
+  assert.deepEqual(tunedOn.math.ids, full);
+  assert.deepEqual(tunedOn.math.excluded, []);
 });
 
 test("every task's last rung scores at least 36 items, enough to separate settings, with a quarter held back (ADR-054)", () => {

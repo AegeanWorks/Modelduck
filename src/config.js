@@ -214,7 +214,7 @@ export function normalizeSettings(input = {}) {
     checkpointMax: clampInteger(source.checkpointMax, 1, 64, DEFAULT_SETTINGS.checkpointMax),
     kvCache: KV_CACHE_TYPES.has(kvCache) ? kvCache : DEFAULT_SETTINGS.kvCache,
     useTunedProfile: source.useTunedProfile === undefined ? true : Boolean(source.useTunedProfile),
-    speedPreset: source.speedPreset === "light" ? "light" : "fastest",
+    speedPreset: ["fastest", "light", "quiet"].includes(source.speedPreset) ? source.speedPreset : "fastest",
     systemPrompt:
       typeof source.systemPrompt === "string"
         ? source.systemPrompt.slice(0, 8000)

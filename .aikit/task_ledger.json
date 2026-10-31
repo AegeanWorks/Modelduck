@@ -1,142 +1,22 @@
 {
   "version": 1,
   "active_task": {
-    "task_id": "suite-v13",
+    "task_id": "tune-smarter",
     "last_phase": "phase 4",
-    "active_phase": 5,
-    "status": "completed",
-    "updated_at": 1793477207.7860427,
-    "owner": "claude-opus-5.5",
+    "active_phase": 4,
+    "status": "in_progress",
+    "updated_at": 1793486586.075829,
+    "owner": "commandcode:1",
     "started_by": "claude-opus-5.5",
-    "continuations": [],
-    "completed_at": 1793477219.234214
+    "continuations": [
+      {
+        "agent": "commandcode:1",
+        "from": "claude-opus-5.5",
+        "at": 1793484083.4045372
+      }
+    ]
   },
   "checkpoints": [
-    {
-      "task_id": "answer-reading",
-      "phase": "completed",
-      "phase_num": 5,
-      "description": "Task 'answer-reading' completed successfully.",
-      "status": "completed",
-      "timestamp": 1793472738.857992,
-      "timestamp_str": "2026-10-31 21:52:18",
-      "agent": "claude-opus-5.5"
-    },
-    {
-      "task_id": "holdout-v1",
-      "phase": "planning",
-      "phase_num": 2,
-      "description": "[1/2] hold back a quarter of each task's items and re-check each preset against defaults on them, falling back when worse; [2/2] show results on unseen questions in Details and run statistics; then restart the v12 baseline",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793473022.6929321,
-      "timestamp_str": "2026-10-31 21:57:02",
-      "agent": "claude-opus-5.5",
-      "impact_assessment": {
-        "why": "Presets are chosen and scored on the same items, so their gains are optimistic; the user asked to continue with the held-out check",
-        "benefits": "An honest gain per preset on questions the tune never saw, and no preset that is worse than defaults on them",
-        "risks": "contract: tuning items shrink by a quarter (math tunes on 38), rungs and task hash change, profiles carry holdout; dependency: none; concurrency: none; state: profiles gain a holdout field",
-        "mitigation": "Failing-first tests; ADR-054 names the changed rung test; real run"
-      }
-    },
-    {
-      "task_id": "holdout-v1",
-      "phase": "verification",
-      "phase_num": 4,
-      "description": "Milestone 1 held-back check in; tests pass, gate 4/4; checklists: passed",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793473156.65092,
-      "timestamp_str": "2026-10-31 21:59:16",
-      "agent": "claude-opus-5.5"
-    },
-    {
-      "task_id": "holdout-v1",
-      "phase": "verification",
-      "phase_num": 4,
-      "description": "Milestone 2 unseen-question column in; tests pass, gate 4/4, Edge review; checklists: passed",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793473258.1577895,
-      "timestamp_str": "2026-10-31 22:00:58",
-      "agent": "claude-opus-5.5"
-    },
-    {
-      "task_id": "holdout-v1",
-      "phase": "completed",
-      "phase_num": 5,
-      "description": "Task 'holdout-v1' completed successfully.",
-      "status": "completed",
-      "timestamp": 1793473258.5978222,
-      "timestamp_str": "2026-10-31 22:00:58",
-      "agent": "claude-opus-5.5"
-    },
-    {
-      "task_id": "live-tune",
-      "phase": "verification",
-      "phase_num": 4,
-      "description": "[1/2] live summary and stream in; [2/2] live sections in the panel. Milestone 1: tests pass, gate 4/4; checklists: passed",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793473996.5128467,
-      "timestamp_str": "2026-10-31 22:13:16",
-      "agent": "claude-opus-5.5",
-      "impact_assessment": {
-        "why": "The user wants running tunes shown in real time with sections under the tuner",
-        "benefits": "A running tune shows its progress, what it tries and what it decides as it happens",
-        "risks": "contract: new GET /api/tune/stream and scheduler subscribe; dependency: none; concurrency: listeners per open page; state: none",
-        "mitigation": "Failing-first scheduler and server tests; polling fallback; ADR-055"
-      }
-    },
-    {
-      "task_id": "live-tune",
-      "phase": "verification",
-      "phase_num": 4,
-      "description": "Milestone 2 live panel in; tests pass, gate 4/4, Edge review with a stand-in stream; real end-to-end check after the baseline; checklists: passed",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793474278.661203,
-      "timestamp_str": "2026-10-31 22:17:58",
-      "agent": "claude-opus-5.5"
-    },
-    {
-      "task_id": "bench-types",
-      "phase": "planning",
-      "phase_num": 2,
-      "description": "[1/3] results per question type for each task and its unseen check; [2/3] shared quality settings checked per task, reverting when one task loses; [3/3] a Benchmark tab describing the test suite",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793474894.3288946,
-      "timestamp_str": "2026-10-31 22:28:14",
-      "agent": "claude-opus-5.5",
-      "impact_assessment": {
-        "why": "The benchmark is ModelDuck's difference; the user asked to separate the testing more and whether best results carry across tuning parts",
-        "benefits": "Which kind of question a setting helps or hurts is visible; a shared setting cannot quietly hurt one task; the suite is explained in the app",
-        "risks": "contract: task stats gain byType, quality sweeps gain perTask and may revert; new suite summary route; dependency: none; concurrency: none; state: profiles gain byType",
-        "mitigation": "Failing-first tests; Edge review; ADRs"
-      }
-    },
-    {
-      "task_id": "live-tune",
-      "phase": "superseded",
-      "phase_num": 4,
-      "description": "Superseded by 'bench-types' without --complete or --reset",
-      "status": "superseded",
-      "timestamp": 1793474894.3288946,
-      "timestamp_str": "2026-10-31 22:28:14",
-      "agent": "claude-opus-5.5"
-    },
-    {
-      "task_id": "bench-types",
-      "phase": "verification",
-      "phase_num": 4,
-      "description": "Milestone 1 per-type results in; tests pass, gate 4/4, Edge review; checklists: passed",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793475017.8328345,
-      "timestamp_str": "2026-10-31 22:30:17",
-      "agent": "claude-opus-5.5"
-    },
     {
       "task_id": "bench-types",
       "phase": "verification",
@@ -250,6 +130,141 @@
       "timestamp": 1793477219.234216,
       "timestamp_str": "2026-10-31 23:06:59",
       "agent": "claude-opus-5.5"
+    },
+    {
+      "task_id": "tune-smarter",
+      "phase": "phase 2",
+      "phase_num": 2,
+      "description": "[1/5] stop a sweep's candidate once it cannot catch up, and end the sweep when only the current setting is left; [2/5] pair check: the best two values of the two settings that mattered most, tried together; [3/5] speed on long prompts: the longest code and recall prompts join the speed workload, every prompt weighs the same, first-token time recorded; [4/5] split a task whose fix or format questions are clearly worse under its preset into its own tuned preset, shown in Details; [5/5] use a split preset in chat (needs tune:gate per G-001, ask first)",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793477524.2662323,
+      "timestamp_str": "2026-10-31 23:12:04",
+      "agent": "claude-opus-5.5",
+      "impact_assessment": {
+        "why": "Tunes take hours, one-at-a-time descent misses interactions, speed ignores long prompts, one preset per task can hurt a question type",
+        "benefits": "Shorter tunes with the same decisions, better presets, speed that holds for codebase and long-context use",
+        "risks": "contract: profile gains pair, split and long-prompt fields; state: resume markers for the pair check; dependency: none; concurrency: none",
+        "mitigation": "Failing-first tests per milestone; early stops only drop what provably cannot win; split presets are opt-in until milestone 5"
+      }
+    },
+    {
+      "task_id": "tune-smarter",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "[1/5] a value 3+ items behind stops when a rung ends, and the sweep ends with only the current setting left (ADR-062). tests pass, gate 4/4; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793484083.4045372,
+      "timestamp_str": "2026-11-01 01:01:23",
+      "agent": "commandcode:1",
+      "continued_from": "claude-opus-5.5"
+    },
+    {
+      "task_id": "tune-smarter",
+      "phase": "phase 2",
+      "phase_num": 2,
+      "description": "[1/3] statistical early stopping: sequential paired McNemar with alpha spending inside each rung, and Holm across surviving challengers for the final change decision; [2/3] discriminating items: aggregate per-item outcomes from stored tune-runs answers, exclude always-right/always-wrong items from the search rungs, keep the full set for final stats/holdout/tune:gate, and record the tuned subset in the profile; [3/3] README, ADRs and gates. The pair check, long-prompt speed and split presets (old [2/5]-[5/5]) are deferred to a later plan",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793484533.0109923,
+      "timestamp_str": "2026-11-01 01:08:53",
+      "agent": "commandcode:1",
+      "impact_assessment": {
+        "why": "The user asked for honest error control in the tuner and for tuning only on items that can still discriminate for this model; the old gap-3 screen has no error bound and many suite items are saturated per model",
+        "benefits": "Fewer false early drops, earlier stops on real evidence, less noise and fewer answers per tune, and a profile that says which items it learned from",
+        "risks": "contract: tune options gain looks, sweeps gain pAdjusted/partial, rungs gain final/tunedOn, profiles gain tunedOn; dependency: none; concurrency: none; state: sequential stops change some decisions, and the first tune per model still uses the full set because no history exists",
+        "mitigation": "Failing-first tests for the sequential stop, the Holm bar, item aggregation and the full-set final stats; the gate keeps using tuneRungs unfiltered; results are compared on the full set"
+      }
+    },
+    {
+      "task_id": "tune-smarter",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "[1/3] sequential paired McNemar with alpha spending inside each rung and Holm over surviving challengers for the change decision (ADR-063). tests pass, gate 4/4; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793484975.097813,
+      "timestamp_str": "2026-11-01 01:16:15",
+      "agent": "commandcode:1"
+    },
+    {
+      "task_id": "tune-smarter",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "[2/3] per-item outcomes from stored answers, saturated items out of the search rungs, full set kept for final stats/holdout/tune:gate, tunedOn recorded in the profile (ADR-064); [3/3] README and ADRs updated. tests pass, gate 4/4; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793484979.1567264,
+      "timestamp_str": "2026-11-01 01:16:19",
+      "agent": "commandcode:1"
+    },
+    {
+      "task_id": "tune-smarter",
+      "phase": "phase 2",
+      "phase_num": 2,
+      "description": "[1/5] quiet/battery preset: a measured low-thread preset chosen in Settings; [2/5] portable profiles: export/import a recipe with fingerprint and receipt, warn on mismatch; [3/5] task-aware warnings: surface per-type regressions and measured modes, no type guessing; [4/5] VRAM-fit layer search: try quarter steps instead of max/half; [5/5] model/quant recommender: rank installed and catalog models for this PC",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793485546.0251038,
+      "timestamp_str": "2026-11-01 01:25:46",
+      "agent": "commandcode:1",
+      "impact_assessment": {
+        "why": "The user wants ModelDuck to be the tool that makes local models efficient per machine, and chose these five product items",
+        "benefits": "A quiet laptop mode, profiles that travel, honest type warnings, partial GPU offload that actually fits, and a machine-aware model recommendation",
+        "risks": "contract: profiles gain a quiet preset and import/export endpoints, the device stage probes more layer counts, new recommendation route; dependency: none; concurrency: none; state: imported profiles can carry another machine's fingerprint",
+        "mitigation": "Failing-first tests per milestone; imported recipes are schema- and range-checked and land as ordinary profiles that warn when stale; the tune gate is unchanged"
+      }
+    },
+    {
+      "task_id": "tune-smarter",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "[1/5] Quiet speed preset from the measured threads, Settings Fastest/Light/Quiet (ADR-065); [2/5] portable profile recipes: export/import with validation, receipt and stale warnings, Details buttons (ADR-067). tests pass, gate 4/4; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793486125.2732625,
+      "timestamp_str": "2026-11-01 01:35:25",
+      "agent": "commandcode:1"
+    },
+    {
+      "task_id": "tune-smarter",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "[3/5] per-type warnings in the overview, Details and chat label, with the preset rate (ADR-068); [4/5] partial GPU offload tries 75/50/25% after a failed full load (ADR-066); [5/5] machine-aware recommendations route and Bench panel, measured first then catalog estimates (ADR-069); README and ADRs updated. tests pass, gate 4/4; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793486130.260112,
+      "timestamp_str": "2026-11-01 01:35:30",
+      "agent": "commandcode:1"
+    },
+    {
+      "task_id": "tune-smarter",
+      "phase": "phase 2",
+      "phase_num": 2,
+      "description": "[1/3] type-balanced coding views: write/fix/repo guard so a code preset cannot buy an overall gain by sacrificing a view; [2/3] code-specific prompts and reasoning auto, task-aware prompt axes; [3/3] public code items out of the search, kept in the final check and tune:gate. ADR-070",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793486580.9562685,
+      "timestamp_str": "2026-11-01 01:43:00",
+      "agent": "commandcode:1",
+      "impact_assessment": {
+        "why": "Coding is the main target: one overall code rate hid regressions on fixes and codebase work, generic prompts missed coding directives, and public items may be memorized",
+        "benefits": "A code preset that is good at every coding view, fewer and more relevant prompts, and a search chosen on ModelDuck's own items",
+        "risks": "contract: promptAxes gains a task argument, sweeps gain groups/groupGuard; dependency: none; concurrency: none; state: the code search subset changes and is recorded in tunedOn",
+        "mitigation": "Failing-first tests for the view guard and code axes; the guard needs two views of 8+ items; final statistics and the gate still score the whole code task"
+      }
+    },
+    {
+      "task_id": "tune-smarter",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "[1/3] code views guard: a candidate clearly worse on write, fix or repo is replaced by one that is not, or the current setting stays; groups and groupGuard are recorded; [2/3] code prompt axes use 8 coding directives and reasoning off/auto/deep, custom lists respected; [3/3] public-code items are excluded from the search rungs and kept in rungs.final and tune:gate (ADR-070). tests pass, gate 4/4; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793486586.075829,
+      "timestamp_str": "2026-11-01 01:43:06",
+      "agent": "commandcode:1"
     }
   ]
 }

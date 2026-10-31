@@ -101,6 +101,7 @@ test("stage 2 picks the fastest threads, excludes settings that change answers, 
   assert.ok(flash.rungs[0].candidates.find((candidate) => candidate.patch.flashAttention === "off").changedItems.length > 0);
   assert.equal(speed.fastest.threads, 8);
   assert.equal(speed.light.threads, 4, "the fastest at no more than half of 12 threads");
+  assert.equal(speed.quiet.threads, 2, "the fastest at no more than a quarter of 12 threads");
 });
 
 test("the tune never starts above three quarters of the logical threads", async () => {
@@ -178,6 +179,27 @@ test("a rung only runs the items the previous rung did not", async () => {
       seen.add(key);
     }
   }
+});
+
+test("the search can use fewer items while the final result still scores the whole set", async () => {
+  const calls = [];
+  const evaluate = async (settings, itemIds) => {
+    calls.push({ settings, itemIds });
+    return { prompts: itemIds.map((id) => ({ id, passed: 1, total: 1, ms: 10, outputTokens: 10, digest: id })) };
+  };
+  const result = await tune({
+    evaluate,
+    base: { ...BASE, temperature: 0 },
+    tasks: ["math"],
+    stages: ["sampling"],
+    rungs: { ...RUNGS, math: [ids("math", 4)], final: { math: ids("math", 8) } },
+    hardware: { logicalCores: 12 },
+    samplingAxes: () => [{ name: "temperature", patches: [{ temperature: 0 }] }],
+    options: { seeds: [42], passes: 1, changeAlpha: Infinity },
+  });
+  assert.equal(result.tasks.math.stats.items, 8, "the final check scores every item");
+  const later = calls.find((call) => call.itemIds.includes("math-4"));
+  assert.ok(later, "the final check asked for the items the search skipped");
 });
 
 test("statistics come with every candidate and every winner", async () => {
@@ -319,11 +341,29 @@ test("stage 0 keeps the CPU when the GPU answers fewer items correctly", async (
   assert.match(result.device.probe[1].verdict, /answered 5 of 6 correctly vs 6 on the CPU/);
 });
 
-test("stage 0 tries half the layers only when all of them fail to load", async () => {
-  const { result, calls } = await probe({ cpu: { ms: 1000, passed: 6 }, "vulkan:max": { error: "load failed: out of VRAM" }, "vulkan:14": { ms: 500, passed: 6 } });
+test("stage 0 tries smaller offloads when all layers fail to load", async () => {
+  const { result, calls } = await probe({ cpu: { ms: 1000, passed: 6 }, "vulkan:max": { error: "load failed: out of VRAM" }, "vulkan:21": { error: "load failed: out of VRAM" }, "vulkan:14": { ms: 500, passed: 6 } });
   assert.deepEqual(result.load.settings, { gpuBackend: "vulkan", gpuLayers: 14 });
   assert.match(result.device.probe[1].verdict, /did not run: load failed: out of VRAM/);
+  assert.match(result.device.probe[2].verdict, /did not run: load failed: out of VRAM/);
   assert.ok(calls.some((settings) => settings.gpuLayers === 14));
+});
+
+test("stage 0 reaches a quarter of the layers when the larger offloads fail", async () => {
+  const { result } = await probe({
+    cpu: { ms: 1000, passed: 6 },
+    "vulkan:max": { error: "load failed: out of VRAM" },
+    "vulkan:21": { error: "load failed: out of VRAM" },
+    "vulkan:14": { error: "load failed: out of VRAM" },
+    "vulkan:7": { ms: 700, passed: 6 },
+  });
+  assert.deepEqual(result.load.settings, { gpuBackend: "vulkan", gpuLayers: 7 });
+});
+
+test("stage 0 keeps the largest offload that loads and stops probing smaller ones", async () => {
+  const { result, calls } = await probe({ cpu: { ms: 1000, passed: 6 }, "vulkan:max": { error: "load failed: out of VRAM" }, "vulkan:21": { ms: 400, passed: 6 } });
+  assert.deepEqual(result.load.settings, { gpuBackend: "vulkan", gpuLayers: 21 });
+  assert.equal(calls.some((settings) => settings.gpuLayers === 14), false, "a larger offload that loads is preferred");
 });
 
 test("stage 0 keeps the CPU when the GPU is only faster within the noise", async () => {
@@ -447,7 +487,8 @@ test("a challenger one lucky item ahead does not replace the current setting", a
   assert.equal(sweep.changed, false);
   assert.match(sweep.kept, /Lucky guess\.|Also lucky\./, "the sweep says which challenger was best");
   assert.match(sweep.kept, /p=1/);
-  assert.match(sweep.kept, /0\.1\b/, "the bar is corrected for two challengers (0.2 / 2)");
+  assert.match(sweep.kept, /Holm p=1/, "the bar is Holm-adjusted over the surviving challengers");
+  assert.match(sweep.kept, /p ≤ 0\.2/, "the change alpha itself is 0.2");
 });
 
 test("a challenger with a clear paired gain replaces the current setting", async () => {
@@ -459,10 +500,26 @@ test("a challenger with a clear paired gain replaces the current setting", async
   assert.ok(sweep.pValue <= 0.1);
 });
 
+test("a gain measured after the losers are gone is Holm-adjusted over the survivors, not every value tried", async () => {
+  // Seven prompts answer nothing and stop on the first look; two answer close to the suite prompt.
+  const rivals = Object.fromEntries(Array.from({ length: 7 }, (_value, index) => [`No help ${index}.`, -10]));
+  Object.assign(rivals, { "Gain five.": 5, "Gain one.": 1 });
+  const { tasks, sweeps } = await promptTune(rivals);
+  const sweep = sweeps.find((entry) => entry.axis === "systemPrompt");
+  assert.equal(tasks.math.settings.systemPrompt, "Gain five.");
+  assert.equal(sweep.changed, true);
+  // 5 of 20 against 0 is p=0.0625; Holm doubles it to 0.125, past the old 0.2 / 9 but under 0.2.
+  assert.equal(sweep.pValue, 0.0625);
+  assert.equal(sweep.pAdjusted, 0.125);
+  assert.equal(sweep.dropped.length, 7, "the seven hopeless prompts were stopped");
+});
+
 test("when nothing can load, the tune stops with the reason instead of choosing among failures", async () => {
   const calls = [];
+  let answers = 0;
   const evaluate = async (settings, itemIds) => {
     calls.push(settings);
+    answers += itemIds.length;
     return { prompts: itemIds.map((id) => ({ id, passed: 0, total: 1, error: "load failed: no GPU binary", ms: null })) };
   };
   const result = await tune({
@@ -479,7 +536,7 @@ test("when nothing can load, the tune stops with the reason instead of choosing 
   assert.equal(result.tasks.math, undefined, "no preset is made from failed answers");
   // The first rung of the first axis (with the baseline measurement), then nothing: no other axis, no later stage.
   assert.ok(calls.every((call) => call.kvCache === BASE.kvCache && call.temperature === 0), "it stops before any other axis");
-  assert.ok(calls.length <= AXES.qualityAxes[0].patches.length + 2);
+  assert.ok(answers <= 2 * RUNGS.speed[0].length + AXES.qualityAxes[0].patches.length * RUNGS.load[0].length, "the two device probes and one quality rung, however chunked");
 });
 
 test("with a memory budget, the context size comes from free memory, not from short questions", async () => {
@@ -562,6 +619,114 @@ test("every newly measured answer reaches the run record once, cached ones never
   const measured = model.calls.reduce((sum, call) => sum + call.itemIds.length, 0);
   assert.equal(recorded, measured);
   assert.equal(recorded, done.runs);
+});
+
+/** A sampling-only tune on 12/24/48-item rungs where one temperature value answers every item. */
+function earlyStopTune(correct) {
+  const calls = [];
+  const evaluate = async (settings, itemIds, seed) => {
+    calls.push({ settings, itemIds, seed });
+    return { prompts: itemIds.map((id) => ({ id, passed: correct(settings, id) ? 1 : 0, total: 1, ms: 10, outputTokens: 10, digest: id })) };
+  };
+  const result = tune({
+    evaluate,
+    base: { ...BASE, temperature: 0 },
+    tasks: ["math"],
+    stages: ["sampling"],
+    rungs: { ...RUNGS, math: [ids("math", 12), ids("math", 24), ids("math", 48)] },
+    hardware: { logicalCores: 12 },
+    samplingAxes: () => [{ name: "temperature", patches: [0, 0.6].map((temperature) => ({ temperature })) }],
+    options: { seeds: [42], passes: 1, changeAlpha: Infinity, stopAlpha: 0.05 },
+  });
+  return { calls, result };
+}
+
+test("a candidate clearly behind on a rung stops there, and the sweep ends when only the current setting is left", async () => {
+  const { calls, result } = earlyStopTune((settings) => settings.temperature === 0);
+  const { tasks, sweeps } = await result;
+  const sweep = sweeps.find((entry) => entry.axis === "temperature");
+  assert.deepEqual(sweep.rungs.map((rung) => rung.size), [12], "the sweep ended on the first rung");
+  assert.match(sweep.endedEarly, /only the current setting is left/);
+  assert.deepEqual(sweep.dropped.map((entry) => entry.patch.temperature), [0.6]);
+  assert.ok(sweep.dropped[0].of < 12, "the loser stopped before the rung ended");
+  assert.equal(typeof sweep.dropped[0].p, "number");
+  assert.equal(sweep.changed, false);
+  assert.equal(tasks.math.settings.temperature, 0);
+  const answered = calls.filter((call) => call.settings.temperature === 0.6);
+  assert.equal(answered.reduce((sum, call) => sum + call.itemIds.length, 0), sweep.dropped[0].of, "the loser answered only its looks");
+});
+
+test("a candidate within reach of the leader is measured on the next rung", async () => {
+  const { result } = earlyStopTune((settings, id) => settings.temperature === 0 || id !== "math-0");
+  const { sweeps } = await result;
+  const sweep = sweeps.find((entry) => entry.axis === "temperature");
+  assert.deepEqual(sweep.rungs.map((rung) => rung.size), [12, 24, 48], "one item behind is no reason to stop");
+  assert.equal(sweep.dropped, undefined);
+  assert.equal(sweep.endedEarly, undefined);
+});
+
+/** A code-only sampling tune where write and fix items respond differently to temperature. */
+function groupedCodeTune(passes) {
+  const items = [...ids("write", 12), ...ids("fix", 12)];
+  return tune({
+    evaluate: async (settings, itemIds) => ({
+      prompts: itemIds.map((id) => ({ id, passed: passes(settings.temperature, id) ? 1 : 0, total: 1, ms: 10, outputTokens: 10, digest: id })),
+    }),
+    base: { ...BASE, temperature: 0 },
+    tasks: ["code"],
+    stages: ["sampling"],
+    rungs: { code: [items], final: { code: items } },
+    hardware: { logicalCores: 12 },
+    groupOf: (id) => id.split("-")[0],
+    samplingAxes: () => [{ name: "temperature", patches: [{ temperature: 0 }, { temperature: 0.6 }] }],
+    options: { seeds: [42], passes: 1, changeAlpha: 0.2, stopAlpha: Infinity },
+  });
+}
+
+test("a coding preset that gains overall by losing bug fixes is kept out", async () => {
+  const { tasks, sweeps } = await groupedCodeTune((temperature, id) => {
+    const index = Number(id.split("-")[1]);
+    if (temperature === 0) return id.startsWith("write") ? index < 4 : index < 6;
+    return id.startsWith("write"); // all 12 write items, no fix item
+  });
+  const sweep = sweeps.find((entry) => entry.axis === "temperature");
+  assert.equal(tasks.code.settings.temperature, 0, "the balanced preset stays");
+  assert.equal(sweep.changed, false);
+  assert.match(sweep.groupGuard, /fix/, "the guard names the view it protected");
+  assert.equal(sweep.groups.fix.worse, false, "the kept preset is not worse on any view");
+});
+
+test("a coding preset that improves every view wins", async () => {
+  const { tasks, sweeps } = await groupedCodeTune((temperature, id) => {
+    const index = Number(id.split("-")[1]);
+    if (temperature === 0) return id.startsWith("write") ? index < 4 : index < 6;
+    return id.startsWith("write") || index < 10;
+  });
+  const sweep = sweeps.find((entry) => entry.axis === "temperature");
+  assert.equal(tasks.code.settings.temperature, 0.6);
+  assert.equal(sweep.changed, true);
+  assert.equal(sweep.groupGuard, undefined);
+  assert.equal(sweep.groups.fix.worse, false);
+  assert.equal(sweep.groups.write.rate, 100);
+});
+
+test("the prompt stage asks for the axes of the task being tuned", async () => {
+  const asked = [];
+  const items = ids("math", 4);
+  await tune({
+    evaluate: async (settings, itemIds) => ({ prompts: itemIds.map((id) => ({ id, passed: 1, total: 1, ms: 10, outputTokens: 10, digest: id })) }),
+    base: { ...BASE, temperature: 0 },
+    tasks: ["code"],
+    stages: ["prompt"],
+    rungs: { code: [items], final: { code: items } },
+    hardware: { logicalCores: 12 },
+    promptAxes: (task) => {
+      asked.push(task);
+      return [{ name: "systemPrompt", patches: [{ systemPrompt: "Only code." }], full: true }];
+    },
+    options: { seeds: [42], passes: 1, changeAlpha: Infinity },
+  });
+  assert.deepEqual(asked, ["code"]);
 });
 
 /** A prompt-only tune whose prompts behave differently on the tuning items and on the held-back ones. */

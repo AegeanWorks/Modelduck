@@ -1,6 +1,6 @@
 import { TASKS } from "../benchmarks/tasks.mjs";
 import { AppError } from "./errors.js";
-import { currentFingerprint, loadProfile, presetFor, profileIdFor } from "./model-profiles.js";
+import { currentFingerprint, loadProfile, presetFor, profileIdFor, typeWarnings } from "./model-profiles.js";
 
 /**
  * Applies a model's measured profile (ADR-027, G-004): its load settings at
@@ -39,13 +39,17 @@ export class TunedSettings {
     const loaded = await loadProfile(this.#profilesDir, catalogId, await this.#fingerprint(entry));
     if (!loaded) return null;
     const { profile, stale, warnings } = loaded;
-    const speedPreset = this.#settings.value.speedPreset === "light" ? "light" : "fastest";
+    const speedPreset = ["fastest", "light", "quiet"].includes(this.#settings.value.speedPreset) ? this.#settings.value.speedPreset : "fastest";
+    const chosen = task && profile.tasks?.[task];
     return {
       catalogId,
       task: task && profile.tasks?.[task] ? task : null,
       speedPreset,
       settings: presetFor(profile, task, speedPreset),
       stages: profile.stages ?? null,
+      // What this preset scored, and the question types it answers clearly worse (ADR-068).
+      rate: chosen?.stats?.rate ?? null,
+      typeWarnings: task ? typeWarnings(profile)[task] ?? [] : [],
       stale,
       warnings,
     };

@@ -123,11 +123,12 @@ export async function score(measurements, settings, itemIds, seeds) {
 
 export const publicStats = ({ majority: _majority, itemLatency: _latency, itemTokens: _tokens, itemSpeed: _speed, digests: _digests, ...stats }) => stats;
 
-/** Paired comparison on the majority-vote pass of each item. */
+/** Paired comparison on the majority-vote pass of each item both runs answered. */
 export function paired(before, after) {
   let b = 0;
   let c = 0;
   for (const [id, passed] of before.majority) {
+    if (!after.majority.has(id)) continue;
     if (passed && !after.majority.get(id)) b += 1;
     if (!passed && after.majority.get(id)) c += 1;
   }
@@ -163,6 +164,35 @@ export const matches = (settings, patch) => Object.entries(patch).every(([key, v
 export const pick = (settings, keys) => Object.fromEntries(keys.filter((key) => key in settings).map((key) => [key, settings[key]]));
 // `extraKeys` are settings an axis may also change through `widen` (reasoning's answer length).
 export const axisKeys = (axes) => [...new Set(axes.flatMap((axis) => [...axis.patches.flatMap(Object.keys), ...(axis.extraKeys ?? [])]))];
+
+/** Items a candidate got right by majority vote. */
+export const solvedCount = (stats) => [...stats.majority.values()].filter(Boolean).length;
+
+/** Cumulative item counts at which a rung is checked for an early stop (four equal blocks by default). */
+export function lookPoints(size, looks = 4) {
+  const points = new Set();
+  for (let index = 1; index <= looks; index += 1) points.add(Math.ceil((size * index) / looks));
+  return [...points].filter((point) => point > 0 && point <= size).sort((left, right) => left - right);
+}
+
+/**
+ * Score `settings` on `itemIds`, checking the statistics at each look point and
+ * stopping when `shouldStop(stats)` says so. Answers are cached per item, so a
+ * stopped candidate costs only the prefix it answered; a full pass returns the
+ * same statistics as `score`. A stopped result carries `partial: true` and the
+ * item count it reached.
+ */
+export async function scoreSequential(measurements, settings, itemIds, seeds, { lookAt = null, shouldStop = null } = {}) {
+  const points = [...new Set([...(lookAt ?? []), itemIds.length])].filter((point) => point > 0 && point <= itemIds.length).sort((left, right) => left - right);
+  let stats = null;
+  for (const point of points) {
+    stats = await score(measurements, settings, itemIds.slice(0, point), seeds);
+    if (!stats) return null;
+    if (point === itemIds.length) break;
+    if (shouldStop?.(stats, point)) return { ...stats, partial: true };
+  }
+  return stats;
+}
 
 /** The axis values to measure on top of `current`; impossible combinations are listed instead of run. */
 export function candidatesFor(axis, current, valid) {

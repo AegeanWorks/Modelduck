@@ -9,7 +9,8 @@
 A local GGUF chat studio: load a model, talk to it, and serve an OpenAI-compatible API.
 Runs on the CPU or a Vulkan GPU; no cloud account, no telemetry. Chats, prompts and settings stay on your
 computer; the only network requests are model downloads you start (the inference
-runtime is never downloaded or built on demand).
+runtime is never downloaded or built on demand). The tuner measures quality per
+second and per GB on your machine, so a preset is evidence, not a guess.
 
 ![ModelDuck chat](assets/screenshot-chat.png)
 
@@ -105,17 +106,19 @@ device. It is off by default so a missing driver never prevents chat from workin
 - **Benchmark panel** - folded under the tuner: run either phase, read per-test
   rates; older-suite reports show only when asked.
 - **Settings tuner** - **Bench → Tune** finds the best settings for each installed
-  model on this PC, in order: device (CPU or GPU, measured), context (largest that
-  fits in free memory) and KV cache, speed settings (threads, batch, flash, mmap), then sampling and system prompt for each task (chat, code, math, long
-  context). A setting changes only on a significant paired gain, each preset is checked on
-  held-back questions, and a model that cannot load stops the tune. Each step is saved and applied at once, so a
-  tune can stop anywhere; a stage in a row (or a task in Details) runs just that again, a table names
+  model, in order: device (CPU or GPU, measured, with a partial offload when the
+  full one will not fit), context (largest that
+  fits in free memory) and KV cache, speed settings (threads, batch, flash, mmap), then sampling and prompt per task (chat, code, math, long
+  context). A setting changes only on a clear paired gain (Holm-corrected), a value that falls significantly behind stops early, each preset is checked on unseen items, and a model that cannot load stops the tune. A re-tune skips items no earlier setting has flipped. Profiles export and import as checked recipes, and clearly worse question types are named. For code, it tries coding directives, searches on our own items, and keeps every coding view in mind.
+  Each step is saved and applied, so a
+  tune can stop anywhere, a stage or task can run again alone, a table names
   each task's best model, and
-  **Run all** tunes models side by side in CPU and GPU lanes, shown live;
-  **Tune runs and statistics** keeps every run and answer; stopped runs can continue. **Tune
+  **Run all** tunes models in CPU and GPU lanes, live;
+  **Tune runs** keeps every run and answer; stopped runs continue. **Tune
   settings** edits the values each setting is tried at and the lanes for this PC. **Benchmark** lists each task's question types and checks.
+  **Recommended for this PC** ranks installed models by measured answers and speed, then catalog estimates.
   In chat, the task picker picks the preset and each answer shows it; **Settings** has the tuned on/off switch
-  and Fastest/Light. Tune with heavy programs closed.
+  and Fastest/Light/Quiet. Tune with heavy programs closed.
 - **Small surface area** — Node's HTTP server and a vanilla UI; no build or CDN.
 - **AI benchmark gate** - two phases: model reload/quantization/KV-cache settings,
   then sampling/prompting settings, with test hashes so test edits show.
@@ -220,22 +223,6 @@ and quality were slightly below it. Checkpoint interval/max variants use the
 16-item smoke subset, so their 68.8% item rate is not comparable to the full-suite
 rows; among them, `ckpt max 4` was fastest at 36.9 tok/s. Speed figures are
 single-run medians and move with host load; quality is the comparison gate.
-
-Previous chat-phase baseline (suite v4, 12 variants, 139.3s total; the v7 chat
-phase is optional and has not been rerun):
-
-| Candidate | Quality | Speed |
-|---|---:|---:|
-| Prompt repeated twice | 90.5% | 42.6 tok/s |
-| Sampling baseline | 85.7% | 45.1 tok/s |
-| Reasoning off | 85.7% | 44.1 tok/s |
-| Deep reasoning | 85.7% | 55.7 tok/s |
-| JSON-schema grammar, JSON task only | 100% | 36.1 tok/s |
-
-Repeating the prompt improved the exact-answer score; structured JSON was
-perfect on its selected task; top-k, min-p and repeat penalties did not change
-this small-model score. The neutral variants were within run-to-run speed noise,
-so no latency winner is claimed from a single run.
 
 ## Screenshots
 
@@ -347,7 +334,10 @@ GET    /api/benchmarks
 GET    /api/benchmarks/status
 POST   /api/benchmarks/run
 POST   /api/benchmarks/cancel
+GET    /api/recommendations
 GET    /api/profiles
+GET    /api/profiles/:id/export
+POST   /api/profiles/import
 GET    /api/tune/overview
 GET    /api/tune/status
 POST   /api/tune/start
@@ -473,6 +463,7 @@ modelduck/
 │   ├── errors.js <- actionable error objects
 │   ├── fs-atomic.js <- atomic writes, backups, quarantine and home lock
 │   ├── model-catalog.js <- curated GGUF catalogue
+│   ├── recommend.js <- what to run on this PC: measured models and estimates
 │   └── system.js <- CPU, memory and platform snapshot
 ├── public/
 │   ├── index.html <- the whole UI
