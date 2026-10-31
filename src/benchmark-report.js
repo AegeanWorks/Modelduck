@@ -4,7 +4,7 @@ import path from "node:path";
 import { loadChatBase } from "./benchmark-base.js";
 import { itemSummary } from "../benchmarks/stats.mjs";
 import { recommend } from "../benchmarks/recommend.mjs";
-import { BENCHMARK_MODELS } from "../benchmarks/suite.mjs";
+import { BENCHMARK_MODELS, SUITE_VERSION } from "../benchmarks/suite.mjs";
 
 const PHASES = [
   { phase: "model", file: "baseline-model.json" },
@@ -141,6 +141,8 @@ export function summarizeBenchmark({ model = null, chat = null, latestModel = nu
     ? BENCHMARK_MODELS.find((item) => item.catalogId === String(singleModel.settings?.matrixScope ?? "").replace(/^single:/, ""))?.label
     : null;
   return {
+    // Reports from an older suite are shown only when asked for (Bench panel).
+    currentSuiteVersion: SUITE_VERSION,
     available: phases.length > 0,
     phases,
     history: historySummary(runs, links, limit),

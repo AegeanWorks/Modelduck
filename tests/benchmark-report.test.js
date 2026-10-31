@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import { SUITE_VERSION } from "../benchmarks/suite.mjs";
 import { loadBenchmarkReport, summarizeBenchmark } from "../src/benchmark-report.js";
 
 const MODEL = {
@@ -192,4 +193,8 @@ test("the Bench summary recommends settings from the latest model run", () => {
   assert.equal(report.recommendations.items[0].kind, "quality");
   assert.equal(report.recommendations.items[0].variantId, "big-f16");
   assert.equal(report.recommendations.suiteVersion, 6);
+});
+
+test("the report names the current suite version so older reports can be told apart", () => {
+  assert.equal(summarizeBenchmark().currentSuiteVersion, SUITE_VERSION);
 });
