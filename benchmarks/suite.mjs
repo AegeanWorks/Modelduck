@@ -535,22 +535,73 @@ export function extractJson(text) {
   }
 }
 
+/** Text without Markdown emphasis, inline code marks or list and quote markers (ADR-052). */
+function plainText(text) {
+  return stripFence(String(text ?? ""))
+    .replace(/[*_`]+/g, "")
+    .replace(/^\s*(?:[-+>]|\d+\.)\s+/gm, "")
+    .trim();
+}
+
+const LEAD_IN = /^(?:the\s+)?(?:final\s+|correct\s+)?answer(?:\s+is)?\s*[:\-]?\s*/i;
+
+/**
+ * The places a person would look for a short answer: the whole reply, its first and last
+ * line and any "Answer:" line, each also without an "Answer is" lead-in, a short "Label:"
+ * or a short "The X is" sentence start. Never "contains anywhere", so a hedge such as
+ * "3546 or 4596" is not read as either (ADR-052).
+ */
+function answerCandidates(text) {
+  const plain = plainText(text);
+  const lines = plain.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+  const places = [plain, lines[0], lines.at(-1), ...lines.filter((line) => /^(?:final\s+)?answer\b/i.test(line))].filter(Boolean);
+  const candidates = new Set();
+  for (const place of places) {
+    candidates.add(place);
+    const lead = place.replace(LEAD_IN, "");
+    candidates.add(lead);
+    const label = lead.match(/^[\w\s'-]{1,30}:\s*(.+)$/)?.[1];
+    if (label) candidates.add(label);
+    const sentence = lead.match(/^(?:the\s+)?[\w\s'-]{1,40}?\s+(?:is|was|are)\s+(.+)$/i)?.[1];
+    if (sentence) candidates.add(sentence).add(sentence.replace(/^(?:in|at|on|from|by)\s+/i, ""));
+  }
+  return [...candidates].map(normalizeAnswer);
+}
+
+/** The option letter a reply chooses, or null: "B", "(B)", "B)", "Answer: B", "Option B", "the answer is (B)"; a hedge such as "B or C" chooses none. */
+function chosenLetter(text) {
+  const plain = plainText(text);
+  if (/\b[a-h]\s+or\s+\(?[a-h]\b/i.test(plain) && plain.length < 40) return null;
+  const named = [...plain.matchAll(/\b(?:answer|option|choice)(?:\s+is)?\s*[:\-]?\s*\(?([a-h])\)?(?![a-z])/gi)].at(-1)?.[1];
+  if (named) return named.toLowerCase();
+  return plain.match(/^\(?([a-h])(?:\)|[.:]|$)/im)?.[1]?.toLowerCase() ?? null;
+}
+
+/** The number a reply gives: the one after its last "Answer", else its last number (thousands separators and currency allowed). */
+function givenNumber(text) {
+  const plain = plainText(text).replace(/(\d),(?=\d{3}\b)/g, "$1");
+  const marked = [...plain.matchAll(/answer(?:\s+is)?\s*[:=]?\s*[$€£]?\s*(-?\d+(?:\.\d+)?)/gi)].at(-1)?.[1];
+  if (marked !== undefined) return Number(marked);
+  const numbers = [...plain.matchAll(/-?\d+(?:\.\d+)?/g)];
+  return numbers.length ? Number(numbers.at(-1)[0]) : null;
+}
+
 export function evaluateTextCheck(check, text) {
   if (check.type === "exact") {
-    return { passed: normalizeAnswer(text) === normalizeAnswer(check.value), detail: "normalized answer" };
+    const wanted = normalizeAnswer(check.value);
+    return { passed: answerCandidates(text).includes(wanted), unreadable: false, detail: "answer read from the reply" };
   }
   if (check.type === "choice") {
-    const choice = stripFence(text).trim().toLowerCase().match(/^[^a-z]*([a-z])/)?.[1] ?? "";
-    return { passed: choice === check.value.toLowerCase(), detail: `choice: ${choice || "none"}` };
+    const choice = chosenLetter(text);
+    return { passed: choice === check.value.toLowerCase(), unreadable: choice === null, detail: `choice: ${choice ?? "none"}` };
   }
   if (check.type === "number") {
-    const numbers = [...stripFence(text).replace(/(\d),(?=\d{3}\b)/g, "$1").matchAll(/-?\d+(?:\.\d+)?/g)];
-    const found = numbers.length ? Number(numbers.at(-1)[0]) : null;
-    return { passed: found !== null && Math.abs(found - Number(check.value)) < 1e-9, detail: `last number: ${found ?? "none"}` };
+    const found = givenNumber(text);
+    return { passed: found !== null && Math.abs(found - Number(check.value)) < 1e-9, unreadable: found === null, detail: `number: ${found ?? "none"}` };
   }
   if (check.type === "oneOf") {
-    const answer = normalizeAnswer(text);
-    return { passed: check.values.some((value) => answer === normalizeAnswer(value)), detail: `answer: ${answer.slice(0, 40)}` };
+    const candidates = answerCandidates(text);
+    return { passed: check.values.some((value) => candidates.includes(normalizeAnswer(value))), unreadable: false, detail: `answer: ${candidates[0]?.slice(0, 40) ?? ""}` };
   }
   if (check.type === "containsAny") {
     const lower = stripFence(text).toLowerCase();
@@ -623,9 +674,12 @@ export async function checkJavaScriptSyntax(text) {
 }
 
 /** The first fenced block anywhere in the reply, else the whole reply. */
-export function extractCode(text) {
-  const fenced = String(text ?? "").match(/```[\w-]*\s*\n([\s\S]*?)```/);
-  return (fenced ? fenced[1] : stripFence(String(text ?? ""))).trim();
+/** The code to test: the last fenced block that defines `entry`, else the first block, else the reply (ADR-052). */
+export function extractCode(text, entry = null) {
+  const blocks = [...String(text ?? "").matchAll(/```[\w-]*\s*\n([\s\S]*?)```/g)].map((match) => match[1]);
+  const defines = entry ? new RegExp(`\\bfunction\\s+${entry}\\b|\\b(?:const|let|var)\\s+${entry}\\s*=`) : null;
+  const chosen = (defines && blocks.filter((block) => defines.test(block)).at(-1)) ?? blocks[0];
+  return (chosen ?? stripFence(String(text ?? ""))).trim();
 }
 
 const RESULT_MARKER = "__MODELDUCK_TEST_RESULTS__";
@@ -644,7 +698,7 @@ export async function runJavaScriptTests(text, check, { timeoutMs = 5000 } = {})
     check.setup ?? "",
     ";",
     // `-e` runs CommonJS, so ESM export keywords would be a syntax error.
-    extractCode(text).replace(/^\s*export\s+(default\s+)?/gm, ""),
+    extractCode(text, check.entry).replace(/^\s*export\s+(default\s+)?/gm, ""),
     ";",
     `const __cases = ${JSON.stringify(cases)};`,
     `const __fn = typeof ${check.entry} === "function" ? ${check.entry} : null;`,
