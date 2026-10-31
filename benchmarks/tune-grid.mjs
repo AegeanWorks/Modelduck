@@ -336,6 +336,8 @@ export function expectedAnswers(steps, { logicalCores = 8, tasks = ["chat", "cod
     const sizes = rungs[task].map((rung) => rung.length);
     if (stages.includes("sampling")) total += cost(samplingAxes(task, steps.sampling), sizes, seeds);
     if (stages.includes("prompt")) total += cost(promptAxes(steps.prompt), sizes, seeds);
+    // The final preset and the defaults on the held-back items (ADR-054).
+    if (!only && (stages.includes("sampling") || stages.includes("prompt"))) total += 2 * (rungs.holdout?.[task]?.length ?? 0) * seeds;
   }
   return total;
 }

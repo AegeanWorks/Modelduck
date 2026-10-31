@@ -62,7 +62,7 @@ export function profileFromTune(result, { catalogId, fingerprint, measuredUnder 
     load: { settings: pick(result.load.settings, LOAD_KEYS), stats: result.load.stats ?? null },
     device: result.device ?? null,
     speed: result.speed ?? null,
-    tasks: Object.fromEntries(Object.entries(result.tasks).map(([task, preset]) => [task, { settings: { ...preset.settings }, stats: preset.stats ?? null }])),
+    tasks: Object.fromEntries(Object.entries(result.tasks).map(([task, preset]) => [task, { settings: { ...preset.settings }, stats: preset.stats ?? null, ...(preset.holdout && { holdout: preset.holdout }) }])),
     // How far the tune got; anything not done keeps its default when applied (ADR-030).
     stages: result.stages ?? null,
     progress: result.progress ?? null,

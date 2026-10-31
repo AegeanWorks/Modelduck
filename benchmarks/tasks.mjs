@@ -20,8 +20,11 @@ export const TASKS = Object.freeze([
   Object.freeze({ id: "recall", label: "Long context", categories: Object.freeze(["context", "recall"]) }),
 ]);
 
-/** Item counts of the successive-halving rungs; a rung stops at the task's size. */
+/** Item counts of the successive-halving rungs; a rung stops at the task's tuning items. */
 export const TASK_RUNGS = Object.freeze([12, 24, 48]);
+
+/** The share of each task never tuned on, to check the chosen preset on unseen items (ADR-054). */
+export const HOLDOUT_SHARE = 0.25;
 
 function taskOf(taskId) {
   const task = TASKS.find((item) => item.id === taskId);
@@ -58,9 +61,31 @@ function stratified(prompts) {
   return order;
 }
 
-/** Nested item-id lists, one per rung, each a prefix of the next. */
+/**
+ * A task split into the items tuned on and those held back: the last quarter of every
+ * category/dataset bucket, so each kind of item is checked unseen, both in stratified order.
+ */
+function split(taskId, prompts) {
+  const items = taskPrompts(taskId, prompts);
+  const buckets = new Map();
+  for (const prompt of items) {
+    const key = `${prompt.category}/${prompt.source?.dataset ?? "own"}`; // aikit:allow-secret bucket label
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(prompt.id);
+  }
+  const held = new Set([...buckets.values()].flatMap((ids) => ids.slice(ids.length - Math.round(ids.length * HOLDOUT_SHARE))));
+  const order = stratified(items);
+  return { tune: order.filter((id) => !held.has(id)), held: order.filter((id) => held.has(id)) };
+}
+
+/** The items a task holds back from tuning, across its categories. */
+export function taskHoldout(taskId, prompts = PROMPTS) {
+  return split(taskId, prompts).held;
+}
+
+/** Nested item-id lists, one per rung, each a prefix of the next, from the items tuned on. */
 export function taskRungs(taskId, prompts = PROMPTS) {
-  const order = stratified(taskPrompts(taskId, prompts));
+  const order = split(taskId, prompts).tune;
   const rungs = [];
   for (const size of TASK_RUNGS) {
     rungs.push(order.slice(0, Math.min(size, order.length)));
@@ -74,6 +99,7 @@ export function tuneRungs(taskIds = TASKS.map((task) => task.id), prompts = PROM
   const rungs = Object.fromEntries(taskIds.map((taskId) => [taskId, taskRungs(taskId, prompts)]));
   rungs.load = [0, 1].map((index) => taskIds.flatMap((taskId) => rungs[taskId][index] ?? rungs[taskId].at(-1)));
   rungs.speed = [speedItems(prompts)];
+  rungs.holdout = Object.fromEntries(taskIds.map((taskId) => [taskId, taskHoldout(taskId, prompts)]));
   return rungs;
 }
 
@@ -88,6 +114,7 @@ export function taskSubsetHash(prompts = PROMPTS) {
   const definition = {
     suiteVersion: SUITE_VERSION,
     rungs: TASK_RUNGS,
+    holdout: HOLDOUT_SHARE,
     tasks: TASKS.map((task) => ({ id: task.id, items: taskPrompts(task.id, prompts) })),
   };
   return createHash("sha256").update(JSON.stringify(definition)).digest("hex").slice(0, 16);

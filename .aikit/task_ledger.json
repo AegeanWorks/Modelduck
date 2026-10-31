@@ -1,38 +1,16 @@
 {
   "version": 1,
   "active_task": {
-    "task_id": "answer-reading",
+    "task_id": "holdout-v1",
     "last_phase": "verification",
-    "active_phase": 5,
-    "status": "completed",
-    "updated_at": 1793472738.3660786,
+    "active_phase": 4,
+    "status": "in_progress",
+    "updated_at": 1793473156.65092,
     "owner": "claude-opus-5.5",
     "started_by": "claude-opus-5.5",
-    "continuations": [],
-    "completed_at": 1793472738.8579905
+    "continuations": []
   },
   "checkpoints": [
-    {
-      "task_id": "tune-budget-v1",
-      "phase": "verification",
-      "phase_num": 4,
-      "description": "Milestone 3 time left in; tests pass, gate 4/4, real app run; checklists: passed",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793453801.8513017,
-      "timestamp_str": "2026-10-31 16:36:41",
-      "agent": "claude-opus-5.5"
-    },
-    {
-      "task_id": "tune-budget-v1",
-      "phase": "completed",
-      "phase_num": 5,
-      "description": "Task 'tune-budget-v1' completed successfully.",
-      "status": "completed",
-      "timestamp": 1793453828.9677656,
-      "timestamp_str": "2026-10-31 16:37:08",
-      "agent": "claude-opus-5.5"
-    },
     {
       "task_id": "tune-ux-v2",
       "phase": "planning",
@@ -249,6 +227,34 @@
       "status": "completed",
       "timestamp": 1793472738.857992,
       "timestamp_str": "2026-10-31 21:52:18",
+      "agent": "claude-opus-5.5"
+    },
+    {
+      "task_id": "holdout-v1",
+      "phase": "planning",
+      "phase_num": 2,
+      "description": "[1/2] hold back a quarter of each task's items and re-check each preset against defaults on them, falling back when worse; [2/2] show results on unseen questions in Details and run statistics; then restart the v12 baseline",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793473022.6929321,
+      "timestamp_str": "2026-10-31 21:57:02",
+      "agent": "claude-opus-5.5",
+      "impact_assessment": {
+        "why": "Presets are chosen and scored on the same items, so their gains are optimistic; the user asked to continue with the held-out check",
+        "benefits": "An honest gain per preset on questions the tune never saw, and no preset that is worse than defaults on them",
+        "risks": "contract: tuning items shrink by a quarter (math tunes on 38), rungs and task hash change, profiles carry holdout; dependency: none; concurrency: none; state: profiles gain a holdout field",
+        "mitigation": "Failing-first tests; ADR-054 names the changed rung test; real run"
+      }
+    },
+    {
+      "task_id": "holdout-v1",
+      "phase": "verification",
+      "phase_num": 4,
+      "description": "Milestone 1 held-back check in; tests pass, gate 4/4; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793473156.65092,
+      "timestamp_str": "2026-10-31 21:59:16",
       "agent": "claude-opus-5.5"
     }
   ]

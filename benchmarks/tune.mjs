@@ -48,7 +48,7 @@ const emptyStage = () => ({ status: "pending", settings: {}, done: [], stats: nu
 
 /** A fresh progress state: every stage pending, nothing tuned. */
 export function emptyProgress() {
-  return { device: { ...emptyStage(), probe: null, reason: null }, quality: emptyStage(), speed: { ...emptyStage(), fastest: null, light: null }, sampling: {}, prompt: {}, sweeps: [], runs: 0 };
+  return { device: { ...emptyStage(), probe: null, reason: null }, quality: emptyStage(), speed: { ...emptyStage(), fastest: null, light: null }, sampling: {}, prompt: {}, holdout: {}, sweeps: [], runs: 0 };
 }
 
 const costOf = (entry, cost) => entry.stats[COST[cost].summary] ?? Infinity;
@@ -296,6 +296,7 @@ export async function tune({
   for (const task of tasks) {
     const items = rungs[task].at(-1);
     const untuned = loadNow();
+    let touched = false;
     const sampling = samplingAxes(task);
     state.sampling[task] ??= emptyStage();
     if (wants("sampling", state.sampling[task], sampling)) {
@@ -305,6 +306,7 @@ export async function tune({
       if (!outcome.aborted) {
         const done = finished(entry, sampling);
         Object.assign(entry, { status: done ? "done" : "partial", settings: pick(outcome.current, keys), stats: done ? await taskStats(context, outcome.current, untuned, items) : entry.stats });
+        touched = true;
         await report();
       }
     }
@@ -317,6 +319,18 @@ export async function tune({
       if (!outcome.aborted) {
         const done = finished(entry, promptAxes);
         Object.assign(entry, { status: done ? "done" : "partial", settings: pick(outcome.current, keys), stats: done ? await taskStats(context, outcome.current, untuned, items) : entry.stats });
+        touched = true;
+        await report();
+      }
+    }
+    // Once the task's preset is final, check it on items it was never tuned on (ADR-054).
+    const held = rungs.holdout?.[task];
+    state.holdout ??= {};
+    if (held?.length && (touched || !state.holdout[task]) && state.sampling[task]?.status === "done" && state.prompt[task]?.status === "done") {
+      const final = { ...untuned, ...state.sampling[task].settings, ...state.prompt[task].settings };
+      const check = await holdoutCheck(context, final, untuned, held);
+      if (check) {
+        state.holdout[task] = check;
         await report();
       }
     }
@@ -325,6 +339,24 @@ export async function tune({
   state.runs = (resume?.runs ?? 0) + context.measurements.runs;
   const { stopped } = context.measurements;
   return resultFrom(state, { budgetExhausted: context.measurements.exhausted && !stopped, stopped, options: { ...settings, seeds: [...settings.seeds] } });
+}
+
+/**
+ * The final preset against the untuned settings on held-back items, paired. A preset worse
+ * there than the defaults falls back to them: it fitted the tuning items, not the task.
+ */
+async function holdoutCheck(context, final, untuned, items) {
+  const chosen = await score(context.measurements, final, items, context.options.seeds);
+  const before = await score(context.measurements, untuned, items, context.options.seeds);
+  if (!chosen || !before) return null;
+  return {
+    items: items.length,
+    rate: chosen.rate,
+    ci95: chosen.ci95,
+    defaultRate: before.rate,
+    vsDefault: { rateDelta: round(chosen.rate - before.rate), ...paired(before, chosen) },
+    fellBack: chosen.rate < before.rate,
+  };
 }
 
 /** A task's final rate, CI, answer length and the change against the untuned settings. */
@@ -348,8 +380,10 @@ export function resultFrom(state, { budgetExhausted = false, stopped = null, opt
     const sampling = state.sampling[task];
     const prompt = state.prompt[task];
     const settings = { ...(sampling?.settings ?? {}), ...(prompt?.settings ?? {}) };
-    if (!Object.keys(settings).length) continue;
-    tasks[task] = { settings, stats: prompt?.stats ?? sampling?.stats ?? null };
+    const holdout = state.holdout?.[task] ?? null;
+    if (!Object.keys(settings).length && !holdout) continue;
+    // A preset worse than the defaults on held-back items is not applied (ADR-054).
+    tasks[task] = { settings: holdout?.fellBack ? {} : settings, stats: prompt?.stats ?? sampling?.stats ?? null, ...(holdout && { holdout }) };
   }
   const status = (entry) => entry?.status ?? "pending";
   return {

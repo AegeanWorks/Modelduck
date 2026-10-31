@@ -563,3 +563,44 @@ test("every newly measured answer reaches the run record once, cached ones never
   assert.equal(recorded, measured);
   assert.equal(recorded, done.runs);
 });
+
+/** A prompt-only tune whose prompts behave differently on the tuning items and on the held-back ones. */
+async function heldOutTune(behaviour) {
+  const items = ids("math", 20);
+  const held = ids("hold", 8);
+  return tune({
+    evaluate: async (settings, itemIds) => ({
+      prompts: itemIds.map((id) => {
+        const index = Number(id.split("-")[1]);
+        const passed = behaviour(settings.systemPrompt, id.startsWith("hold"), index);
+        return { id, passed: passed ? 1 : 0, total: 1, ms: 10, outputTokens: 10, digest: id };
+      }),
+    }),
+    base: { ...BASE, temperature: 0 },
+    tasks: ["math"],
+    stages: ["sampling", "prompt"],
+    rungs: { ...RUNGS, math: [items], holdout: { math: held } },
+    hardware: { logicalCores: 12 },
+    ...AXES,
+    samplingAxes: () => [],
+    promptAxes: [{ name: "systemPrompt", patches: ["Be precise.", "Other."].map((systemPrompt) => ({ systemPrompt })), full: true }],
+    options: { seeds: [42], passes: 1 },
+  });
+}
+
+test("a preset that only fits the tuning items falls back to the defaults on held-back items", async () => {
+  // "Other." gets every tuning item right and every held-back one wrong: it learned the items, not the task.
+  const { tasks } = await heldOutTune((prompt, held, index) => (prompt === "Other." ? !held : held || index < 10));
+  assert.equal(tasks.math.holdout.fellBack, true);
+  assert.equal(tasks.math.holdout.rate, 0);
+  assert.equal(tasks.math.holdout.defaultRate, 100);
+  assert.deepEqual(tasks.math.settings, {}, "the defaults apply");
+});
+
+test("a preset that also wins on held-back items is kept, with its honest gain", async () => {
+  const { tasks } = await heldOutTune((prompt, held, index) => prompt === "Other." || index < (held ? 4 : 10));
+  assert.equal(tasks.math.settings.systemPrompt, "Other.");
+  assert.equal(tasks.math.holdout.fellBack, false);
+  assert.equal(tasks.math.holdout.items, 8);
+  assert.equal(tasks.math.holdout.vsDefault.rateDelta, 50, "8 of 8 against 4 of 8 on unseen items");
+});

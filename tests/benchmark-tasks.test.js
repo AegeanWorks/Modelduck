@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { PROMPTS } from "../benchmarks/suite.mjs";
-import { TASKS, TASK_RUNGS, speedItems, taskPrompts, taskRungs, taskSubsetHash, tuneRungs } from "../benchmarks/tasks.mjs";
+import { TASKS, TASK_RUNGS, speedItems, taskHoldout, taskPrompts, taskRungs, taskSubsetHash, tuneRungs } from "../benchmarks/tasks.mjs";
 
 test("the four tasks cover every suite item exactly once", () => {
   assert.deepEqual(TASKS.map((task) => task.id), ["chat", "code", "math", "recall"]);
@@ -21,9 +21,9 @@ test("an unknown task is refused with a fix", () => {
     error.code === "unknown_task" && /poetry/.test(error.why) && /chat, code, math, recall/.test(error.fix));
 });
 
-test("rungs grow, nest and stop at the task size", () => {
+test("rungs grow, nest and stop at the task's tuning items", () => {
   for (const task of TASKS) {
-    const all = taskPrompts(task.id);
+    const all = taskPrompts(task.id).slice(0, taskPrompts(task.id).length - taskHoldout(task.id).length);
     const rungs = taskRungs(task.id);
     assert.ok(rungs.length >= 1 && rungs.length <= TASK_RUNGS.length);
     for (let index = 0; index < rungs.length; index += 1) {
@@ -41,7 +41,7 @@ test("the first rung mixes categories instead of taking the first ones in suite 
 
 test("tune rungs give each task its rungs and the load stage every task's first two rungs", () => {
   const rungs = tuneRungs(["math", "recall"]);
-  assert.deepEqual(Object.keys(rungs).sort(), ["load", "math", "recall", "speed"]);
+  assert.deepEqual(Object.keys(rungs).sort(), ["holdout", "load", "math", "recall", "speed"]);
   assert.deepEqual(rungs.speed, [speedItems()]);
   assert.deepEqual(rungs.math, taskRungs("math"));
   assert.equal(rungs.load.length, 2);
@@ -63,8 +63,21 @@ test("the speed workload is six fixed items covering every task", () => {
   for (const task of TASKS) assert.ok(items.some((id) => taskPrompts(task.id).some((prompt) => prompt.id === id)), `${task.id} missing`);
 });
 
-test("every task's last rung scores at least 48 items, enough to separate settings", () => {
+test("every task's last rung scores at least 36 items, enough to separate settings, with a quarter held back (ADR-054)", () => {
   for (const task of TASKS) {
-    assert.ok(taskRungs(task.id).at(-1).length >= 48, `${task.id} ends at ${taskRungs(task.id).at(-1).length} items`);
+    assert.ok(taskRungs(task.id).at(-1).length >= 36, `${task.id} ends at ${taskRungs(task.id).at(-1).length} items`);
   }
+});
+
+test("a quarter of each task is held back from tuning, across its categories, never in a rung", () => {
+  for (const task of TASKS) {
+    const all = taskPrompts(task.id);
+    const held = taskHoldout(task.id);
+    assert.ok(held.length >= all.length * 0.2 && held.length <= all.length * 0.3, `${task.id} holds back ${held.length} of ${all.length}`);
+    const tuned = new Set(taskRungs(task.id).flat());
+    assert.ok(held.every((id) => !tuned.has(id)), `${task.id} holds back an item it also tunes on`);
+    const categories = new Set(all.filter((prompt) => held.includes(prompt.id)).map((prompt) => prompt.category));
+    assert.ok(categories.size >= Math.min(3, new Set(all.map((prompt) => prompt.category)).size), `${task.id} holds back only ${[...categories].join(", ")}`);
+  }
+  assert.deepEqual(tuneRungs(["math"]).holdout.math, taskHoldout("math"));
 });
