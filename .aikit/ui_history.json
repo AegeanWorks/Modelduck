@@ -334,5 +334,19 @@
     "final_snapshot_digest": "",
     "final_snapshot_entries": 0,
     "surface_digest": "7be12d4fe062b78d691d26226703936233dd70f18e46a61be574f3101b425582"
+  },
+  {
+    "schema": 1,
+    "surface": "app",
+    "baseline_commit": "128f4ddd016816cabfc4f52f34b969ecac46e107",
+    "contract_hash": "c6a291e913a9c8f174aadf7fb264b0941c55e9f4999a9a43152f1fb616845d11",
+    "started_at": 1793473159.9102464,
+    "finished_at": 1793473227.7295346,
+    "strikes": 0,
+    "reviewer": "Claude (AI; headless Edge review with sample held-back results in a scratch profile: Details shows each task's result on unseen questions against the defaults, and a fallback reads worse, so the defaults apply; no console errors; delegated by the user on 2026-10-31)",
+    "allowed_removals": [],
+    "final_snapshot_digest": "",
+    "final_snapshot_entries": 0,
+    "surface_digest": "4f8e2a26fdc54daa282131709f0ec841903f2e29a65ecaf004b44df363730d7e"
   }
 ]

@@ -108,17 +108,16 @@ device. It is off by default so a missing driver never prevents chat from workin
   model on this PC, in order: device (CPU or GPU, measured), context (largest that
   fits in free memory) and KV cache, speed settings (threads, batch, flash, mmap; Fastest/Light
   presets), then sampling and system prompt for each task (chat, code, math, long
-  context). A setting changes only on a significant paired gain; a model that
-  cannot load stops the tune. Each finished step is saved and applied at once, so a
+  context). A setting changes only on a significant paired gain, each preset is checked on
+  held-back questions, and a model that cannot load stops the tune. Each finished step is saved and applied at once, so a
   tune can stop anywhere; a stage in a row (or a task in Details) runs just that again, a table names
   each task's best model, and
   **Run all** tunes models side by side in CPU and GPU lanes, showing time left;
   **Tune runs and statistics** keeps every run and answer; stopped runs can continue. **Tune
   settings** edits the values each setting is tried at and the lanes for this PC.
   In chat, the task picker picks the tuned preset and each answer shows it; **Settings** has the tuned on/off switch
-  and Fastest/Light. Tune with heavy programs closed: CPU timings swing with load.
-- **Small surface area** — Node's HTTP server, a vanilla UI; no build, framework,
-  CDN or account.
+  and Fastest/Light. Tune with heavy programs closed.
+- **Small surface area** — Node's HTTP server and a vanilla UI; no build or CDN.
 - **AI benchmark gate** - two phases: model reload/quantization/KV-cache settings,
   then sampling/prompting settings, with test hashes so result changes are not
   confused with test edits.
@@ -259,7 +258,7 @@ so no latency winner is claimed from a single run.
 | Server settings + key hashes | `~/.modelduck/server-settings.json` | `--home <folder>` |
 | Tuned model profiles | `~/.modelduck/profiles/<model>.json` (load settings and per-task presets) | `--home <folder>` |
 | Tune runs | `~/.modelduck/tune-runs/` (every run and answer) | `--home <folder>` |
-| Tune steps | `~/.modelduck/tune-grid.json` (values tried per setting) | `--home <folder>` |
+| Tune steps | `~/.modelduck/tune-grid.json` (values per setting) | `--home <folder>` |
 | Downloads | `~/.modelduck/models/*.part` | `--models <folder>` |
 
 The models folder is ordinary storage. Copy a `.gguf` file into it and press

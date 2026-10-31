@@ -5,29 +5,12 @@
     "last_phase": "verification",
     "active_phase": 4,
     "status": "in_progress",
-    "updated_at": 1793473156.65092,
+    "updated_at": 1793473258.1577895,
     "owner": "claude-opus-5.5",
     "started_by": "claude-opus-5.5",
     "continuations": []
   },
   "checkpoints": [
-    {
-      "task_id": "tune-ux-v2",
-      "phase": "planning",
-      "phase_num": 2,
-      "description": "[1/3] reasoning on gets room to answer; [2/3] every warning on the row, legacy single-model control removed; [3/3] best model per task, per-task stage buttons. tune:gate baseline waits for a working GPU",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793454082.6231189,
-      "timestamp_str": "2026-10-31 16:41:22",
-      "agent": "claude-opus-5.5",
-      "impact_assessment": {
-        "why": "User chose items 2, 6, 8, 9, 10, 11 from the tuning review",
-        "benefits": "Fair reasoning trials, clearer rows, a per-task model recommendation and faster single-task re-runs",
-        "risks": "contract: reasoning candidates carry a larger maxTokens; the single-model benchmark control leaves the UI; dependency: none; concurrency: none; state: profiles unchanged",
-        "mitigation": "Failing-first tests; Edge review per UI milestone; ADRs"
-      }
-    },
     {
       "task_id": "tune-ux-v2",
       "phase": "verification",
@@ -255,6 +238,17 @@
       "status": "in_progress",
       "timestamp": 1793473156.65092,
       "timestamp_str": "2026-10-31 21:59:16",
+      "agent": "claude-opus-5.5"
+    },
+    {
+      "task_id": "holdout-v1",
+      "phase": "verification",
+      "phase_num": 4,
+      "description": "Milestone 2 unseen-question column in; tests pass, gate 4/4, Edge review; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793473258.1577895,
+      "timestamp_str": "2026-10-31 22:00:58",
       "agent": "claude-opus-5.5"
     }
   ]

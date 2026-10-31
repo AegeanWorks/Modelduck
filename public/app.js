@@ -2095,6 +2095,14 @@ function tuneStageChips(stages, staleParts = [], { modelId = null, running = fal
   return chips;
 }
 
+/** A preset against the defaults on items it was never tuned on (ADR-054). */
+function unseenText(holdout) {
+  if (!holdout) return "–";
+  const delta = holdout.vsDefault?.rateDelta ?? holdout.rate - holdout.defaultRate;
+  return `${holdout.rate}% vs ${holdout.defaultRate}% default (${delta >= 0 ? "+" : ""}${delta} pts, p=${holdout.vsDefault?.pValue ?? "–"})${holdout.fellBack ? "; worse, so the defaults apply" : ""}`;
+}
+const UNSEEN_TITLE = "Measured on a quarter of the task's questions that the tune never used, against the defaults";
+
 const shownValue = (value) => (typeof value === "string" && value.length > 60 ? `${value.slice(0, 57)}…` : String(value));
 
 /** The expanded row under a model: why it is out of date, the device verdict, load settings and each task's result. */
@@ -2115,7 +2123,7 @@ function tuneDetails(model) {
   const table = document.createElement("table");
   table.className = "benchmark-table";
   const head = table.createTHead().insertRow();
-  for (const label of ["Task", "Right answers", "95% range", "vs defaults", "Chosen settings", "Run for this task"]) head.appendChild(Object.assign(document.createElement("th"), { textContent: label }));
+  for (const label of ["Task", "Right answers", "95% range", "vs defaults", "On unseen questions", "Chosen settings", "Run for this task"]) head.appendChild(Object.assign(document.createElement("th"), { textContent: label }));
   const body = table.createTBody();
   for (const task of TUNE_TASKS) {
     const preset = profile?.tasks?.[task];
@@ -2134,6 +2142,7 @@ function tuneDetails(model) {
       tuneCell(stats ? `${stats.rate}%` : "not tuned"),
       tuneCell(stats?.ci95 ? `${stats.ci95.low}–${stats.ci95.high}%` : "–", "The true rate lies in this range with 95% confidence"),
       tuneCell(versus ? `${versus.rateDelta >= 0 ? "+" : ""}${versus.rateDelta} pts (p=${versus.pValue})` : "–", "Paired against the app defaults; p below 0.05 means the gain is unlikely to be chance"),
+      tuneCell(unseenText(preset?.holdout), UNSEEN_TITLE),
       tuneCell(Object.entries(preset?.settings ?? {}).map(([key, value]) => `${SETTING_GUIDE[key]?.[1] ?? key} ${shownValue(value)}`).join(" · ") || "defaults"),
       run,
     );
@@ -2361,7 +2370,7 @@ function renderTuneRunDetail({ run, answers }) {
     const table = document.createElement("table");
     table.className = "benchmark-table";
     const head = table.createTHead().insertRow();
-    for (const text of ["Task", "Right answers", "95% range", "vs defaults"]) head.appendChild(Object.assign(document.createElement("th"), { textContent: text }));
+    for (const text of ["Task", "Right answers", "95% range", "vs defaults", "On unseen questions"]) head.appendChild(Object.assign(document.createElement("th"), { textContent: text }));
     const body = table.createTBody();
     for (const [task, preset] of tasks) {
       const stats = preset.stats;
@@ -2371,6 +2380,7 @@ function renderTuneRunDetail({ run, answers }) {
         tuneCell(stats ? `${stats.rate}%` : "–"),
         tuneCell(stats?.ci95 ? `${stats.ci95.low}–${stats.ci95.high}%` : "–"),
         tuneCell(versus ? `${versus.rateDelta >= 0 ? "+" : ""}${versus.rateDelta} pts (p=${versus.pValue})` : "–"),
+        tuneCell(unseenText(preset.holdout), UNSEEN_TITLE),
       );
     }
     box.appendChild(table);
