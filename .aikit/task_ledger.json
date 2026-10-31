@@ -5,29 +5,12 @@
     "last_phase": "verification",
     "active_phase": 4,
     "status": "in_progress",
-    "updated_at": 1793453447.4643216,
+    "updated_at": 1793453801.8513017,
     "owner": "claude-opus-5.5",
     "started_by": "claude-opus-5.5",
     "continuations": []
   },
   "checkpoints": [
-    {
-      "task_id": "suite-v10",
-      "phase": "planning",
-      "phase_num": 2,
-      "description": "[1/2] Suite v10 adds 30 own math and 40 own recall items; [2/2] rungs grow to 12/24/48 so tune choices rest on more items",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793444170.6817868,
-      "timestamp_str": "2026-10-31 13:56:10",
-      "agent": "claude-opus-5.5",
-      "impact_assessment": {
-        "why": "Tune scores rested on 11-24 items per task, so no difference was significant (p 0.375-1); the user asked for enough items for proper statistics",
-        "benefits": "Every task offers at least 51 items and the final rung scores up to 48, so McNemar can separate real gains",
-        "risks": "contract: SUITE_VERSION 10 marks saved profiles stale with a warning; dependency: none; concurrency: none; state: tunes take about twice as long per stage",
-        "mitigation": "Answers verified by independent tests; generated recall items deterministic; ADR-038 records cost and staleness"
-      }
-    },
     {
       "task_id": "suite-v10",
       "phase": "verification",
@@ -265,6 +248,17 @@
       "status": "in_progress",
       "timestamp": 1793453447.4643216,
       "timestamp_str": "2026-10-31 16:30:47",
+      "agent": "claude-opus-5.5"
+    },
+    {
+      "task_id": "tune-budget-v1",
+      "phase": "verification",
+      "phase_num": 4,
+      "description": "Milestone 3 time left in; tests pass, gate 4/4, real app run; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793453801.8513017,
+      "timestamp_str": "2026-10-31 16:36:41",
       "agent": "claude-opus-5.5"
     }
   ]

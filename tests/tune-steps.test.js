@@ -7,6 +7,8 @@ import {
   DIRECTIVE_PROMPTS,
   THINKING_PROMPTS,
   estimateTune,
+  expectedAnswers,
+  timeLeft,
   isValidCombination,
   normalizeSteps,
   promptAxes,
@@ -101,7 +103,7 @@ test("user steps are checked against the settings ranges; bad values are reporte
 
 test("the estimate covers all four stages and the worst case of two passes", () => {
   const estimate = estimateTune(DEFAULT_STEPS, { logicalCores: 16, tasks: ["chat"], secondsPerAnswer: 3, reloadSeconds: 5 });
-  assert.equal(estimate.quality.configs, 4 + 3);
+  assert.equal(estimate.quality.configs, 3, "only the KV cache is measured; the context size is a memory budget (ADR-043)");
   assert.equal(estimate.speed.configs, 2 + 2 + 6 + 7);
   assert.equal(estimate.sampling.chat.configs, 6 + 6 + 5 + 5 + 5 + 3);
   assert.equal(estimate.prompt.chat.configs, 22 + 2 + 2);
@@ -131,4 +133,22 @@ test("every setting a tune can run on its own has a name, in stage order", () =>
   assert.equal(names[0], "device");
   for (const name of ["contextSize", "kvCache", "threads", "batchSize", "checkpointing", "temperature", "maxTokens", "systemPrompt", "promptRepeat"]) assert.ok(names.includes(name), name);
   assert.ok(names.indexOf("contextSize") < names.indexOf("threads") && names.indexOf("threads") < names.indexOf("temperature"));
+});
+
+test("a run's expected answers count only its chosen stages or settings, and the budgeted context costs none", () => {
+  const whole = expectedAnswers(DEFAULT_STEPS, { logicalCores: 16, tasks: ["chat"] });
+  assert.equal(expectedAnswers(DEFAULT_STEPS, { tasks: ["chat"], stages: ["device"] }), 2 * 6, "two backends on the six speed items");
+  const prompt = expectedAnswers(DEFAULT_STEPS, { tasks: ["chat"], stages: ["prompt"] });
+  assert.ok(prompt > 0 && prompt < whole);
+  const reasoning = expectedAnswers(DEFAULT_STEPS, { tasks: ["chat"], only: ["reasoning"] });
+  assert.ok(reasoning > 0 && reasoning < prompt, "one setting is a fraction of its stage");
+  assert.equal(expectedAnswers(DEFAULT_STEPS, { tasks: ["chat"], only: ["contextSize"] }), 0, "the context size is a memory budget, not measured");
+});
+
+test("time left comes from the measured pace, and never invents a number past the estimate", () => {
+  assert.equal(timeLeft({ answers: 0, expected: 100, elapsedMs: 0 }), null, "nothing measured yet");
+  assert.equal(timeLeft({ answers: 100, expected: 400, elapsedMs: 10 * 60_000 }), "about 30 min left");
+  assert.equal(timeLeft({ answers: 100, expected: 1000, elapsedMs: 10 * 60_000 }), "about 1 h 30 min left");
+  assert.equal(timeLeft({ answers: 395, expected: 400, elapsedMs: 10 * 60_000 }), "less than a minute left");
+  assert.equal(timeLeft({ answers: 450, expected: 400, elapsedMs: 10 * 60_000 }), "finishing up (a second pass)");
 });

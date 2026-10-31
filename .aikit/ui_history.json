@@ -222,5 +222,19 @@
     "final_snapshot_digest": "",
     "final_snapshot_entries": 0,
     "surface_digest": "e87b837914e0592bac5d3cb2d71b7e64854d8a18917dce78e757813ce45251be"
+  },
+  {
+    "schema": 1,
+    "surface": "app",
+    "baseline_commit": "b5f34149adae287768334bd4975d20609c0bde28",
+    "contract_hash": "c6a291e913a9c8f174aadf7fb264b0941c55e9f4999a9a43152f1fb616845d11",
+    "started_at": 1793453552.2065947,
+    "finished_at": 1793453793.3198216,
+    "strikes": 0,
+    "reviewer": "Claude (AI; headless Edge review with a real CPU tune started through the app: the running row shows the time left from the measured pace, about 20 min, and the running stage; no console errors; delegated by the user on 2026-10-31)",
+    "allowed_removals": [],
+    "final_snapshot_digest": "",
+    "final_snapshot_entries": 0,
+    "surface_digest": "45863349f048e71d8b6fc48d23cd38c6eefd002dd7f8a2841c932d970834c5b8"
   }
 ]

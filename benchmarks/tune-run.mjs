@@ -4,7 +4,7 @@ import { AppError } from "../src/errors.js";
 import { watchParent } from "../src/tune-lock.js";
 import { readSteps, writeSteps } from "../src/tune-steps.js";
 import { TASKS } from "./tasks.mjs";
-import { estimateTune, normalizeSteps, settingNames } from "./tune-grid.mjs";
+import { estimateTune, expectedAnswers, normalizeSteps, settingNames, timeLeft } from "./tune-grid.mjs";
 import { openTarget, runTune, summary } from "./tune-job.mjs";
 import { STAGES } from "./tune.mjs";
 import { askSteps } from "./tune-prompt.mjs";
@@ -95,9 +95,11 @@ async function main() {
   }
   for (const problem of normalizeSteps(steps).problems.concat(loaded.problems)) log(options, `Steps: ${problem}`);
   const estimate = estimateTune(steps, { logicalCores: target.system.parallelism, tasks: options.tasks });
-  const hours = (seconds) => `${(seconds / 3600).toFixed(1)} h`;
-  log(options, `Estimate at ~3 s/answer for all stages: quality ${estimate.quality.configs}, speed ${estimate.speed.configs}, sampling ${estimate.sampling[options.tasks[0]]?.configs ?? 0} and prompt ${estimate.prompt[options.tasks[0]]?.configs ?? 0} configs per task per pass; one pass ≈ ${hours(estimate.onePassSeconds)} (upper bound), two passes ≈ ${hours(estimate.worstCaseSeconds)}. Larger models take longer.`);
-  emit(options, { type: "estimate", phase: "tune", model: target.profileId, ...estimate });
+  // The time left comes from the answers this run asks and its own measured pace (ADR-045).
+  const expected = expectedAnswers(steps, { logicalCores: target.system.parallelism, tasks: options.tasks, stages: options.stages, only: options.only ?? null });
+  log(options, `This run asks at most ${expected} answers in one pass; the time left shows once the first answers are measured.`);
+  emit(options, { type: "estimate", phase: "tune", model: target.profileId, expectedAnswers: expected, ...estimate });
+  let startedAt = Date.now();
   const outcome = await runTune(target, {
     tasks: options.tasks,
     stages: options.stages,
@@ -107,13 +109,16 @@ async function main() {
     maxRuns: options.maxRuns,
     passes: options.passes,
     onStart: (plan) => {
+      startedAt = Date.now();
       log(options, `Tuning ${target.entry.fileName}: ${options.stages.join(" → ")} for ${options.tasks.join(", ")}${plan.resume ? ", resuming the saved progress" : ""} on ${target.system.cpu} (${target.system.parallelism} threads)`);
       emit(options, { type: "start", phase: "tune", model: target.profileId, tasks: options.tasks, stages: options.stages, resumed: Boolean(plan.resume) });
     },
     onEvent: (event) => {
       const where = `[${event.stage}${event.task ? `:${event.task}` : ""}]`;
+      const eta = timeLeft({ answers: event.runs, expected, elapsedMs: Date.now() - startedAt });
+      if (eta) event = { ...event, eta };
       if (event.type === "candidate") {
-        log(options, `${where} ${event.axis} ${JSON.stringify(event.patch)} @${event.rung}: ${event.rate}% · ${event.latencyMs} ms · ${event.runs} answers`);
+        log(options, `${where} ${event.axis} ${JSON.stringify(event.patch)} @${event.rung}: ${event.rate}% · ${event.latencyMs} ms · ${event.runs} answers${eta ? ` · ${eta}` : ""}`);
       } else {
         log(options, `${where} pass ${event.pass} ${event.axis} -> ${JSON.stringify(event.winner)}${event.changed ? " (changed)" : ""}${event.kept ? ` — ${event.kept}` : ""}${event.reason ? ` — ${event.reason}` : ""}`);
       }

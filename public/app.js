@@ -2242,7 +2242,9 @@ function renderTuneModels() {
     const row = body.insertRow();
     const item = items.get(model.profileId);
     const step = item?.progress?.stage ? ` · ${item.progress.stage}${item.progress.axis ? `: ${item.progress.axis}` : ""}` : "";
-    const live = item && running ? ` — ${item.status}${item.lane ? ` in the ${item.lane.toUpperCase()} lane` : ""}${step}` : "";
+    // The tune's own estimate from its measured pace (ADR-045).
+    const eta = item?.progress?.eta ? ` · ${item.progress.eta}` : "";
+    const live = item && running ? ` — ${item.status}${item.lane ? ` in the ${item.lane.toUpperCase()} lane` : ""}${step}${eta}` : "";
     const label = repeated.has(model.name) ? `${model.name} (${model.fileName})` : model.name;
     const nameCell = tuneCell(`${label}${live}`, model.fileName);
     // Say why a profile is out of date, not only that it is.

@@ -281,7 +281,8 @@ function axisAnswers(count, rungSizes, seeds, full = false) {
 
 function stageCost(axes, sizes, seeds, secondsPerAnswer, reloadSeconds = 0) {
   const entry = { configs: 0, answers: 0, seconds: 0 };
-  for (const { patches, full } of axes) {
+  // A memory-budget axis asks no questions (ADR-043).
+  for (const { patches, full } of axes.filter((axis) => !axis.budget)) {
     const answers = axisAnswers(patches.length, sizes, seeds, full);
     entry.configs += patches.length;
     entry.answers += answers;
@@ -310,4 +311,35 @@ export function estimateTune(steps, { logicalCores = 8, tasks = ["chat", "code",
   const perTask = (entries) => Object.values(entries).reduce((sum, entry) => sum + entry.seconds, 0);
   const onePassSeconds = Math.round(device.seconds + quality.seconds + speed.seconds + perTask(sampling) + perTask(prompt));
   return { device, quality, speed, sampling, prompt, onePassSeconds, worstCaseSeconds: onePassSeconds * 2 };
+}
+
+/**
+ * At most how many answers a run of `stages` (or only the `only` settings) asks in one
+ * pass: the denominator of its time left (ADR-045). Sampling and prompt count every
+ * seed, so it is an upper bound; a memory-budget axis asks none.
+ */
+export function expectedAnswers(steps, { logicalCores = 8, tasks = ["chat", "code", "math", "recall"], stages = ["device", "quality", "speed", "sampling", "prompt"], only = null, seeds = 3 } = {}) {
+  const rungs = tuneRungs(tasks);
+  const chosen = (axes) => axes.filter((axis) => !axis.budget && (!only || only.includes(axis.name)));
+  const cost = (axes, sizes, seedCount) => chosen(axes).reduce((sum, axis) => sum + axisAnswers(axis.patches.length, sizes, seedCount, axis.full), 0);
+  let total = 0;
+  if (stages.includes("device") && (!only || only.includes("device"))) total += steps.device.backends.length * speedItems().length;
+  if (stages.includes("quality")) total += cost(qualityAxes(steps.load), rungs.load.map((rung) => rung.length), 1);
+  if (stages.includes("speed")) total += cost(speedAxes({ logicalCores }, steps.load), [speedItems().length], 1);
+  for (const task of tasks) {
+    const sizes = rungs[task].map((rung) => rung.length);
+    if (stages.includes("sampling")) total += cost(samplingAxes(task, steps.sampling), sizes, seeds);
+    if (stages.includes("prompt")) total += cost(promptAxes(steps.prompt), sizes, seeds);
+  }
+  return total;
+}
+
+/** "about 25 min left" from the pace so far; null before the first answer, and no number past the estimate. */
+export function timeLeft({ answers, expected, elapsedMs }) {
+  if (!(answers > 0) || !(elapsedMs > 0)) return null;
+  if (answers >= expected) return "finishing up (a second pass)";
+  const seconds = ((expected - answers) * elapsedMs) / answers / 1000;
+  if (seconds < 60) return "less than a minute left";
+  const minutes = Math.round(seconds / 60);
+  return minutes < 60 ? `about ${minutes} min left` : `about ${Math.floor(minutes / 60)} h ${minutes % 60} min left`;
 }
