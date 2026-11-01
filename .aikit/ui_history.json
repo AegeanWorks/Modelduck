@@ -642,5 +642,33 @@
     "final_snapshot_digest": "",
     "final_snapshot_entries": 0,
     "surface_digest": "1b022c6e5373bc13a81386cb011c7fc044cf16aca61a9e8a68e5d1f9096ad0f6"
+  },
+  {
+    "schema": 1,
+    "surface": "app",
+    "baseline_commit": "073ec16c3834d545e2d01e3c8657e8ddd56ab943",
+    "contract_hash": "c6a291e913a9c8f174aadf7fb264b0941c55e9f4999a9a43152f1fb616845d11",
+    "started_at": 1793549703.0395105,
+    "finished_at": 1793549718.4523807,
+    "strikes": 0,
+    "reviewer": "Command Code (AI; reviewed all 27 desktop/mobile screenshots and the updated 1280x640 social preview; delegated by the user on 2026-11-01)",
+    "allowed_removals": [],
+    "final_snapshot_digest": "",
+    "final_snapshot_entries": 0,
+    "surface_digest": "3afbf1f30e9a411a1834019ad39d0fe20b6e9c17ae3ad449fdd8160f4b07fdce"
+  },
+  {
+    "schema": 1,
+    "surface": "app",
+    "baseline_commit": "4ba064dfcdf446c2ac498ff38a04536666cc3768",
+    "contract_hash": "c6a291e913a9c8f174aadf7fb264b0941c55e9f4999a9a43152f1fb616845d11",
+    "started_at": 1793549992.5593286,
+    "finished_at": 1793550019.7655947,
+    "strikes": 0,
+    "reviewer": "Command Code (AI; reviewed all 27 desktop/mobile screenshots and the updated 1280x640 social preview; delegated by the user on 2026-11-01)",
+    "allowed_removals": [],
+    "final_snapshot_digest": "",
+    "final_snapshot_entries": 0,
+    "surface_digest": "3afbf1f30e9a411a1834019ad39d0fe20b6e9c17ae3ad449fdd8160f4b07fdce"
   }
 ]
