@@ -558,5 +558,19 @@
     "final_snapshot_digest": "",
     "final_snapshot_entries": 0,
     "surface_digest": "138b75ea5ccb98b301aff945a2e475d4a9062c66f81ca2d147b702c7459ff863"
+  },
+  {
+    "schema": 1,
+    "surface": "app",
+    "baseline_commit": "ece2e8a686890a1f27317a60307eaae0ca90cfc4",
+    "contract_hash": "c6a291e913a9c8f174aadf7fb264b0941c55e9f4999a9a43152f1fb616845d11",
+    "started_at": 1793525752.5620465,
+    "finished_at": 1793525766.1179147,
+    "strikes": 0,
+    "reviewer": "Command Code (AI; verified the expanded tuning-order help and smoke at 1440/390; delegated by the user on 2026-11-01)",
+    "allowed_removals": [],
+    "final_snapshot_digest": "",
+    "final_snapshot_entries": 0,
+    "surface_digest": "17b2a47025377eb976559760d5069111be0e7ae63a3a5cd1ff3f3907c8a8208b"
   }
 ]
