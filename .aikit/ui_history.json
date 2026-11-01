@@ -488,5 +488,19 @@
     "final_snapshot_digest": "",
     "final_snapshot_entries": 0,
     "surface_digest": "810bee3fd0ea1d7704d4b1136a22faf832a92cdf54be5221ed32f5117149ad2c"
+  },
+  {
+    "schema": 1,
+    "surface": "app",
+    "baseline_commit": "df317b8a47a2b6e1b86c2ce4645ed428f1399976",
+    "contract_hash": "c6a291e913a9c8f174aadf7fb264b0941c55e9f4999a9a43152f1fb616845d11",
+    "started_at": 1793497146.9284668,
+    "finished_at": 1793497186.7383537,
+    "strikes": 1,
+    "reviewer": "Command Code (AI; headless Edge review of the Bench workspace at 1440 and 390, all six panels, full-screen mobile dialog, no console exceptions; delegated by the user on 2026-11-01)",
+    "allowed_removals": [],
+    "final_snapshot_digest": "",
+    "final_snapshot_entries": 0,
+    "surface_digest": "aa754c8c69d6e9a507b14288069ad1c0db8634455de03d57763d2644e5547ffd"
   }
 ]
