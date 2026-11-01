@@ -93,6 +93,53 @@ async function main() {
     });
     if (!healthy) throw new Error(`ModelDuck did not start:\n${logs.join("")}`);
 
+    const fixtureState = await (await fetch(`http://127.0.0.1:${port}/api/state`)).json();
+    const fixtureModel = {
+      id: "fixture-model",
+      name: "Fixture model",
+      fileName: "fixture.gguf",
+      size: 1024,
+      params: null,
+      quant: null,
+      blocked: false,
+      unreadable: false,
+    };
+    fixtureState.models = [fixtureModel];
+    fixtureState.loaded = { status: "idle", model: null };
+    const fixtureOverview = {
+      models: [{
+        id: fixtureModel.id,
+        name: fixtureModel.name,
+        fileName: fixtureModel.fileName,
+        profileId: fixtureModel.id,
+        profile: {
+          createdAt: "2026-11-01T00:00:00.000Z",
+          tasks: { code: { stats: { rate: 81.2 } }, comprehension: { stats: { rate: 74 } }, recall: { stats: { rate: 66 } } },
+        },
+        stale: [],
+        staleParts: [],
+        deviceParts: [],
+      }],
+    };
+    const fixtureScript = `(() => {
+      const fixture = ${JSON.stringify({ state: fixtureState, overview: fixtureOverview })};
+      window.__uiSmokeRequests = [];
+      const realFetch = window.fetch.bind(window);
+      const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { "content-type": "application/json" } });
+      window.fetch = async (input, init = {}) => {
+        const url = new URL(typeof input === "string" ? input : input.url, location.origin);
+        const method = String(init.method ?? (typeof input === "string" ? "GET" : input.method) ?? "GET").toUpperCase();
+        if (url.pathname === "/api/state") return json(fixture.state);
+        if (url.pathname === "/api/tune/overview") return json(fixture.overview);
+        if (url.pathname === "/api/tune/status") return json({ job: null });
+        if (url.pathname === "/api/tune/start" && method === "POST") {
+          window.__uiSmokeRequests.push({ path: url.pathname, body: JSON.parse(init.body ?? "{}") });
+          return json({ job: { status: "running", items: [{ profileId: "fixture-model", name: "Fixture model", status: "running", lane: "cpu", live: { answers: 0, expectedAnswers: 10 } }] } });
+        }
+        return realFetch(input, init);
+      };
+    })();`;
+
     browser = spawn(
       browserPath,
       [
@@ -155,7 +202,8 @@ async function main() {
     await send("Page.addScriptToEvaluateOnNewDocument", {
       source: `window.__uiSmokeErrors = [];
         window.addEventListener("unhandledrejection", (event) => window.__uiSmokeErrors.push(String(event.reason?.stack || event.reason)));
-        window.addEventListener("error", (event) => window.__uiSmokeErrors.push(event.message));`,
+        window.addEventListener("error", (event) => window.__uiSmokeErrors.push(event.message));
+        ${fixtureScript}`,
     });
     await send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
     await send("Page.navigate", { url: `http://127.0.0.1:${port}/` });
@@ -163,6 +211,19 @@ async function main() {
     assert.ok(await waitFor(() => evaluate('Boolean(document.querySelector(".dashboard"))')), "the dashboard did not render");
     assert.equal(await evaluate('document.getElementById("messages") === null'), true, "the chat shell is still present");
     assert.equal(await evaluate('document.getElementById("dashboard-models") !== null'), true, "the model dashboard is missing");
+    assert.ok(await waitFor(() => evaluate('document.querySelectorAll(".dash-model").length === 1'), 3_000), "the fixture model row did not render");
+    assert.equal(await evaluate('document.getElementById("dash-model-count").textContent'), "1");
+    assert.equal(await evaluate('Boolean(document.querySelector("[data-dashboard-tune=\\"fixture-model\\"]"))'), true, "the fixture Tune action is missing");
+    assert.ok(await waitFor(() => evaluate('Boolean(document.querySelector(".tune-latest"))'), 3_000), "the latest profile line did not render");
+    assert.match(await evaluate('document.querySelector(".tune-latest").textContent'), /Fixture model · code 81\.2%/, "the latest profile line has the wrong model or rate");
+    await evaluate('document.querySelector("[data-dashboard-tune=\\"fixture-model\\"]").click(), true');
+    assert.ok(await waitFor(() => evaluate('window.__uiSmokeRequests.length > 0'), 3_000), "the dashboard Tune action did not start a tune");
+    const tuneRequest = await evaluate('window.__uiSmokeRequests[0]');
+    assert.deepEqual(tuneRequest.body.models, ["fixture-model"]);
+    assert.deepEqual(tuneRequest.body.stages, ["device", "quality", "speed", "sampling", "prompt"]);
+    assert.equal(tuneRequest.body.settings, null);
+    assert.equal(tuneRequest.body.force, false);
+    await evaluate('document.getElementById("benchmark-dialog").close(), true');
 
     const dialogs = [
       ["open-models", "models-dialog"],
