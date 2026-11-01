@@ -614,5 +614,19 @@
     "final_snapshot_digest": "",
     "final_snapshot_entries": 0,
     "surface_digest": "846b3069a492c104e5088e2976e7680379bc27ecf77aadba4b0b95832bb2e5a3"
+  },
+  {
+    "schema": 1,
+    "surface": "app",
+    "baseline_commit": "75ac6a920658b4572ce5f32f6398f9126fe266b0",
+    "contract_hash": "c6a291e913a9c8f174aadf7fb264b0941c55e9f4999a9a43152f1fb616845d11",
+    "started_at": 1793546804.6055589,
+    "finished_at": 1793546825.9305348,
+    "strikes": 0,
+    "reviewer": "Command Code (AI; reviewed task scope, preflight, quick pass, pause/resume, guardrail and background controls at 1440 and 390; delegated by the user on 2026-11-01)",
+    "allowed_removals": [],
+    "final_snapshot_digest": "",
+    "final_snapshot_entries": 0,
+    "surface_digest": "7bb938b6a8f581303f8987b6a99e9c24bd5c748fa23ec74af44ee361510133fb"
   }
 ]
