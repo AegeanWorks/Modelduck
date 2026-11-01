@@ -375,9 +375,6 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
   background: rgba(255, 255, 255, 0.022);
   transition: border-color 0.15s ease, background 0.15s ease;
 }
-[data-theme="light"] .model-card {
-  background: transparent;
-}
 .model-card:hover {
   border-color: var(--line-strong);
   background: rgba(255, 255, 255, 0.04);
@@ -452,9 +449,6 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
   border: 1px solid var(--line);
   border-radius: 13px;
   background: rgba(255, 255, 255, 0.02);
-}
-[data-theme="light"] .import-box {
-  background: transparent;
 }
 .import-box h3 {
   margin: 0 0 3px;

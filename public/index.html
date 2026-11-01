@@ -532,6 +532,11 @@
                   A tune measures how this model answers on this computer and saves the settings that work best.
                   It changes inference settings only; the model weights are never trained or modified.
                 </p>
+                <p class="tune-help-order">
+                  <strong>Why this order:</strong> Device → Quality → Speed → Sampling → Prompt. Quality sets the
+                  context size and KV cache, which change memory and speed, so Speed is measured on that final load
+                  shape; Sampling and Prompt then tune one task at a time.
+                </p>
                 <div class="tune-help-grid">
                   <section class="tune-help-stage">
                     <p class="eyebrow">Stage 0 · Device</p>

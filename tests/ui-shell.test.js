@@ -112,6 +112,8 @@ test("the tuning help explains the stages and the checks", () => {
   for (const text of [
     "How tuning works",
     "Local measurement, not training",
+    "Why this order:",
+    "Quality sets the",
     "Stage 0 · Device",
     "Stage 1 · Quality",
     "Stage 2 · Speed",

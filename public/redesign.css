@@ -2618,6 +2618,19 @@ a {
   line-height: 1.6;
 }
 
+.tune-help-order {
+  max-width: 82ch;
+  margin: 10px 0 0;
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  line-height: 1.55;
+}
+
+.tune-help-order strong {
+  color: var(--muted);
+}
+
 .tune-help-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

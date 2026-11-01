@@ -112,6 +112,7 @@ device. It is off by default so a missing driver never prevents local inference 
   **Run all** tunes models in CPU and GPU lanes, live;
   **Runs** keeps every run and answer; stopped runs continue. **Tune
   settings** edits the values each setting is tried at and the lanes for this PC. **Benchmark** lists each task's question types and checks.
+  Stages run Device → Quality → Speed → Sampling → Prompt: Quality sets the context and KV cache first so Speed is measured on the final load shape.
   **Recommended for this PC** ranks installed models by measured answers and speed, then catalog estimates.
   The client chooses a preset per task with `x-modelduck-task`; **Settings** has the tuned on/off switch
   and Fastest/Light/Quiet. A collapsible **How tuning works** section in Tune explains the five stages, the
