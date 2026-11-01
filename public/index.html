@@ -522,6 +522,73 @@
             <p class="benchmark-progress" id="tune-progress">No tune is running. Pick a model in the Models tab, or Run all; stop any time and what was found is applied.</p>
             <section class="tune-live" id="tune-live" hidden aria-live="polite"></section>
             <div class="tune-continue" id="tune-continue"></div>
+            <details class="tune-help" id="tune-help">
+              <summary>
+                <span>How tuning works</span>
+                <span class="tune-help-note">Local measurement, not training</span>
+              </summary>
+              <div class="tune-help-body">
+                <p class="tune-help-intro">
+                  A tune measures how this model answers on this computer and saves the settings that work best.
+                  It changes inference settings only; the model weights are never trained or modified.
+                </p>
+                <div class="tune-help-grid">
+                  <section class="tune-help-stage">
+                    <p class="eyebrow">Stage 0 · Device</p>
+                    <h4>Choose where it runs</h4>
+                    <p>CPU or GPU, and how many layers to offload. The fastest placement that keeps the same answers wins.</p>
+                  </section>
+                  <section class="tune-help-stage">
+                    <p class="eyebrow">Stage 1 · Quality</p>
+                    <h4>Fit the context</h4>
+                    <p>The largest context that fits in memory and the KV cache type that loses no answers. A smaller context is chosen when the larger one cannot fit.</p>
+                  </section>
+                  <section class="tune-help-stage">
+                    <p class="eyebrow">Stage 2 · Speed</p>
+                    <h4>Remove wasted work</h4>
+                    <p>Threads, batch, flash attention, memory mapping and checkpoints: faster with the same answers. Measured Fastest, Light and Quiet presets are saved.</p>
+                  </section>
+                  <section class="tune-help-stage">
+                    <p class="eyebrow">Stage 3 · Sampling</p>
+                    <h4>Shape the answer</h4>
+                    <p>Temperature, answer length, repeat penalty, min-p, top-p and top-k, measured separately for code, comprehension and long context.</p>
+                  </section>
+                  <section class="tune-help-stage">
+                    <p class="eyebrow">Stage 4 · Prompt</p>
+                    <h4>Set the instructions</h4>
+                    <p>The system prompt, reasoning off or on, and prompt repetition, measured per task on top of the chosen sampling settings.</p>
+                  </section>
+                  <section class="tune-help-stage">
+                    <p class="eyebrow">What gets saved</p>
+                    <h4>A preset per model and task</h4>
+                    <p>The result is a profile that the app applies when tuned settings are on. It is local to this computer and model file, and warns when either changes.</p>
+                  </section>
+                </div>
+                <div class="tune-help-rules">
+                  <div class="tune-help-rule">
+                    <strong>Increasing rungs</strong>
+                    <p>Values are tried on 12, then 24, then 48 questions. A value that is clearly behind stops early, so the tune does not measure every combination.</p>
+                  </div>
+                  <div class="tune-help-rule">
+                    <strong>Only clear gains</strong>
+                    <p>The same questions are compared under each setting. A change needs a paired result that is unlikely to be chance; otherwise the saved setting stays.</p>
+                  </div>
+                  <div class="tune-help-rule">
+                    <strong>Unseen check</strong>
+                    <p>A quarter of every task is held back. If the tuned preset does worse there than the defaults, the defaults are kept and the result says so.</p>
+                  </div>
+                  <div class="tune-help-rule">
+                    <strong>Stop and resume</strong>
+                    <p>Every stage saves as it finishes. Stop any time and keep what was found; run one stage or task again later on top of the rest.</p>
+                  </div>
+                </div>
+                <p class="tune-help-foot">
+                  Tuning does not download or train a model. It can take a while, especially the first time; close
+                  heavy programs so timing stays comparable. The Benchmark gate is separate: it checks a configuration,
+                  while the tuner chooses one.
+                </p>
+              </div>
+            </details>
           </section>
           <section class="benchmark-run bench-panel" id="bench-panel-models" role="tabpanel" aria-labelledby="bench-tab-models" data-bench-panel="models" hidden>
             <p class="tune-intro">Every installed model with its progress per stage, why it may be out of date, and its results; Details shows each task's preset, its result on unseen questions and what was tried.</p>

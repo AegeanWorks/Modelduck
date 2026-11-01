@@ -223,6 +223,23 @@ async function main() {
       assert.equal(state.controlled, true, `the ${tab} Bench tab's aria-controls does not point at its panel`);
       assert.equal(state.otherDisplayed, 0, `the ${tab} Bench tab left another panel visible`);
     }
+    await evaluate('document.querySelector(\'[data-bench-tab="tune"]\').click(), true');
+    assert.equal(
+      await evaluate('Boolean(document.getElementById("tune-help"))'),
+      true,
+      "the Tune tab is missing the tuning help section",
+    );
+    await evaluate('document.querySelector("#tune-help summary").click(), true');
+    assert.equal(
+      await evaluate('document.getElementById("tune-help").open'),
+      true,
+      "the tuning help section did not open",
+    );
+    assert.match(
+      await evaluate('document.getElementById("tune-help").textContent'),
+      /Increasing rungs/,
+      "the tuning help does not explain the rungs",
+    );
     await evaluate('document.getElementById("benchmark-dialog").close(), true');
 
     await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });

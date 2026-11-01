@@ -77,3 +77,22 @@ test("the control panel is wired and the chat shell is gone", () => {
     assert.match(cssRules, new RegExp(`\\.${selector}\\b`), `missing control-panel selector .${selector}`);
   }
 });
+
+test("the tuning help explains the stages and the checks", () => {
+  assert.match(html, /id="tune-help"/);
+  for (const text of [
+    "How tuning works",
+    "Local measurement, not training",
+    "Stage 0 · Device",
+    "Stage 1 · Quality",
+    "Stage 2 · Speed",
+    "Stage 3 · Sampling",
+    "Stage 4 · Prompt",
+    "Increasing rungs",
+    "Only clear gains",
+    "Unseen check",
+    "Stop and resume",
+  ]) {
+    assert.ok(html.includes(text), `tuning help is missing: ${text}`);
+  }
+});

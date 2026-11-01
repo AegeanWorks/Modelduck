@@ -114,7 +114,8 @@ device. It is off by default so a missing driver never prevents local inference 
   settings** edits the values each setting is tried at and the lanes for this PC. **Benchmark** lists each task's question types and checks.
   **Recommended for this PC** ranks installed models by measured answers and speed, then catalog estimates.
   The client chooses a preset per task with `x-modelduck-task`; **Settings** has the tuned on/off switch
-  and Fastest/Light/Quiet. Tune with heavy programs closed.
+  and Fastest/Light/Quiet. A collapsible **How tuning works** section in Tune explains the five stages, the
+  increasing rungs, the clear-gain rule, the held-back check and what tuning does not do. Tune with heavy programs closed.
 - **Small surface area** — Node's HTTP server and a vanilla UI; no build or CDN.
 - **AI benchmark gate** - two phases: model reload/quantization/KV-cache settings,
   then sampling/prompting settings, with test hashes so test edits show.
