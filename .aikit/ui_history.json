@@ -586,5 +586,19 @@
     "final_snapshot_digest": "",
     "final_snapshot_entries": 0,
     "surface_digest": "8f59bcdab53ba23f216343683d4486d661719daae8f0ecc52f371e1cebff2f3e"
+  },
+  {
+    "schema": 1,
+    "surface": "app",
+    "baseline_commit": "57f302cc2bf40f04d02b53837a3cabd6af461c77",
+    "contract_hash": "c6a291e913a9c8f174aadf7fb264b0941c55e9f4999a9a43152f1fb616845d11",
+    "started_at": 1793544856.1780627,
+    "finished_at": 1793544867.9836404,
+    "strikes": 0,
+    "reviewer": "Command Code (AI; reviewed the new suite summary and task ledgers at 1440 and 390, including the folded Sources and checks disclosures; delegated by the user on 2026-11-01)",
+    "allowed_removals": [],
+    "final_snapshot_digest": "",
+    "final_snapshot_entries": 0,
+    "surface_digest": "ea6fe04e8bc01ea04b10aa740322be1f21f9631d1c2cca40ca9ab9861963d161"
   }
 ]
