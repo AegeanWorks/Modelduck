@@ -544,5 +544,19 @@
     "final_snapshot_digest": "",
     "final_snapshot_entries": 0,
     "surface_digest": "1730d05672c0ec91d5c5b79fa28487087027be9fb8cb1832ae7b274eae66a603"
+  },
+  {
+    "schema": 1,
+    "surface": "app",
+    "baseline_commit": "e901d3ee5fe6bddda0d515a589b491dcd0a038ce",
+    "contract_hash": "c6a291e913a9c8f174aadf7fb264b0941c55e9f4999a9a43152f1fb616845d11",
+    "started_at": 1793522451.0651512,
+    "finished_at": 1793522463.197981,
+    "strikes": 0,
+    "reviewer": "Command Code (AI; headless Edge review of the styled gate report, 390px Models/Runs tables, focus rings, all four dialogs and six Bench sections; delegated by the user on 2026-11-01)",
+    "allowed_removals": [],
+    "final_snapshot_digest": "",
+    "final_snapshot_entries": 0,
+    "surface_digest": "138b75ea5ccb98b301aff945a2e475d4a9062c66f81ca2d147b702c7459ff863"
   }
 ]
