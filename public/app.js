@@ -105,7 +105,12 @@ const els = {
   tuneTasks: $("tune-tasks"),
   tuneForce: $("tune-force"),
   tuneAll: $("tune-all"),
+  tuneQuick: $("tune-quick"),
+  tunePause: $("tune-pause"),
   tuneCancel: $("tune-cancel"),
+  tuneGuard: $("tune-guard"),
+  tuneBackground: $("tune-background"),
+  tunePreflight: $("tune-preflight"),
   tuneProgress: $("tune-progress"),
   tuneModels: $("tune-models"),
   tuneRecommend: $("tune-recommend"),
@@ -183,6 +188,8 @@ const SETTING_HELP = {
   "tune-task-code": "Tune the code task's sampling and prompt settings. Shared device, quality and speed stages still run once.",
   "tune-task-comprehension": "Tune code-comprehension sampling and prompt settings. Shared device, quality and speed stages still run once.",
   "tune-task-recall": "Tune long-context sampling and prompt settings. Shared device, quality and speed stages still run once.",
+  "tune-guard": "Stop the remaining tasks when the first held-back check falls back to the defaults.",
+  "tune-background": "Close the Bench dialog after starting; the tune keeps running in ModelDuck.",
 };
 
 const STAGE_HELP = {
@@ -2541,17 +2548,56 @@ function renderTuneJob() {
   const job = state.tuneJob;
   const running = job?.status === "running";
   els.tuneAll.disabled = running;
+  els.tuneQuick.disabled = running;
+  els.tunePause.disabled = !running;
+  els.tunePause.textContent = job?.paused ? "Resume" : "Pause";
   els.tuneCancel.disabled = !running;
-  els.tuneRunState.textContent = job ? job.status : "idle";
+  els.tuneRunState.textContent = job?.paused ? "paused" : job ? job.status : "idle";
   els.tuneRunState.className = running ? "badge accent" : job?.status === "complete" ? "badge green" : "badge";
   if (job) {
     const count = (status) => job.items.filter((item) => item.status === status).length;
     const failed = job.items.filter((item) => item.status === "failed").map((item) => `${item.name}: ${item.error}`);
-    els.tuneProgress.textContent = `${count("done") + count("skipped")} of ${job.items.length} models finished · ${count("running")} running · ${count("queued")} waiting${failed.length ? ` · failed: ${failed.join("; ")}` : ""}`;
+    const guards = job.items.filter((item) => item.guard);
+    els.tuneProgress.textContent = `${count("done") + count("skipped")} of ${job.items.length} models finished · ${count("running")} running · ${count("queued")} waiting${job.paused ? " · paused" : ""}${failed.length ? ` · failed: ${failed.join("; ")}` : ""}${guards.length ? ` · guard stopped: ${guards.map((item) => item.guard.task).join(", ")}` : ""}`;
   }
   renderTuneModels();
   renderTuneLive(job);
   renderDashboardTuning();
+}
+
+function formatSpan(seconds) {
+  if (!Number.isFinite(seconds) || seconds <= 0) return "–";
+  if (seconds >= 3600) return `${(seconds / 3600).toFixed(1)} h`;
+  if (seconds >= 60) return `${Math.round(seconds / 60)} min`;
+  return `${Math.round(seconds)} s`;
+}
+
+async function refreshTunePreflight() {
+  if (!els.tunePreflight) return;
+  const tasks = [...els.tuneTasks.querySelectorAll("input:checked")].map((input) => input.value);
+  const stages = [...els.tuneStages.querySelectorAll(".tune-stage input:checked")].map((input) => input.value);
+  if (!tasks.length || !stages.length) {
+    els.tunePreflight.textContent = "Select at least one task and stage.";
+    return;
+  }
+  try {
+    const data = await request(`/api/tune/estimate?tasks=${encodeURIComponent(tasks.join(","))}&stages=${encodeURIComponent(stages.join(","))}`);
+    const models = data.models === 1 ? "1 model" : `${data.models} models`;
+    els.tunePreflight.textContent = `${data.answersPerModel} answers/model · ~${formatSpan(data.estimate.onePassSeconds)}/pass · ${models}`;
+  } catch {
+    els.tunePreflight.textContent = "Could not estimate this run.";
+  }
+}
+
+async function pauseOrResumeTune() {
+  try {
+    const route = state.tuneJob?.paused ? "/api/tune/resume" : "/api/tune/pause";
+    const { job } = await request(route, { method: "POST" });
+    state.tuneJob = job;
+    renderTuneJob();
+  } catch (error) {
+    showError(error);
+  }
 }
 
 /** One running model: its progress, the setting it tries now and what it decided (ADR-055). */
@@ -2772,7 +2818,7 @@ async function pollTune() {
   }
 }
 
-async function startTune(models, { force = false, forceStale = false, stage = null, tasks = null, only = null, continueRun = false, useForm = true } = {}) {
+async function startTune(models, { force = false, forceStale = false, stage = null, tasks = null, only = null, continueRun = false, quick = false, useForm = true } = {}) {
   // A stage button (one stage) or the re-run button (several) runs just those, whatever the boxes above say.
   const settings = only ?? (useForm && !stage ? [...els.tuneOnly.querySelectorAll("input:checked")].map((input) => input.value) : []);
   const all = [...els.tuneStages.querySelectorAll(".tune-stage input[value]")].map((input) => input.value);
@@ -2791,12 +2837,18 @@ async function startTune(models, { force = false, forceStale = false, stage = nu
   // A part run measures its parts again on top of the saved rest; only a whole tune starts a stale profile over (ADR-040).
   const partRun = settings.length > 0 || stages.length < all.length;
   try {
-    const { job } = await request("/api/tune/start", { method: "POST", body: { models, ...(taskList && { tasks: taskList }), ...(continueRun && { continue: true }), stages, settings: settings.length ? settings : null, force: !continueRun && (useForm ? ((force && !partRun) || (!stage && els.tuneForce.checked)) : force), forceStale } });
+    const { job } = await request("/api/tune/start", { method: "POST", body: { models, ...(taskList && { tasks: taskList }), ...(continueRun && { continue: true }), stages, settings: settings.length ? settings : null, force: !continueRun && (useForm ? ((force && !partRun) || (!stage && els.tuneForce.checked)) : force), forceStale, quick: Boolean(quick), guard: useForm ? Boolean(els.tuneGuard?.checked) : false } });
     state.tuneJob = job;
     // A started tune is followed on the Tune tab.
     showBenchTab("tune");
     renderTuneJob();
     startTuneLive();
+    if (useForm && els.tuneBackground?.checked) {
+      els.benchmarkDialog.close();
+      showToast("Tune running in background", { message: "Reopen Bench & Tune to follow it.", kind: "success" });
+    } else if (quick) {
+      showToast("Quick pass started", { message: "The provisional preset appears as soon as the first rung finishes.", kind: "success" });
+    }
   } catch (error) {
     showError(error);
   }
@@ -3222,6 +3274,10 @@ function bindEvents() {
   els.benchmarkStart.addEventListener("click", startBenchmark);
   els.benchmarkCancel.addEventListener("click", cancelBenchmark);
   els.tuneAll.addEventListener("click", () => void startTune("all", { forceStale: true }));
+  els.tuneQuick.addEventListener("click", () => void startTune("all", { quick: true, forceStale: true }));
+  els.tunePause.addEventListener("click", pauseOrResumeTune);
+  els.tuneStages.addEventListener("change", () => { void refreshTunePreflight(); });
+  els.tuneTasks.addEventListener("change", () => { void refreshTunePreflight(); });
   els.tuneCancel.addEventListener("click", cancelTune);
   els.tuneSettingsSave.addEventListener("click", () => void saveTuneSettings(readTuneSettings()));
   els.tuneSettingsReset.addEventListener("click", () => {
@@ -3239,6 +3295,7 @@ function bindEvents() {
   syncBenchOrientation();
   BENCH_NARROW?.addEventListener("change", syncBenchOrientation);
   markSettingHelp();
+  void refreshTunePreflight();
   document.addEventListener("click", (event) => {
     if (helpAnchor && !event.target.closest(".field-help") && !event.target.closest("#field-help-popover")) hideHelp();
   });

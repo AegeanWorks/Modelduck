@@ -149,6 +149,46 @@ test("cancelling stops every running tune and queues nothing more", async () => 
   assert.equal(runner.get().status, "cancelled");
 });
 
+test("a quick pass saves the first rung and then continues on the full rungs", async () => {
+  const spawn = spawner();
+  const runner = scheduler(spawn);
+  runner.start({ models: MODELS.slice(0, 1), stages: ["quality"], quick: true, guard: true });
+  await settle();
+  const quick = spawn.children[0];
+  assert.ok(quick.args.includes("--quick"));
+  assert.ok(quick.args.includes("--guard"));
+  quick.finish(0, [{ type: "complete", phase: "tune" }]);
+  await settle();
+  const full = spawn.children[1];
+  assert.ok(full, "the full continuation starts after the quick pass");
+  assert.ok(full.args.includes("--continue"));
+  assert.equal(full.args.includes("--quick"), false);
+  assert.ok(full.args.includes("--guard"));
+  full.finish(0);
+  await settle();
+  assert.equal(runner.get().status, "complete");
+});
+
+test("pause holds the queue until resume", async () => {
+  const spawn = spawner();
+  const runner = scheduler(spawn, { lanes: { cpu: 1, gpu: 0 } });
+  runner.start({ models: MODELS.slice(0, 2), stages: ["quality"] });
+  await settle();
+  assert.equal(spawn.children.length, 1);
+  runner.pause();
+  assert.equal(runner.get().paused, true);
+  spawn.children[0].finish(0);
+  await settle();
+  assert.equal(spawn.children.length, 1, "no second model starts while paused");
+  runner.resume();
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  assert.equal(spawn.children.length, 2, "resume starts the queued model");
+  spawn.children[1].finish(0);
+  await settle();
+  assert.equal(runner.get().status, "complete");
+  assert.equal(runner.get().paused, false);
+});
+
 test("only one scheduled run at a time", () => {
   const spawn = spawner();
   const runner = scheduler(spawn);

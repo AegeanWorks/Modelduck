@@ -303,6 +303,8 @@ export async function tune({
   rungs,
   stages = STAGES,
   only = null,
+  quick = false,
+  guard = false,
   resume = null,
   // Which items the search ran on, when the caller kept saturated ones out (ADR-064).
   tunedOn = null,
@@ -344,7 +346,7 @@ export async function tune({
   // Store what was tuned before plus what this run measures, never untouched defaults.
   const keysFor = (entry, axes) => [...new Set([...Object.keys(entry.settings), ...axisKeys(chosen(axes))])];
   // A partial selection never marks a stage finished; one finished before stays finished.
-  const finished = (entry, axes) => !only || entry.status === "done" || chosen(axes).length === axes.length;
+  const finished = (entry, axes) => !quick && (!only || entry.status === "done" || chosen(axes).length === axes.length);
   const progressFor = (entry, keys) => ({
     isDone: (pass, axis) => !only && entry.done.includes(`${pass}:${axis}`),
     onSweep: async (record, current) => {
@@ -455,13 +457,19 @@ export async function tune({
       if (check) {
         state.holdout[task] = check;
         await report();
+        // A guardrail stops the remaining tasks as soon as the held-back check falls back.
+        if (guard && check.fellBack) {
+          state.guard = { task, ...check };
+          break;
+        }
       }
     }
   }
 
   state.runs = (resume?.runs ?? 0) + context.measurements.runs;
   const { stopped } = context.measurements;
-  return resultFrom(state, { budgetExhausted: context.measurements.exhausted && !stopped, stopped, tunedOn, options: { ...settings, seeds: [...settings.seeds] } });
+  const result = resultFrom(state, { budgetExhausted: context.measurements.exhausted && !stopped, stopped, tunedOn, options: { ...settings, seeds: [...settings.seeds] } });
+  return state.guard ? { ...result, guard: state.guard } : result;
 }
 
 /**

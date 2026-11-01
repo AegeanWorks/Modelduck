@@ -522,6 +522,16 @@ test("tune steps can be read, edited and estimated through the API", async (t) =
   assert.deepEqual(body.steps.load.contextSize, [4096]);
   assert.ok(body.problems.some((problem) => problem.includes("contextSize 100")));
   assert.equal((await (await fetch(`${harness.base}/api/tune/steps`)).json()).custom, true);
+
+  const estimate = await (await fetch(`${harness.base}/api/tune/estimate?tasks=code&stages=quality,sampling`)).json();
+  assert.deepEqual(estimate.tasks, ["code"]);
+  assert.deepEqual(estimate.stages, ["quality", "sampling"]);
+  assert.ok(estimate.answersPerModel > 0);
+  assert.ok(estimate.estimate.onePassSeconds > 0);
+  assert.equal(estimate.models, 1);
+  const badEstimate = await fetch(`${harness.base}/api/tune/estimate?tasks=poetry`);
+  assert.equal(badEstimate.status, 400);
+  assert.equal((await badEstimate.json()).error.code, "unknown_task");
 });
 
 test("tunes for one model or all installed models are scheduled, watched and cancelled through the API", async (t) => {
@@ -530,10 +540,18 @@ test("tunes for one model or all installed models are scheduled, watched and can
   const tunes = {
     start(request) {
       starts.push(request);
-      job = { status: "running", items: request.models.map((model) => ({ profileId: model.profileId, status: "queued" })) };
+      job = { status: "running", paused: false, items: request.models.map((model) => ({ profileId: model.profileId, status: "queued" })) };
       return job;
     },
     get: () => job,
+    pause() {
+      job = { ...job, paused: true };
+      return job;
+    },
+    resume() {
+      job = { ...job, paused: false };
+      return job;
+    },
     cancel() {
       job = { ...job, status: "cancelled" };
       return job;
@@ -565,6 +583,13 @@ test("tunes for one model or all installed models are scheduled, watched and can
   assert.equal(starts[1].models.length, 1);
   assert.equal(starts[1].models[0].profileId, profileIdFor(installed.fileName));
   assert.deepEqual(starts[1].tasks, ["code"]);
+
+  const quick = await post("/api/tune/start", { models: [installed.id], tasks: ["code"], quick: true, guard: true });
+  assert.equal(quick.status, 202);
+  assert.equal(starts.at(-1).quick, true);
+  assert.equal(starts.at(-1).guard, true);
+  assert.equal((await (await post("/api/tune/pause")).json()).job.paused, true);
+  assert.equal((await (await post("/api/tune/resume")).json()).job.paused, false);
 
   const unknown = await post("/api/tune/start", { models: ["no-such-model"] });
   assert.equal(unknown.status, 404);

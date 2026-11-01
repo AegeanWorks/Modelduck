@@ -31,6 +31,8 @@ older test, runtime, CPU or model file is kept with a warning until --force.
   --models-dir <dir> models folder
   --events           JSON progress lines on stdout (used by the app)
   --continue         finish an unfinished run: measure only what is not done yet
+  --quick            provisional first-rung pass; the app follows it with a full continue
+  --guard            stop the remaining tasks when a held-back check falls back
 `;
 
 function parseArgs(argv) {
@@ -47,6 +49,8 @@ function parseArgs(argv) {
     if (arg === "--help" || arg === "-h") options.help = true;
     else if (arg === "--events") options.events = true;
     else if (arg === "--continue") options.continueRun = true;
+    else if (arg === "--quick") options.quick = true;
+    else if (arg === "--guard") options.guard = true;
     else if (arg === "--force") options.force = true;
     else if (arg === "--interactive") options.interactive = true;
     else if (arg === "--grid") options.grid = take(index++, arg);
@@ -109,6 +113,8 @@ async function main() {
     steps,
     force: options.force,
     continueRun: Boolean(options.continueRun),
+    quick: Boolean(options.quick),
+    guard: Boolean(options.guard),
     maxRuns: options.maxRuns,
     passes: options.passes,
     onStart: (plan) => {
@@ -137,7 +143,7 @@ async function main() {
   }
   log(options, summary(outcome.profile, outcome.result));
   log(options, `Saved ${path.join(target.paths.profiles, `${target.profileId}.json`)}`);
-  emit(options, { type: "complete", phase: "tune", model: target.profileId, tasks: Object.keys(outcome.profile.tasks), runs: outcome.result.runs, budgetExhausted: outcome.result.budgetExhausted });
+    emit(options, { type: "complete", phase: "tune", model: target.profileId, tasks: Object.keys(outcome.profile.tasks), runs: outcome.result.runs, budgetExhausted: outcome.result.budgetExhausted, quick: Boolean(options.quick), guard: outcome.result.guard ?? null });
 }
 
 main().catch((error) => {

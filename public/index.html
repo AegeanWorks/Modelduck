@@ -516,10 +516,17 @@
                 <label class="check"><input id="tune-task-recall" type="checkbox" value="recall" checked /><span>Long context</span></label>
                 <p class="tune-scope-note">Only selected tasks are tuned; the shared device, quality and speed stages run once.</p>
               </div>
+              <p class="tune-preflight" id="tune-preflight">Estimating the selected run…</p>
               <div class="benchmark-controls tune-actions">
                 <label class="check" title="Discard the chosen models' saved results and measure everything again"><input id="tune-force" type="checkbox" /><span>Re-tune from scratch</span></label>
+                <button class="small-btn" id="tune-quick" type="button" title="Measure the first rung, save a provisional preset, then continue the full tune">Quick pass</button>
                 <button class="primary-btn" id="tune-all" type="button" title="Tune every installed model with the choices above">Run all</button>
+                <button class="small-btn" id="tune-pause" type="button" disabled>Pause</button>
                 <button class="small-btn" id="tune-cancel" type="button" disabled>Cancel</button>
+              </div>
+              <div class="tune-options">
+                <label class="check"><input id="tune-guard" type="checkbox" /><span>Stop on a held-back regression</span></label>
+                <label class="check"><input id="tune-background" type="checkbox" /><span>Run in background</span></label>
               </div>
             </div>
             <details class="tune-only-details">

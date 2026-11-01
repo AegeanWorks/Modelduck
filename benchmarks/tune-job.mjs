@@ -55,12 +55,22 @@ export function tuneBase() {
   return { ...defaults, systemPrompt: SYSTEM_PROMPT, reasoning: "off", promptRepeat: 1 };
 }
 
+/** A provisional pass: the first rung of each task and stage, with no held-back check yet. */
+function quickRungs(rungs, tasks) {
+  const copy = { ...rungs, holdout: {} };
+  copy.load = rungs.load.slice(0, 1);
+  copy.speed = rungs.speed.slice(0, 1);
+  copy.loadByTask = Object.fromEntries(tasks.map((task) => [task, (rungs.loadByTask?.[task] ?? []).slice(0, 1)]));
+  for (const task of tasks) copy[task] = rungs[task].slice(0, 1);
+  return copy;
+}
+
 /**
  * Tune a target in stages, reusing its saved profile (ADR-028, ADR-030).
  * The profile is saved after every finished setting, so stopping keeps what
  * was found and a later run resumes. Resolves `{ skipped, warnings, profile, result }`.
  */
-export async function runTune(target, { tasks, stages = STAGES, only = null, steps = null, force = false, continueRun = false, maxRuns = 0, passes = 0, onEvent = () => {}, onStart = () => {} }) {
+export async function runTune(target, { tasks, stages = STAGES, only = null, steps = null, force = false, continueRun = false, quick = false, guard = false, maxRuns = 0, passes = 0, onEvent = () => {}, onStart = () => {} }) {
   const saved = force ? null : await loadProfile(target.paths.profiles, target.profileId, target.fingerprint);
   const plan = planTune(saved, tasks, stages, only, { continueRun });
   const warnings = saved?.warnings ?? [];
@@ -76,6 +86,7 @@ export async function runTune(target, { tasks, stages = STAGES, only = null, ste
   // the gate, but the search is chosen on ModelDuck's own code items (ADR-070).
   for (const prompt of PROMPTS) if (prompt.category === "public-code") saturated.add(prompt.id);
   const { rungs, tunedOn } = withDiscriminatingRungs(tuneRungs(tasks), saturated, tasks);
+  const activeRungs = quick ? quickRungs(rungs, tasks) : rungs;
   const save = async (result) => {
     const measuredUnder = measuredUnderAfter(saved, target.fingerprint, result.stages, plan.rerun ?? []);
     const measuredOn = measuredOnAfter(saved, result.stages, plan.rerun ?? [], result.load.settings.gpuBackend ?? "cpu");
@@ -97,7 +108,7 @@ export async function runTune(target, { tasks, stages = STAGES, only = null, ste
   const run = await startRun(target.paths.tuneRuns, {
     profileId: target.profileId,
     model: target.entry.fileName,
-    request: { stages, tasks, only, force, continueRun, maxRuns, passes, rerun: plan.rerun ?? [] },
+    request: { stages, tasks, only, force, continueRun, quick, guard, maxRuns, passes, rerun: plan.rerun ?? [] },
     fingerprint: target.fingerprint,
     expectedAnswers: expectedAnswers(used, { logicalCores, tasks, stages, only }),
   });
@@ -149,8 +160,10 @@ export async function runTune(target, { tasks, stages = STAGES, only = null, ste
       tasks,
       stages,
       only,
+      quick,
+      guard,
       resume: plan.resume,
-      rungs,
+      rungs: activeRungs,
       tunedOn,
       hardware: { logicalCores },
       deviceBackends: used.device.backends,

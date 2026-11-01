@@ -27,7 +27,7 @@ import { currentFingerprint, importRecipe, isPartRun, listProfiles, loadProfile,
 import { answersFile, listRuns, loadRun, summarizeAnswers } from "./tune-runs.js";
 import { TunedSettings } from "./tuned-settings.js";
 import { readSteps, writeSteps } from "./tune-steps.js";
-import { DEFAULT_STEPS, estimateTune, settingNames } from "../benchmarks/tune-grid.mjs";
+import { DEFAULT_STEPS, estimateTune, expectedAnswers, settingNames } from "../benchmarks/tune-grid.mjs";
 import { STAGES } from "../benchmarks/tune.mjs";
 import { handleOpenAI } from "./openai.js";
 import { settingPresets } from "./config.js";
@@ -387,6 +387,20 @@ export function createHttpServer({
       return;
     }
 
+    if (pathname === "/api/tune/pause" && method === "POST") {
+      if (!tunes) throw new AppError("Tune scheduler unavailable", { status: 503 });
+      if (!isLoopbackRequest(req)) throw new AppError("Tunes are controlled only on this computer", { code: "tune_local_only", status: 403, why: "Only the computer running the tune can pause it.", fix: "Open ModelDuck on the computer running the server." });
+      sendJson(res, 200, { job: tunes.pause() });
+      return;
+    }
+
+    if (pathname === "/api/tune/resume" && method === "POST") {
+      if (!tunes) throw new AppError("Tune scheduler unavailable", { status: 503 });
+      if (!isLoopbackRequest(req)) throw new AppError("Tunes are controlled only on this computer", { code: "tune_local_only", status: 403, why: "Only the computer running the tune can resume it.", fix: "Open ModelDuck on the computer running the server." });
+      sendJson(res, 200, { job: tunes.resume() });
+      return;
+    }
+
     if (pathname === "/api/tune/start" && method === "POST") {
       if (!tunes) throw new AppError("Tune scheduler unavailable", { status: 503 });
       if (!isLoopbackRequest(req)) {
@@ -442,6 +456,8 @@ export function createHttpServer({
           settings: only,
           force: body.force === true,
           continueRun: body.continue === true,
+          quick: body.quick === true,
+          guard: body.guard === true,
         }),
       });
       return;
@@ -458,6 +474,36 @@ export function createHttpServer({
         });
       }
       sendJson(res, 200, { job: tunes.cancel() });
+      return;
+    }
+
+    if (pathname === "/api/tune/estimate" && method === "GET") {
+      if (!tuneStepsFile) throw new AppError("Tune steps unavailable", { status: 503 });
+      const query = new URL(req.url, "http://localhost").searchParams;
+      const list = (key, fallback) => {
+        const raw = query.get(key);
+        return raw ? raw.split(",").map((item) => item.trim()).filter(Boolean) : fallback;
+      };
+      const tasks = list("tasks", TASKS.map((task) => task.id));
+      const stages = list("stages", [...STAGES]);
+      const only = list("settings", null);
+      validateTuneSelection(tasks, stages);
+      const unknownSettings = (only ?? []).filter((name) => !settingNames().includes(name));
+      if (unknownSettings.length) {
+        throw new AppError("Unknown setting", { code: "unknown_setting", status: 400, why: `${unknownSettings.join(", ")} is not a tunable setting.`, fix: `Use any of: ${settingNames().join(", ")}.` });
+      }
+      const result = await readSteps(tuneStepsFile);
+      const logicalCores = systemInfo().parallelism;
+      const estimate = estimateTune(result.steps, { logicalCores, tasks });
+      sendJson(res, 200, {
+        tasks,
+        stages,
+        settings: only,
+        logicalCores,
+        models: registry.listPublic().length,
+        answersPerModel: expectedAnswers(result.steps, { logicalCores, tasks, stages, only }),
+        estimate,
+      });
       return;
     }
 

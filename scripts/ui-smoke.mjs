@@ -309,6 +309,10 @@ async function main() {
     assert.equal(await evaluate('document.querySelectorAll(".suite-stat").length'), 4, "the Bench suite is missing its summary stats");
     assert.equal(await evaluate('document.querySelectorAll(".suite-details").length'), 3, "the Bench suite is missing its detail disclosures");
     assert.equal(await evaluate('document.querySelectorAll("#tune-tasks input[type=checkbox]").length'), 3, "the tuning task scope is missing");
+    assert.equal(await evaluate('Boolean(document.getElementById("tune-quick"))'), true, "the quick pass control is missing");
+    assert.equal(await evaluate('Boolean(document.getElementById("tune-pause"))'), true, "the pause control is missing");
+    assert.equal(await evaluate('Boolean(document.getElementById("tune-guard"))'), true, "the guardrail control is missing");
+    assert.ok(await waitFor(() => evaluate('document.getElementById("tune-preflight").textContent.includes("answers/model")'), 5_000), "the tune preflight estimate did not load");
     await evaluate('document.querySelector(\'[data-bench-tab="tune"]\').click(), true');
     assert.equal(
       await evaluate('Boolean(document.getElementById("tune-help"))'),
