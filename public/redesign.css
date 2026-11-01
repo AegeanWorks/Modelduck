@@ -3011,3 +3011,126 @@ a {
     border-radius: 0;
   }
 }
+
+/* Generated controls the renderers create after the page loads ------------ */
+
+.tune-live-best {
+  background: var(--accent-soft);
+}
+
+.tune-live-best td:first-child {
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.tune-chip.partial {
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.tune-chip.pending {
+  border-style: dashed;
+  color: var(--faint);
+}
+
+.tune-chip.other-device {
+  border-style: dotted;
+}
+
+.tune-chip.dropped {
+  color: var(--faint);
+  text-decoration: line-through;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.toast-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.toast .toast-fix {
+  color: var(--accent-text);
+  font-family: var(--mono);
+  font-size: 9.5px;
+}
+
+.toast .toast-close {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.toast .toast-close:hover {
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+
+.download-state {
+  min-width: 0;
+  flex: 1;
+}
+
+.download-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 10px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 9.5px;
+}
+
+.msg-action {
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent-text);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.msg-action:hover {
+  text-decoration: underline;
+}
+
+.key-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 9.5px;
+}
+
+.key-row strong {
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.key-actions {
+  margin-inline-start: auto;
+}

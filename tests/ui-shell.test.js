@@ -76,6 +76,21 @@ test("the control panel is wired and the chat shell is gone", () => {
   for (const selector of ["dashboard", "rail", "metric-strip", "panel", "status-card"]) {
     assert.match(cssRules, new RegExp(`\\.${selector}\\b`), `missing control-panel selector .${selector}`);
   }
+  for (const selector of [
+    "tune-live-best",
+    "toast-close",
+    "toast-fix",
+    "download-state",
+    "download-row",
+    "msg-action",
+    "key-row",
+    "key-actions",
+  ]) {
+    assert.match(cssRules, new RegExp(`\\.${selector}\\b`), `generated control has no style: .${selector}`);
+  }
+  for (const selector of ["tune-chip.partial", "tune-chip.pending", "tune-chip.other-device", "tune-chip.dropped"]) {
+    assert.match(cssRules, new RegExp(`\\.${selector.replace(".", "\\.")}\\b`), `generated state has no style: .${selector}`);
+  }
 });
 
 test("the tuning help explains the stages and the checks", () => {
