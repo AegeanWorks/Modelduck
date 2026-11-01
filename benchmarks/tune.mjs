@@ -305,6 +305,7 @@ export async function tune({
   only = null,
   quick = false,
   guard = false,
+  baseline = null,
   resume = null,
   // Which items the search ran on, when the caller kept saturated ones out (ADR-064).
   tunedOn = null,
@@ -462,6 +463,14 @@ export async function tune({
           state.guard = { task, ...check };
           break;
         }
+      }
+    }
+    // A guardrail also stops when this task's final rate is below its saved profile.
+    if (guard && Number.isFinite(baseline?.[task])) {
+      const rate = state.holdout?.[task]?.rate ?? state.prompt?.[task]?.stats?.rate ?? state.sampling?.[task]?.stats?.rate;
+      if (Number.isFinite(rate) && rate < baseline[task]) {
+        state.guard = { task, rate, baselineRate: baseline[task] };
+        break;
       }
     }
   }

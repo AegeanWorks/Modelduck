@@ -125,6 +125,17 @@ test("the estimate covers all four stages and the worst case of two passes", () 
   assert.equal(estimate.worstCaseSeconds, estimate.onePassSeconds * 2);
 });
 
+test("a quick estimate uses the first rung and stays below the full pass", () => {
+  const options = { logicalCores: 16, tasks: ["code"], secondsPerAnswer: 3, reloadSeconds: 5 };
+  const full = estimateTune(DEFAULT_STEPS, options);
+  const quick = estimateTune(DEFAULT_STEPS, { ...options, quick: true });
+  assert.ok(quick.onePassSeconds < full.onePassSeconds);
+  const fullAnswers = expectedAnswers(DEFAULT_STEPS, { tasks: ["code"] });
+  const quickAnswers = expectedAnswers(DEFAULT_STEPS, { tasks: ["code"], quick: true });
+  assert.ok(quickAnswers < fullAnswers);
+  assert.equal(quick.worstCaseSeconds, quick.onePassSeconds * 2);
+});
+
 test("stage 0 probes the CPU and Vulkan by default, and the CPU is always kept as the reference", () => {
   assert.deepEqual(DEFAULT_STEPS.device.backends, ["cpu", "vulkan"]);
   const { steps, problems } = normalizeSteps({ device: { backends: ["vulkan", "opencl"] } });

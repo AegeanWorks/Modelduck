@@ -24,7 +24,7 @@ import {
 } from "./http.js";
 import { publicCatalog } from "./model-catalog.js";
 import { currentFingerprint, importRecipe, isPartRun, listProfiles, loadProfile, profileIdFor, profileRecipe, saveProfile, typeWarnings } from "./model-profiles.js";
-import { answersFile, listRuns, loadRun, summarizeAnswers } from "./tune-runs.js";
+import { answersFile, answerPaceByProfile, listRuns, loadRun, summarizeAnswers } from "./tune-runs.js";
 import { TunedSettings } from "./tuned-settings.js";
 import { readSteps, writeSteps } from "./tune-steps.js";
 import { DEFAULT_STEPS, estimateTune, expectedAnswers, settingNames } from "../benchmarks/tune-grid.mjs";
@@ -401,6 +401,18 @@ export function createHttpServer({
       return;
     }
 
+    if (pathname === "/api/tune/priority" && method === "POST") {
+      if (!tunes) throw new AppError("Tune scheduler unavailable", { status: 503 });
+      if (!isLoopbackRequest(req)) throw new AppError("Tunes are controlled only on this computer", { code: "tune_local_only", status: 403, why: "Only the computer running the tune can reorder it.", fix: "Open ModelDuck on the computer running the server." });
+      const body = await readJsonBody(req);
+      const direction = body.direction === "up" ? "up" : body.direction === "down" ? "down" : null;
+      if (!direction || typeof body.profileId !== "string") {
+        throw new AppError("Choose a queue move", { code: "tune_priority_invalid", status: 400, why: "Priority needs a model and up or down.", fix: "Send { profileId, direction: \"up\" | \"down\" }." });
+      }
+      sendJson(res, 200, { job: await tunes.move(body.profileId, direction) });
+      return;
+    }
+
     if (pathname === "/api/tune/start" && method === "POST") {
       if (!tunes) throw new AppError("Tune scheduler unavailable", { status: 503 });
       if (!isLoopbackRequest(req)) {
@@ -458,6 +470,7 @@ export function createHttpServer({
           continueRun: body.continue === true,
           quick: body.quick === true,
           guard: body.guard === true,
+          guardQueue: body.guardQueue === true,
         }),
       });
       return;
@@ -494,15 +507,36 @@ export function createHttpServer({
       }
       const result = await readSteps(tuneStepsFile);
       const logicalCores = systemInfo().parallelism;
-      const estimate = estimateTune(result.steps, { logicalCores, tasks });
+      const installed = registry.listPublic();
+      const paces = tuneRunsDir ? await answerPaceByProfile(tuneRunsDir) : new Map();
+      const perModel = installed.map((model) => {
+        const profileId = profileIdFor(model.fileName);
+        const pace = paces.get(profileId) ?? null;
+        // Without history, keep the conservative fixed pace.
+        const seconds = pace?.secondsPerAnswer ?? 3;
+        const low = pace?.low ?? seconds;
+        const high = pace?.high ?? seconds;
+        const estimate = (quick, secondsPerAnswer) => ({ answersPerModel: expectedAnswers(result.steps, { logicalCores, tasks, stages, only, quick }), estimate: estimateTune(result.steps, { logicalCores, tasks, secondsPerAnswer, quick }) });
+        return {
+          id: model.id,
+          name: model.name,
+          profileId,
+          pace,
+          quick: { ...estimate(true, seconds), lowSeconds: Math.min(estimate(true, low).estimate.onePassSeconds, estimate(true, high).estimate.onePassSeconds), highSeconds: Math.max(estimate(true, low).estimate.onePassSeconds, estimate(true, high).estimate.onePassSeconds) },
+          full: { ...estimate(false, seconds), lowSeconds: Math.min(estimate(false, low).estimate.onePassSeconds, estimate(false, high).estimate.onePassSeconds), highSeconds: Math.max(estimate(false, low).estimate.onePassSeconds, estimate(false, high).estimate.onePassSeconds) },
+        };
+      });
+      const quick = perModel[0]?.quick ?? { answersPerModel: expectedAnswers(result.steps, { logicalCores, tasks, stages, only, quick: true }), estimate: estimateTune(result.steps, { logicalCores, tasks, quick: true }) };
       sendJson(res, 200, {
         tasks,
         stages,
         settings: only,
         logicalCores,
-        models: registry.listPublic().length,
-        answersPerModel: expectedAnswers(result.steps, { logicalCores, tasks, stages, only }),
-        estimate,
+        models: perModel.length,
+        perModel,
+        answersPerModel: perModel[0]?.full.answersPerModel ?? expectedAnswers(result.steps, { logicalCores, tasks, stages, only }),
+        estimate: perModel[0]?.full.estimate ?? estimateTune(result.steps, { logicalCores, tasks }),
+        quick,
       });
       return;
     }

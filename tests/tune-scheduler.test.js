@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { PassThrough } from "node:stream";
 import test from "node:test";
 
@@ -187,6 +190,50 @@ test("pause holds the queue until resume", async () => {
   await settle();
   assert.equal(runner.get().status, "complete");
   assert.equal(runner.get().paused, false);
+});
+
+test("the pending queue can be reordered and survives a restart paused", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "modelduck-queue-"));
+  const queueFile = path.join(dir, "queue.json");
+  const spawn = spawner();
+  const make = () => new TuneScheduler({
+    homeDir: dir,
+    modelsDir: "models",
+    queueFile,
+    scriptPath: "tune-run.mjs",
+    spawnImpl: spawn.spawnImpl,
+    readLanes: async () => ({ cpu: 1, gpu: 0 }),
+    readLane: async () => "cpu",
+    logger: { warn() {} },
+  });
+  const runner = make();
+  runner.start({ models: MODELS.slice(0, 2), stages: ["quality"] });
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  await runner.move(MODELS[1].profileId, "up");
+  assert.deepEqual(runner.get().order, [MODELS[1].profileId, MODELS[0].profileId]);
+
+  const restored = make();
+  const restoredJob = await restored.restore();
+  assert.equal(restoredJob.status, "paused");
+  assert.equal(restoredJob.paused, true);
+  assert.deepEqual(restoredJob.order, [MODELS[1].profileId, MODELS[0].profileId]);
+  runner.cancel();
+  restored.cancel();
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("a guard event can stop the whole queue", async () => {
+  const spawn = spawner();
+  const runner = scheduler(spawn, { lanes: { cpu: 1, gpu: 0 } });
+  runner.start({ models: MODELS.slice(0, 2), stages: ["quality"], guard: true, guardQueue: true });
+  await settle();
+  const child = spawn.children[0];
+  child.stdout.write(`${JSON.stringify({ type: "complete", phase: "tune", guard: { task: "code", rate: 10, baselineRate: 60 } })}\n`);
+  child.finish(0);
+  await settle();
+  assert.equal(runner.get().status, "guarded");
+  assert.equal(runner.get().items[0].status, "done");
+  assert.equal(runner.get().items[1].status, "cancelled");
 });
 
 test("only one scheduled run at a time", () => {

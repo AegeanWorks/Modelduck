@@ -528,7 +528,10 @@ test("tune steps can be read, edited and estimated through the API", async (t) =
   assert.deepEqual(estimate.stages, ["quality", "sampling"]);
   assert.ok(estimate.answersPerModel > 0);
   assert.ok(estimate.estimate.onePassSeconds > 0);
+  assert.ok(estimate.quick.answersPerModel < estimate.answersPerModel);
+  assert.ok(estimate.quick.estimate.onePassSeconds < estimate.estimate.onePassSeconds);
   assert.equal(estimate.models, 1);
+  assert.equal(estimate.perModel.length, 1);
   const badEstimate = await fetch(`${harness.base}/api/tune/estimate?tasks=poetry`);
   assert.equal(badEstimate.status, 400);
   assert.equal((await badEstimate.json()).error.code, "unknown_task");
@@ -536,14 +539,19 @@ test("tune steps can be read, edited and estimated through the API", async (t) =
 
 test("tunes for one model or all installed models are scheduled, watched and cancelled through the API", async (t) => {
   const starts = [];
+  const moves = [];
   let job = null;
   const tunes = {
     start(request) {
       starts.push(request);
-      job = { status: "running", paused: false, items: request.models.map((model) => ({ profileId: model.profileId, status: "queued" })) };
+      job = { status: "running", paused: false, order: request.models.map((model) => model.profileId), items: request.models.map((model) => ({ profileId: model.profileId, status: "queued" })) };
       return job;
     },
     get: () => job,
+    move(profileId, direction) {
+      moves.push([profileId, direction]);
+      return job;
+    },
     pause() {
       job = { ...job, paused: true };
       return job;
@@ -584,12 +592,16 @@ test("tunes for one model or all installed models are scheduled, watched and can
   assert.equal(starts[1].models[0].profileId, profileIdFor(installed.fileName));
   assert.deepEqual(starts[1].tasks, ["code"]);
 
-  const quick = await post("/api/tune/start", { models: [installed.id], tasks: ["code"], quick: true, guard: true });
+  const quick = await post("/api/tune/start", { models: [installed.id], tasks: ["code"], quick: true, guard: true, guardQueue: true });
   assert.equal(quick.status, 202);
   assert.equal(starts.at(-1).quick, true);
   assert.equal(starts.at(-1).guard, true);
+  assert.equal(starts.at(-1).guardQueue, true);
   assert.equal((await (await post("/api/tune/pause")).json()).job.paused, true);
   assert.equal((await (await post("/api/tune/resume")).json()).job.paused, false);
+  assert.equal((await post("/api/tune/priority", { profileId: profileIdFor(installed.fileName), direction: "down" })).status, 200);
+  assert.deepEqual(moves, [[profileIdFor(installed.fileName), "down"]]);
+  assert.equal((await post("/api/tune/priority", { direction: "sideways" })).status, 400);
 
   const unknown = await post("/api/tune/start", { models: ["no-such-model"] });
   assert.equal(unknown.status, 404);

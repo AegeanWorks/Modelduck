@@ -113,7 +113,7 @@ device. It is off by default so a missing driver never prevents local inference 
   **Runs** keeps every run and answer; stopped runs continue. **Tune
   settings** edits the values each setting is tried at and the lanes for this PC. **Benchmark** lists each task's question types and checks.
   Stages run Device → Quality → Speed → Sampling → Prompt: Quality sets the context and KV cache first so Speed is measured on the final load shape.
-  Choose Code, Comprehension or Long context before starting; the Tune panel shows a preflight estimate, offers a **Quick pass** that saves the first rung before continuing the full tune, can pause/resume between models, stops on a held-back regression when asked, and can run in the background.
+  Choose tasks; the Tune panel shows quick/full estimates from measured run pace, offers **Quick pass**, pauses/resumes and reorders a durable queue, can stop one task or the whole queue on a regression, and can run in the background.
   **Recommended for this PC** ranks installed models by measured answers and speed, then catalog estimates.
   The client chooses a preset per task with `x-modelduck-task`; **Settings** has the tuned on/off switch
   and Fastest/Light/Quiet. A collapsible **How tuning works** section in Tune explains the five stages, the
@@ -320,6 +320,7 @@ GET    /api/tune/stream
 POST   /api/tune/start
 POST   /api/tune/pause
 POST   /api/tune/resume
+POST   /api/tune/priority
 POST   /api/tune/cancel
 GET    /api/tune/steps
 PUT    /api/tune/steps

@@ -132,6 +132,14 @@ test("stage 4 scores every system prompt on the task's full set, then tunes reas
   assert.equal(prompts.rungs[0].candidates.length, 3, "no prompt is eliminated early");
 });
 
+test("a guardrail stops the remaining tasks below the saved baseline", async () => {
+  const { result } = run({ guard: true, baseline: { math: 101 } });
+  const done = await result;
+  assert.equal(done.guard?.task, "math");
+  assert.equal(done.guard?.baselineRate, 101);
+  assert.equal(done.guard?.rate, 100);
+});
+
 test("only the chosen stages run, and only tuned keys are stored, so the rest stay default", async () => {
   const { model, result } = run({ stages: ["quality"] });
   const done = await result;

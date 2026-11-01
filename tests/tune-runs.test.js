@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { answersFile, itemOutcomes, listRuns, loadRun, startRun, summarizeAnswers } from "../src/tune-runs.js";
+import { answerPaceByProfile, answersFile, itemOutcomes, listRuns, loadRun, startRun, summarizeAnswers } from "../src/tune-runs.js";
 
 async function runsDir(t) {
   const dir = await mkdtemp(path.join(os.tmpdir(), "modelduck-runs-"));
@@ -32,6 +32,18 @@ test("a tune run keeps its summary and every answer, and ends with its outcome",
   assert.deepEqual(saved.sweeps, [{ axis: "systemPrompt" }]);
   const lines = (await readFile(answersFile(dir, run.id), "utf8")).trim().split("\n").map((line) => JSON.parse(line));
   assert.deepEqual(lines.map((line) => [line.item, line.passed]), [["code-1", 1], ["code-2", 0]]);
+});
+
+test("measured pace comes from recent run summaries with a low/high range", async (t) => {
+  const dir = await runsDir(t);
+  const slow = await startRun(dir, { profileId: "a", model: "a.gguf", request: REQUEST, now: new Date("2026-10-31T10:00:00Z"), pid: 111 });
+  await slow.update({ answers: 100 });
+  await slow.finish({ outcome: "done", now: new Date("2026-10-31T10:10:00Z") });
+  const fast = await startRun(dir, { profileId: "a", model: "a.gguf", request: REQUEST, now: new Date("2026-10-31T11:00:00Z"), pid: 222 });
+  await fast.update({ answers: 200 });
+  await fast.finish({ outcome: "done", now: new Date("2026-10-31T11:05:00Z") });
+  const paces = await answerPaceByProfile(dir);
+  assert.deepEqual(paces.get("a"), { secondsPerAnswer: 1.5, low: 1.5, high: 6, samples: 2 });
 });
 
 test("runs are listed newest first, and one whose process died while running shows as interrupted", async (t) => {

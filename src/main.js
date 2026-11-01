@@ -118,7 +118,8 @@ async function main() {
   const tuned = new TunedSettings({ profilesDir: paths.profiles, registry, settings });
   const jit = new JitManager({ engine, registry, settings, serverSettings, tuned });
   const benchmarks = new BenchmarkRunner({ modelsDir: paths.models, homeDir: paths.home });
-  const tunes = new TuneScheduler({ homeDir: paths.home, modelsDir: paths.models, profilesDir: paths.profiles, tuneStepsFile: paths.tuneGrid });
+  const tunes = new TuneScheduler({ homeDir: paths.home, modelsDir: paths.models, profilesDir: paths.profiles, tuneStepsFile: paths.tuneGrid, queueFile: path.join(paths.home, "tune-queue.json") });
+  await tunes.restore();
 
   const server = createHttpServer({
     settings,

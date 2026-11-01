@@ -74,10 +74,11 @@ test("the control panel is wired and the chat shell is gone", () => {
     );
   }
   assert.match(html, /id="tune-tasks"/);
-  for (const id of ["tune-task-code", "tune-task-comprehension", "tune-task-recall", "tune-preflight", "tune-quick", "tune-pause", "tune-guard", "tune-background"]) {
+  for (const id of ["tune-task-code", "tune-task-comprehension", "tune-task-recall", "tune-preflight", "tune-quick", "tune-pause", "tune-guard", "tune-guard-queue", "tune-background"]) {
     assert.ok(html.includes(id), `missing tuning control: ${id}`);
   }
   assert.match(cssRules, /\.tune-scope\b/, "missing tuning task scope style");
+  assert.match(cssRules, /\.tune-move\b/, "missing queue move style");
   for (const selector of ["dashboard", "rail", "metric-strip", "panel", "status-card"]) {
     assert.match(cssRules, new RegExp(`\\.${selector}\\b`), `missing control-panel selector .${selector}`);
   }

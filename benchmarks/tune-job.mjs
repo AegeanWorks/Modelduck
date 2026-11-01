@@ -14,7 +14,7 @@ import { itemOutcomes, startRun } from "../src/tune-runs.js";
 import { PROMPTS, SYSTEM_PROMPT } from "./suite.mjs";
 import { codeGroupOf, tuneRungs, withDiscriminatingRungs } from "./tasks.mjs";
 import { STAGES, resultFrom, tune } from "./tune.mjs";
-import { expectedAnswers, promptAxes, qualityAxes, samplingAxes, speedAxes } from "./tune-grid.mjs";
+import { expectedAnswers, promptAxes, qualityAxes, quickRungs, samplingAxes, speedAxes } from "./tune-grid.mjs";
 import { createEvaluator } from "./tune-evaluate.mjs";
 
 /** One installed model, ready to tune or measure: where it is, its profile name and what it runs on. */
@@ -56,14 +56,6 @@ export function tuneBase() {
 }
 
 /** A provisional pass: the first rung of each task and stage, with no held-back check yet. */
-function quickRungs(rungs, tasks) {
-  const copy = { ...rungs, holdout: {} };
-  copy.load = rungs.load.slice(0, 1);
-  copy.speed = rungs.speed.slice(0, 1);
-  copy.loadByTask = Object.fromEntries(tasks.map((task) => [task, (rungs.loadByTask?.[task] ?? []).slice(0, 1)]));
-  for (const task of tasks) copy[task] = rungs[task].slice(0, 1);
-  return copy;
-}
 
 /**
  * Tune a target in stages, reusing its saved profile (ADR-028, ADR-030).
@@ -75,6 +67,9 @@ export async function runTune(target, { tasks, stages = STAGES, only = null, ste
   const plan = planTune(saved, tasks, stages, only, { continueRun });
   const warnings = saved?.warnings ?? [];
   if (plan.skip) return { skipped: true, warnings, profile: saved.profile, result: null };
+  const baseline = Object.fromEntries(Object.entries(saved?.profile?.tasks ?? {})
+    .map(([task, preset]) => [task, preset?.stats?.rate])
+    .filter(([, rate]) => Number.isFinite(rate)));
   onStart(plan);
   const base = tuneBase();
   const logicalCores = target.system.parallelism;
@@ -162,6 +157,7 @@ export async function runTune(target, { tasks, stages = STAGES, only = null, ste
       only,
       quick,
       guard,
+      baseline,
       resume: plan.resume,
       rungs: activeRungs,
       tunedOn,

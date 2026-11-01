@@ -302,6 +302,16 @@ function axisAnswers(count, rungSizes, seeds, full = false) {
   return answers * seeds;
 }
 
+/** The first rung of each task and stage, for a provisional pass with no held-back check yet. */
+export function quickRungs(rungs, tasks = ["code", "comprehension", "recall"]) {
+  const copy = { ...rungs, holdout: {} };
+  copy.load = rungs.load.slice(0, 1);
+  copy.speed = rungs.speed.slice(0, 1);
+  copy.loadByTask = Object.fromEntries(tasks.map((task) => [task, (rungs.loadByTask?.[task] ?? []).slice(0, 1)]));
+  for (const task of tasks) copy[task] = rungs[task].slice(0, 1);
+  return copy;
+}
+
 function stageCost(axes, sizes, seeds, secondsPerAnswer, reloadSeconds = 0) {
   const entry = { configs: 0, answers: 0, seconds: 0 };
   // A memory-budget axis asks no questions (ADR-043).
@@ -319,8 +329,9 @@ function stageCost(axes, sizes, seeds, secondsPerAnswer, reloadSeconds = 0) {
  * and prompt stages count every seed and every axis, so they are upper bounds;
  * a second pass only runs when the first changed something.
  */
-export function estimateTune(steps, { logicalCores = 8, tasks = ["code", "comprehension", "recall"], secondsPerAnswer = 3, reloadSeconds = 5, seeds = 3 } = {}) {
-  const rungs = tuneRungs(tasks);
+export function estimateTune(steps, { logicalCores = 8, tasks = ["code", "comprehension", "recall"], secondsPerAnswer = 3, reloadSeconds = 5, seeds = 3, quick = false } = {}) {
+  const allRungs = tuneRungs(tasks);
+  const rungs = quick ? quickRungs(allRungs, tasks) : allRungs;
   const device = stageCost([{ patches: steps.device.backends }], [speedItems().length], 1, secondsPerAnswer, reloadSeconds);
   const quality = stageCost(qualityAxes(steps.load), rungs.load.map((rung) => rung.length), 1, secondsPerAnswer, 2 * reloadSeconds);
   const speed = stageCost(speedAxes({ logicalCores }, steps.load), [speedItems().length], 1, secondsPerAnswer, reloadSeconds);
@@ -341,8 +352,9 @@ export function estimateTune(steps, { logicalCores = 8, tasks = ["code", "compre
  * pass: the denominator of its time left (ADR-045). Sampling and prompt count every
  * seed, so it is an upper bound; a memory-budget axis asks none.
  */
-export function expectedAnswers(steps, { logicalCores = 8, tasks = ["code", "comprehension", "recall"], stages = ["device", "quality", "speed", "sampling", "prompt"], only = null, seeds = 3 } = {}) {
-  const rungs = tuneRungs(tasks);
+export function expectedAnswers(steps, { logicalCores = 8, tasks = ["code", "comprehension", "recall"], stages = ["device", "quality", "speed", "sampling", "prompt"], only = null, seeds = 3, quick = false } = {}) {
+  const allRungs = tuneRungs(tasks);
+  const rungs = quick ? quickRungs(allRungs, tasks) : allRungs;
   const chosen = (axes) => axes.filter((axis) => !axis.budget && (!only || only.includes(axis.name)));
   const cost = (axes, sizes, seedCount) => chosen(axes).reduce((sum, axis) => sum + axisAnswers(axis.patches.length, sizes, seedCount, axis.full), 0);
   let total = 0;

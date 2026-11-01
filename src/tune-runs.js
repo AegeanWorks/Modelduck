@@ -111,6 +111,38 @@ export async function loadRun(dir, id, { isAlive = isAliveDefault } = {}) {
   return record ? present(record, isAlive) : null;
 }
 
+const median = (sorted) => percentile(sorted, 0.5);
+
+/**
+ * Recent measured pace per model, from completed or stopped runs: seconds of
+ * whole-run time per answer. The run summary already has the duration and
+ * answer count, so this does not open the answer files. The latest three runs
+ * per model give a median and a low/high range for the preflight.
+ */
+export async function answerPaceByProfile(dir, { perProfile = 3 } = {}) {
+  const runs = await listRuns(dir);
+  const samples = new Map();
+  for (const run of runs) {
+    if (!run.profileId || !(run.answers > 0) || !(run.durationMs > 0)) continue;
+    if (!["done", "stopped", "interrupted"].includes(run.outcome)) continue;
+    const seconds = run.durationMs / 1000 / run.answers;
+    if (!(seconds >= 0.05 && seconds <= 300)) continue;
+    const list = samples.get(run.profileId) ?? [];
+    if (list.length >= perProfile) continue;
+    list.push(seconds);
+    samples.set(run.profileId, list);
+  }
+  return new Map([...samples].map(([profileId, list]) => {
+    const sorted = [...list].sort((left, right) => left - right);
+    return [profileId, {
+      secondsPerAnswer: Math.round(median(sorted) * 1000) / 1000,
+      low: Math.round(sorted[0] * 1000) / 1000,
+      high: Math.round(sorted.at(-1) * 1000) / 1000,
+      samples: sorted.length,
+    }];
+  }));
+}
+
 /** Every saved run without its details, newest first; one left running by a process that has died is "interrupted". */
 export async function listRuns(dir, { isAlive = isAliveDefault } = {}) {
   const names = await fs.promises.readdir(dir).catch(() => []);

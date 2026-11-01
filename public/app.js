@@ -109,6 +109,7 @@ const els = {
   tunePause: $("tune-pause"),
   tuneCancel: $("tune-cancel"),
   tuneGuard: $("tune-guard"),
+  tuneGuardQueue: $("tune-guard-queue"),
   tuneBackground: $("tune-background"),
   tunePreflight: $("tune-preflight"),
   tuneProgress: $("tune-progress"),
@@ -188,7 +189,8 @@ const SETTING_HELP = {
   "tune-task-code": "Tune the code task's sampling and prompt settings. Shared device, quality and speed stages still run once.",
   "tune-task-comprehension": "Tune code-comprehension sampling and prompt settings. Shared device, quality and speed stages still run once.",
   "tune-task-recall": "Tune long-context sampling and prompt settings. Shared device, quality and speed stages still run once.",
-  "tune-guard": "Stop the remaining tasks when the first held-back check falls back to the defaults.",
+  "tune-guard": "Stop the remaining tasks when the first held-back check falls back to the defaults or a task falls below its saved profile.",
+  "tune-guard-queue": "Stop the whole queue, including other running models, when the guardrail fires.",
   "tune-background": "Close the Bench dialog after starting; the tune keeps running in ModelDuck.",
 };
 
@@ -2414,6 +2416,10 @@ function tuneCell(text, title = "") {
 
 function renderTuneModels() {
   const models = state.tuneOverview ?? [];
+  const order = state.tuneJob?.order;
+  const ordered = order?.length
+    ? [...models].sort((left, right) => (order.indexOf(left.profileId) + 1 || Infinity) - (order.indexOf(right.profileId) + 1 || Infinity))
+    : models;
   const items = new Map((state.tuneJob?.items ?? []).map((item) => [item.profileId, item]));
   els.tuneModels.replaceChildren();
   if (!models.length) {
@@ -2431,16 +2437,17 @@ function renderTuneModels() {
   }
   const body = table.createTBody();
   const running = state.tuneJob?.status === "running";
+  const queueActive = running || state.tuneJob?.status === "paused";
   // Several quantisations of one model share a name; show their file names then.
   const repeated = new Set(models.map((model) => model.name).filter((name, index, names) => names.indexOf(name) !== index));
-  for (const model of models) {
+  for (const [position, model] of ordered.entries()) {
     const profile = model.profile;
     const row = body.insertRow();
     const item = items.get(model.profileId);
     const step = item?.progress?.stage ? ` · ${item.progress.stage}${item.progress.axis ? `: ${item.progress.axis}` : ""}` : "";
     // The tune's own estimate from its measured pace (ADR-045).
     const eta = item?.progress?.eta ? ` · ${item.progress.eta}` : "";
-    const live = item && running ? ` — ${item.status}${item.lane ? ` in the ${item.lane.toUpperCase()} lane` : ""}${step}${eta}` : "";
+    const live = item && running ? ` — ${item.status}${item.lane ? ` in the ${item.lane.toUpperCase()} lane` : ""}${step}${eta}${item.provisional ? " · quick preset saved" : ""}` : "";
     const label = repeated.has(model.name) ? `${model.name} (${model.fileName})` : model.name;
     const nameCell = tuneCell(`${label}${live}`, model.fileName);
     // Say why a profile is out of date, not only that it is.
@@ -2489,6 +2496,17 @@ function renderTuneModels() {
     // A finished tune is skipped unless asked again, so say how.
     else if (complete) button.title = "Fully tuned. Choose some stages or settings above to measure them again, or tick Re-tune from scratch.";
     action.className = "tune-actions-cell";
+    if (queueActive) {
+      const up = Object.assign(document.createElement("button"), { type: "button", className: "small-btn tune-move", textContent: "↑", title: "Move earlier in the queue" });
+      up.dataset.tuneMove = "up";
+      up.dataset.tuneId = model.profileId;
+      up.disabled = position === 0 || item?.status !== "queued";
+      const down = Object.assign(document.createElement("button"), { type: "button", className: "small-btn tune-move", textContent: "↓", title: "Move later in the queue" });
+      down.dataset.tuneMove = "down";
+      down.dataset.tuneId = model.profileId;
+      down.disabled = position === ordered.length - 1 || item?.status !== "queued";
+      action.append(up, down);
+    }
     action.appendChild(button);
     if (profile) {
       const more = Object.assign(document.createElement("button"), { type: "button", className: "small-btn", textContent: state.tuneOpen.has(model.id) ? "Hide" : "Details" });
@@ -2547,18 +2565,20 @@ function renderTuneBest(models, repeated) {
 function renderTuneJob() {
   const job = state.tuneJob;
   const running = job?.status === "running";
-  els.tuneAll.disabled = running;
-  els.tuneQuick.disabled = running;
-  els.tunePause.disabled = !running;
-  els.tunePause.textContent = job?.paused ? "Resume" : "Pause";
-  els.tuneCancel.disabled = !running;
-  els.tuneRunState.textContent = job?.paused ? "paused" : job ? job.status : "idle";
+  const paused = Boolean(job?.paused) || job?.status === "paused";
+  const active = running || paused;
+  els.tuneAll.disabled = active;
+  els.tuneQuick.disabled = active;
+  els.tunePause.disabled = !active;
+  els.tunePause.textContent = paused ? "Resume" : "Pause";
+  els.tuneCancel.disabled = !active;
+  els.tuneRunState.textContent = paused ? "paused" : job ? job.status : "idle";
   els.tuneRunState.className = running ? "badge accent" : job?.status === "complete" ? "badge green" : "badge";
   if (job) {
     const count = (status) => job.items.filter((item) => item.status === status).length;
     const failed = job.items.filter((item) => item.status === "failed").map((item) => `${item.name}: ${item.error}`);
     const guards = job.items.filter((item) => item.guard);
-    els.tuneProgress.textContent = `${count("done") + count("skipped")} of ${job.items.length} models finished · ${count("running")} running · ${count("queued")} waiting${job.paused ? " · paused" : ""}${failed.length ? ` · failed: ${failed.join("; ")}` : ""}${guards.length ? ` · guard stopped: ${guards.map((item) => item.guard.task).join(", ")}` : ""}`;
+    els.tuneProgress.textContent = `${count("done") + count("skipped")} of ${job.items.length} models finished · ${count("running")} running · ${count("queued")} waiting${paused ? " · paused" : ""}${failed.length ? ` · failed: ${failed.join("; ")}` : ""}${guards.length ? ` · guard stopped: ${guards.map((item) => item.guard.task).join(", ")}` : ""}${job.status === "guarded" ? " · whole queue stopped" : ""}`;
   }
   renderTuneModels();
   renderTuneLive(job);
@@ -2582,8 +2602,21 @@ async function refreshTunePreflight() {
   }
   try {
     const data = await request(`/api/tune/estimate?tasks=${encodeURIComponent(tasks.join(","))}&stages=${encodeURIComponent(stages.join(","))}`);
-    const models = data.models === 1 ? "1 model" : `${data.models} models`;
-    els.tunePreflight.textContent = `${data.answersPerModel} answers/model · ~${formatSpan(data.estimate.onePassSeconds)}/pass · ${models}`;
+    const models = data.perModel ?? [];
+    const count = data.models === 1 ? "1 model" : `${data.models} models`;
+    const fallback = (kind) => (kind === "quick" ? data.quick?.estimate : data.estimate)?.onePassSeconds ?? 0;
+    const low = (kind, key) => models.length ? Math.min(...models.map((model) => model[kind][key])) : fallback(kind);
+    const high = (kind, key) => models.length ? Math.max(...models.map((model) => model[kind][key])) : fallback(kind);
+    const range = (kind) => {
+      const first = formatSpan(low(kind, "lowSeconds"));
+      const last = formatSpan(high(kind, "highSeconds"));
+      return first === last ? first : `${first}–${last}`;
+    };
+    const measured = models.filter((model) => model.pace).map((model) => model.pace);
+    const pace = measured.length
+      ? `measured ${Math.min(...measured.map((item) => item.low))}–${Math.max(...measured.map((item) => item.high))} s/answer`
+      : "fixed 3 s/answer until a run finishes";
+    els.tunePreflight.textContent = `Quick: ${data.quick?.answersPerModel ?? "–"} answers/model · ~${range("quick")}\nFull: ${data.answersPerModel ?? "–"} answers/model · ~${range("full")} · ${count} · ${pace}`;
   } catch {
     els.tunePreflight.textContent = "Could not estimate this run.";
   }
@@ -2591,8 +2624,18 @@ async function refreshTunePreflight() {
 
 async function pauseOrResumeTune() {
   try {
-    const route = state.tuneJob?.paused ? "/api/tune/resume" : "/api/tune/pause";
+    const route = state.tuneJob?.paused || state.tuneJob?.status === "paused" ? "/api/tune/resume" : "/api/tune/pause";
     const { job } = await request(route, { method: "POST" });
+    state.tuneJob = job;
+    renderTuneJob();
+  } catch (error) {
+    showError(error);
+  }
+}
+
+async function moveTune(profileId, direction) {
+  try {
+    const { job } = await request("/api/tune/priority", { method: "POST", body: { profileId, direction } });
     state.tuneJob = job;
     renderTuneJob();
   } catch (error) {
@@ -2837,7 +2880,7 @@ async function startTune(models, { force = false, forceStale = false, stage = nu
   // A part run measures its parts again on top of the saved rest; only a whole tune starts a stale profile over (ADR-040).
   const partRun = settings.length > 0 || stages.length < all.length;
   try {
-    const { job } = await request("/api/tune/start", { method: "POST", body: { models, ...(taskList && { tasks: taskList }), ...(continueRun && { continue: true }), stages, settings: settings.length ? settings : null, force: !continueRun && (useForm ? ((force && !partRun) || (!stage && els.tuneForce.checked)) : force), forceStale, quick: Boolean(quick), guard: useForm ? Boolean(els.tuneGuard?.checked) : false } });
+    const { job } = await request("/api/tune/start", { method: "POST", body: { models, ...(taskList && { tasks: taskList }), ...(continueRun && { continue: true }), stages, settings: settings.length ? settings : null, force: !continueRun && (useForm ? ((force && !partRun) || (!stage && els.tuneForce.checked)) : force), forceStale, quick: Boolean(quick), guard: useForm ? Boolean(els.tuneGuard?.checked) : false, guardQueue: useForm ? Boolean(els.tuneGuardQueue?.checked) : false } });
     state.tuneJob = job;
     // A started tune is followed on the Tune tab.
     showBenchTab("tune");
@@ -3335,6 +3378,11 @@ function bindEvents() {
     const taskStage = event.target.closest("[data-tune-task-stage]");
     if (taskStage) {
       void startTune([taskStage.dataset.tuneTaskModel], { stage: taskStage.dataset.tuneTaskStage, tasks: [taskStage.dataset.tuneTask] });
+      return;
+    }
+    const move = event.target.closest("[data-tune-move]");
+    if (move) {
+      void moveTune(move.dataset.tuneId, move.dataset.tuneMove);
       return;
     }
     const rerun = event.target.closest("[data-tune-rerun]");
