@@ -516,5 +516,19 @@
     "final_snapshot_digest": "",
     "final_snapshot_entries": 0,
     "surface_digest": "9b7d8059fd28ae514141227b50c9f715c2eb49fcfb57bf568f9de7ab1da7159d"
+  },
+  {
+    "schema": 1,
+    "surface": "app",
+    "baseline_commit": "d29ab27410039bb29650915dcdbd79cdf2da0a36",
+    "contract_hash": "c6a291e913a9c8f174aadf7fb264b0941c55e9f4999a9a43152f1fb616845d11",
+    "started_at": 1793520178.433753,
+    "finished_at": 1793520190.6481068,
+    "strikes": 0,
+    "reviewer": "Command Code (AI; reviewed the tuning help in headless Edge at 1440 and 390, opened the section and verified its content in the smoke; delegated by the user on 2026-11-01)",
+    "allowed_removals": [],
+    "final_snapshot_digest": "",
+    "final_snapshot_entries": 0,
+    "surface_digest": "dca4591c1e0bb081e6d417860912b4e61c3863b173d1d262505ed4c51e103bdf"
   }
 ]
