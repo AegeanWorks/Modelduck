@@ -31,36 +31,319 @@
       "path": "assets/social-preview.svg",
       "status": "approved",
       "commit": "",
-      "generated_at": "2026-10-30T00:12:46",
-      "review": {
-        "status": "approved",
-        "reviewer": "human:owner",
-        "method": "structural",
-        "notes": "Inlined complete standalone yellow ModelDuck mascot vector with navy badge, drop shadow, body, wing, beak, blush, and sparkles directly into SVG; eliminated external image reference so duck renders in all viewers; aligned tag 3 indicator dot to x=830",
-        "score": 96,
-        "reviewed_at": "2026-10-31T14:50:04"
-      }
-    }
-  },
-  "screenshots": [
-    {
-      "path": "assets/screenshot-control.png",
-      "alt": "ModelDuck control panel at 2026-11-01",
-      "caption": "ModelDuck control panel captured from public/index.html",
-      "commit": "df317b8a47a2b6e1b86c2ce4645ed428f1399976",
-      "taken_at": "2026-11-01",
-      "viewport": "1440x900",
-      "width": 1440,
-      "height": 900,
-      "status": "approved",
+      "generated_at": "2026-11-01T18:45:00",
       "review": {
         "status": "approved",
         "reviewer": "commandcode:1",
         "method": "vision",
-        "notes": "ModelDuck 1440x900 control panel: instrument rail, overview metrics, model list, Bench and API links; the new Bench workspace was reviewed separately at 1440 and 390.",
-        "score": 95,
-        "reviewed_at": "2026-11-01T04:30:00"
+        "notes": "Updated to the inference-workbench positioning: local GGUF serving, an OpenAI-compatible API, coding tuning, measured presets and the Bench & Tune workspace; added a fourth tag and a raster 1280x640 card.",
+        "score": 96,
+        "reviewed_at": "2026-11-01T18:45:00"
       }
+    },
+    "social_preview_png": {
+      "path": "assets/social-preview.png",
+      "status": "approved",
+      "generated_at": "2026-11-01T18:45:00"
+    }
+  },
+  "screenshots": [
+    {
+      "path": "assets/screenshots/01-overview.png",
+      "alt": "Overview",
+      "caption": "The workbench at a glance: runtime, installed models, tuned profiles and the local API.",
+      "commit": "",
+      "taken_at": "2026-11-01",
+      "viewport": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "status": "approved"
+    },
+    {
+      "path": "assets/screenshots/02-models-installed.png",
+      "alt": "Installed models",
+      "caption": "Two local GGUF models, ready to load or tune.",
+      "commit": "",
+      "taken_at": "2026-11-01",
+      "viewport": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "status": "approved"
+    },
+    {
+      "path": "assets/screenshots/03-models-discover.png",
+      "alt": "Discover models",
+      "caption": "Catalog models sized for this machine.",
+      "commit": "",
+      "taken_at": "2026-11-01",
+      "viewport": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "status": "approved"
+    },
+    {
+      "path": "assets/screenshots/04-bench-tune-idle.png",
+      "alt": "Tune workspace",
+      "caption": "Task scope, quick/full estimates from measured pace, Quick pass and guard controls.",
+      "commit": "",
+      "taken_at": "2026-11-01",
+      "viewport": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "status": "approved"
+    },
+    {
+      "path": "assets/screenshots/04b-bench-tune-controls.png",
+      "alt": "Tune controls",
+      "caption": "Quick pass, pause, cancel, guard and background controls.",
+      "commit": "",
+      "taken_at": "2026-11-01",
+      "viewport": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "status": "approved"
+    },
+    {
+      "path": "assets/screenshots/05-bench-tune-help.png",
+      "alt": "Tuning help",
+      "caption": "The five stages, increasing rungs, clear-gain rule and held-back check.",
+      "commit": "",
+      "taken_at": "2026-11-01",
+      "viewport": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "status": "approved"
+    },
+    {
+      "path": "assets/screenshots/06-bench-models.png",
+      "alt": "Tuned profiles",
+      "caption": "Per-model device, stage progress and right answers for every task.",
+      "commit": "",
+      "taken_at": "2026-11-01",
+      "viewport": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "status": "approved"
+    },
+    {
+      "path": "assets/screenshots/07-bench-model-details.png",
+      "alt": "Profile details",
+      "caption": "The measured load shape, speed presets and task settings behind a profile.",
+      "commit": "",
+      "taken_at": "2026-11-01",
+      "viewport": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "status": "approved"
+    },
+    {
+      "path": "assets/screenshots/08-bench-runs.png",
+      "alt": "Run history",
+      "caption": "Every tune run, its request, outcome, duration, answers and measured pace.",
+      "commit": "",
+      "taken_at": "2026-11-01",
+      "viewport": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "status": "approved"
+    },
+    {
+      "path": "assets/screenshots/09-bench-run-detail.png",
+      "alt": "Run detail",
+      "caption": "One run in full: outcome, answer statistics, task results and decisions.",
+      "commit": "",
+      "taken_at": "2026-11-01",
+      "viewport": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "status": "approved"
+    },
+    {
+      "path": "assets/screenshots/10-bench-tune-settings.png",
+      "alt": "Tune settings",
+      "caption": "The values each setting is tried at and the CPU/GPU lanes for this PC.",
+      "commit": "",
+      "taken_at": "2026-11-01",
+      "viewport": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "status": "approved"
+    },
+    {
+      "path": "assets/screenshots/11-bench-suite.png",
+      "alt": "Benchmark suite",
+      "caption": "Questions, sources, checks and tuning rounds for all three coding tasks.",
+      "commit": "",
+      "taken_at": "2026-11-01",
+      "viewport": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "status": "approved"
+    },
+    {
+      "path": "assets/screenshots/11b-bench-suite-long-context.png",
+      "alt": "Suite details",
+      "caption": "Comprehension and long-context tasks, their rungs and held-back quarter.",
+      "commit": "",
+      "taken_at": "2026-11-01",
+      "viewport": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "status": "approved"
+    },
+    {
+      "path": "assets/screenshots/12-bench-gate.png",
+      "alt": "Benchmark gate",
+      "caption": "The coding suite's quality gate with item rates, categories and history.",
+      "commit": "",
+      "taken_at": "2026-11-01",
+      "viewport": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "status": "approved"
+    },
+    {
+      "path": "assets/screenshots/13-settings.png",
+      "alt": "Settings",
+      "caption": "Runtime, sampling, prompt and tuning switches in one panel.",
+      "commit": "",
+      "taken_at": "2026-11-01",
+      "viewport": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "status": "approved"
+    },
+    {
+      "path": "assets/screenshots/14-light-overview.png",
+      "alt": "Light theme",
+      "caption": "The same workbench in the light theme.",
+      "commit": "",
+      "taken_at": "2026-11-01",
+      "viewport": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "status": "approved"
+    },
+    {
+      "path": "assets/screenshots/15-server.png",
+      "alt": "Server",
+      "caption": "Port, LAN, authentication, CORS and the OpenAI-compatible endpoint.",
+      "commit": "",
+      "taken_at": "2026-11-01",
+      "viewport": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "status": "approved"
+    },
+    {
+      "path": "assets/screenshots/16-bench-tune-running.png",
+      "alt": "Live tune and queue",
+      "caption": "A guarded quick pass, live candidates, a provisional preset and a reorderable queue.",
+      "commit": "",
+      "taken_at": "2026-11-01",
+      "viewport": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "status": "approved"
+    },
+    {
+      "path": "assets/screenshots/17-bench-tune-queue.png",
+      "alt": "Queue controls",
+      "caption": "Move a waiting model earlier or later; pause between models; stop the whole queue on a regression.",
+      "commit": "",
+      "taken_at": "2026-11-01",
+      "viewport": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "status": "approved"
+    },
+    {
+      "path": "assets/screenshots/17b-bench-live.png",
+      "alt": "Live candidates and decisions",
+      "caption": "The setting being tried now, its candidate table and the decisions this run.",
+      "commit": "",
+      "taken_at": "2026-11-01",
+      "viewport": "1440x900",
+      "width": 1440,
+      "height": 900,
+      "status": "approved"
+    },
+    {
+      "path": "assets/screenshots/18-mobile-overview.png",
+      "alt": "Overview on mobile",
+      "caption": "The same workbench at 390 px: one column, no horizontal overflow.",
+      "commit": "",
+      "taken_at": "2026-11-01",
+      "viewport": "390x844",
+      "width": 390,
+      "height": 844,
+      "status": "approved"
+    },
+    {
+      "path": "assets/screenshots/19-mobile-tune.png",
+      "alt": "Tune on mobile",
+      "caption": "The Tune workspace becomes a full-screen sheet with a horizontal section rail.",
+      "commit": "",
+      "taken_at": "2026-11-01",
+      "viewport": "390x844",
+      "width": 390,
+      "height": 844,
+      "status": "approved"
+    },
+    {
+      "path": "assets/screenshots/19b-mobile-tune-controls.png",
+      "alt": "Tune controls on mobile",
+      "caption": "Preflight, task scope and the Quick pass controls remain reachable at 390 px.",
+      "commit": "",
+      "taken_at": "2026-11-01",
+      "viewport": "390x844",
+      "width": 390,
+      "height": 844,
+      "status": "approved"
+    },
+    {
+      "path": "assets/screenshots/20-mobile-models.png",
+      "alt": "Models on mobile",
+      "caption": "Installed models and actions remain reachable at 390 px.",
+      "commit": "",
+      "taken_at": "2026-11-01",
+      "viewport": "390x844",
+      "width": 390,
+      "height": 844,
+      "status": "approved"
+    },
+    {
+      "path": "assets/screenshots/21-mobile-settings.png",
+      "alt": "Settings on mobile",
+      "caption": "Settings scroll cleanly inside the phone-sized sheet.",
+      "commit": "",
+      "taken_at": "2026-11-01",
+      "viewport": "390x844",
+      "width": 390,
+      "height": 844,
+      "status": "approved"
+    },
+    {
+      "path": "assets/screenshots/22-mobile-suite.png",
+      "alt": "Suite on mobile",
+      "caption": "The benchmark suite remains readable with a horizontal section rail.",
+      "commit": "",
+      "taken_at": "2026-11-01",
+      "viewport": "390x844",
+      "width": 390,
+      "height": 844,
+      "status": "approved"
+    },
+    {
+      "path": "assets/screenshots/23-social-preview.png",
+      "alt": "Social preview",
+      "caption": "The 1280x640 social preview artwork.",
+      "commit": "",
+      "taken_at": "2026-11-01",
+      "viewport": "1280x640",
+      "width": 1280,
+      "height": 640,
+      "status": "approved"
     }
   ]
 }

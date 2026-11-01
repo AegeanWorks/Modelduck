@@ -1,0 +1,168 @@
+{
+  "title": "ModelDuck screenshot gallery",
+  "generatedAt": "2026-11-01T16:13:40.050Z",
+  "shots": [
+    {
+      "file": "01-overview.png",
+      "title": "Overview",
+      "caption": "The workbench at a glance: runtime, installed models, tuned profiles and the local API.",
+      "viewport": "1440x900"
+    },
+    {
+      "file": "02-models-installed.png",
+      "title": "Installed models",
+      "caption": "Two local GGUF models, ready to load or tune.",
+      "viewport": "1440x900"
+    },
+    {
+      "file": "03-models-discover.png",
+      "title": "Discover models",
+      "caption": "Catalog models sized for this machine.",
+      "viewport": "1440x900"
+    },
+    {
+      "file": "04-bench-tune-idle.png",
+      "title": "Tune workspace",
+      "caption": "Task scope, quick/full estimates from measured pace, Quick pass and guard controls.",
+      "viewport": "1440x900"
+    },
+    {
+      "file": "04b-bench-tune-controls.png",
+      "title": "Tune controls",
+      "caption": "Quick pass, pause, cancel, guard and background controls.",
+      "viewport": "1440x900"
+    },
+    {
+      "file": "05-bench-tune-help.png",
+      "title": "Tuning help",
+      "caption": "The five stages, increasing rungs, clear-gain rule and held-back check.",
+      "viewport": "1440x900"
+    },
+    {
+      "file": "06-bench-models.png",
+      "title": "Tuned profiles",
+      "caption": "Per-model device, stage progress and right answers for every task.",
+      "viewport": "1440x900"
+    },
+    {
+      "file": "07-bench-model-details.png",
+      "title": "Profile details",
+      "caption": "The measured load shape, speed presets and task settings behind a profile.",
+      "viewport": "1440x900"
+    },
+    {
+      "file": "08-bench-runs.png",
+      "title": "Run history",
+      "caption": "Every tune run, its request, outcome, duration, answers and measured pace.",
+      "viewport": "1440x900"
+    },
+    {
+      "file": "09-bench-run-detail.png",
+      "title": "Run detail",
+      "caption": "One run in full: outcome, answer statistics, task results and decisions.",
+      "viewport": "1440x900"
+    },
+    {
+      "file": "10-bench-tune-settings.png",
+      "title": "Tune settings",
+      "caption": "The values each setting is tried at and the CPU/GPU lanes for this PC.",
+      "viewport": "1440x900"
+    },
+    {
+      "file": "11-bench-suite.png",
+      "title": "Benchmark suite",
+      "caption": "Questions, sources, checks and tuning rounds for all three coding tasks.",
+      "viewport": "1440x900"
+    },
+    {
+      "file": "11b-bench-suite-long-context.png",
+      "title": "Suite details",
+      "caption": "Comprehension and long-context tasks, their rungs and held-back quarter.",
+      "viewport": "1440x900"
+    },
+    {
+      "file": "12-bench-gate.png",
+      "title": "Benchmark gate",
+      "caption": "The coding suite's quality gate with item rates, categories and history.",
+      "viewport": "1440x900"
+    },
+    {
+      "file": "13-settings.png",
+      "title": "Settings",
+      "caption": "Runtime, sampling, prompt and tuning switches in one panel.",
+      "viewport": "1440x900"
+    },
+    {
+      "file": "14-light-overview.png",
+      "title": "Light theme",
+      "caption": "The same workbench in the light theme.",
+      "viewport": "1440x900"
+    },
+    {
+      "file": "15-server.png",
+      "title": "Server",
+      "caption": "Port, LAN, authentication, CORS and the OpenAI-compatible endpoint.",
+      "viewport": "1440x900"
+    },
+    {
+      "file": "16-bench-tune-running.png",
+      "title": "Live tune and queue",
+      "caption": "A guarded quick pass, live candidates, a provisional preset and a reorderable queue.",
+      "viewport": "1440x900"
+    },
+    {
+      "file": "17-bench-tune-queue.png",
+      "title": "Queue controls",
+      "caption": "Move a waiting model earlier or later; pause between models; stop the whole queue on a regression.",
+      "viewport": "1440x900"
+    },
+    {
+      "file": "17b-bench-live.png",
+      "title": "Live candidates and decisions",
+      "caption": "The setting being tried now, its candidate table and the decisions this run.",
+      "viewport": "1440x900"
+    },
+    {
+      "file": "18-mobile-overview.png",
+      "title": "Overview on mobile",
+      "caption": "The same workbench at 390 px: one column, no horizontal overflow.",
+      "viewport": "390x844"
+    },
+    {
+      "file": "19-mobile-tune.png",
+      "title": "Tune on mobile",
+      "caption": "The Tune workspace becomes a full-screen sheet with a horizontal section rail.",
+      "viewport": "390x844"
+    },
+    {
+      "file": "19b-mobile-tune-controls.png",
+      "title": "Tune controls on mobile",
+      "caption": "Preflight, task scope and the Quick pass controls remain reachable at 390 px.",
+      "viewport": "390x844"
+    },
+    {
+      "file": "20-mobile-models.png",
+      "title": "Models on mobile",
+      "caption": "Installed models and actions remain reachable at 390 px.",
+      "viewport": "390x844"
+    },
+    {
+      "file": "21-mobile-settings.png",
+      "title": "Settings on mobile",
+      "caption": "Settings scroll cleanly inside the phone-sized sheet.",
+      "viewport": "390x844"
+    },
+    {
+      "file": "22-mobile-suite.png",
+      "title": "Suite on mobile",
+      "caption": "The benchmark suite remains readable with a horizontal section rail.",
+      "viewport": "390x844"
+    },
+    {
+      "file": "23-social-preview.png",
+      "title": "Social preview",
+      "caption": "The 1280x640 social preview artwork.",
+      "viewport": "1280x640"
+    }
+  ]
+}

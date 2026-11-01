@@ -13,6 +13,7 @@
     "dev": "node --watch src/main.js --no-open",
     "test": "node --test tests",
     "ui:smoke": "node scripts/ui-smoke.mjs",
+    "ui:shots": "node scripts/capture-screenshots.mjs",
     "bench": "node benchmarks/run.mjs --phase model",
     "bench:full": "node benchmarks/run.mjs --phase model --full-matrix",
     "bench:all": "node benchmarks/run.mjs --phase model && node benchmarks/run.mjs --phase chat",

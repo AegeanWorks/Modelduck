@@ -200,9 +200,7 @@ drop exits 1; a speed drop over 20% only warns. Generated code runs in a
 
 ## Screenshots
 
-| Control panel | Models |
-|---|---|
-| ![Control panel](assets/screenshot-control.png) | ![Models](assets/screenshot-models.png) |
+[27-shot gallery and 3-minute video storyboard](assets/screenshots/README.md) · [social preview](assets/social-preview.png)
 
 ## Where things live
 
@@ -461,7 +459,8 @@ modelduck/
 │   └── brand/
 │       └── duck.svg <- the ModelDuck mascot and favicon
 ├── scripts/
-│   └── ui-smoke.mjs <- headless control-panel and dialog check
+│   ├── capture-screenshots.mjs <- screenshot gallery
+│   └── ui-smoke.mjs <- control-panel check
 ├── benchmarks/ <- seeded quality, speed and history gate
 │   ├── README.md
 │   ├── run.mjs
@@ -550,8 +549,10 @@ modelduck/
 │   ├── recommend.test.js
 │   └── server.test.js
 ├── assets/
+│   ├── screenshots/
 │   ├── logo.svg
 │   ├── social-preview.svg
+│   ├── social-preview.png
 │   ├── screenshot-control.png
 │   └── screenshot-models.png
 ├── .aikit/ <- project memory: map, ADRs, ledger
