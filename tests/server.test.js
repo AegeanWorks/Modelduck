@@ -405,15 +405,17 @@ test("tuned profiles are listed and read with what changed since they were measu
 
 test("recommendations rank installed models and list fitting catalog models", async (t) => {
   const harness = await makeHarness(t);
-  const response = await fetch(`${harness.base}/api/recommendations?task=code`);
+  const response = await fetch(`${harness.base}/api/recommendations?task=recall`);
   assert.equal(response.status, 200);
   const data = await response.json();
-  assert.equal(data.task, "code");
+  assert.equal(data.task, "recall");
   assert.ok(data.memory.free > 0);
   assert.ok(Array.isArray(data.installed) && Array.isArray(data.catalog));
   assert.ok(data.installed.every((row) => row.fit !== "will_not_fit"));
   const fallback = await (await fetch(`${harness.base}/api/recommendations?task=poetry`)).json();
   assert.equal(fallback.task, "code", "an unknown task falls back to code");
+  const defaultTask = await (await fetch(`${harness.base}/api/recommendations`)).json();
+  assert.equal(defaultTask.task, "code", "the recommendation default is code");
 });
 
 test("a profile recipe exports as a file and imports for an installed model", async (t) => {

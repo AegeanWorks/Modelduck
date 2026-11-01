@@ -84,7 +84,12 @@ function split(taskId, prompts) {
     if (!buckets.has(key)) buckets.set(key, []);
     buckets.get(key).push(prompt.id);
   }
-  const held = new Set([...buckets.values()].flatMap((ids) => ids.slice(ids.length - Math.round(ids.length * HOLDOUT_SHARE))));
+  const held = new Set([...buckets.values()].flatMap((ids) => {
+    const count = Math.round(ids.length * HOLDOUT_SHARE);
+    if (!count) return [];
+    return Array.from({ length: count }, (_, index) =>
+      ids[Math.floor(((index + 0.5) * ids.length) / count)]);
+  }));
   const order = stratified(items);
   return { tune: order.filter((id) => !held.has(id)), held: order.filter((id) => held.has(id)) };
 }

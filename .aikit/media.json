@@ -44,22 +44,22 @@
   },
   "screenshots": [
     {
-      "path": "assets/screenshots/2026-10-31-home.png",
-      "alt": "Modelduck interface at 2026-10-31",
-      "caption": "Modelduck interface captured from index.html",
-      "commit": "9f2602c468944f6ecc3d971fa132becc7616cb91",
-      "taken_at": "2026-10-31",
+      "path": "assets/screenshot-control.png",
+      "alt": "ModelDuck control panel at 2026-11-01",
+      "caption": "ModelDuck control panel captured from public/index.html",
+      "commit": "df317b8a47a2b6e1b86c2ce4645ed428f1399976",
+      "taken_at": "2026-11-01",
       "viewport": "1440x900",
       "width": 1440,
       "height": 900,
       "status": "approved",
       "review": {
         "status": "approved",
-        "reviewer": "human:owner",
+        "reviewer": "commandcode:1",
         "method": "vision",
-        "notes": "ModelDuck 1440x900 studio welcome view: loaded model (qwen2.5-0.5b-instruct), chat history, yellow ModelDuck mascot, prompt suggestions, zero error toasts; perfectly represents local LLM chat studio.",
+        "notes": "ModelDuck 1440x900 control panel: instrument rail, overview metrics, model list, Bench and API links; the new Bench workspace was reviewed separately at 1440 and 390.",
         "score": 95,
-        "reviewed_at": "2026-10-31T15:40:04"
+        "reviewed_at": "2026-11-01T04:30:00"
       }
     }
   ]

@@ -200,8 +200,8 @@
               </select>
             </label>
           </div>
-          <p class="preset-note">When a model has a tuned profile (Bench → Tune), its measured load settings and the task's preset replace the values below. Turn this off to use exactly what you set here.</p>
-          <div class="preset-bar" id="preset-bar" aria-label="Optimization presets"></div>
+          <p class="preset-note">When a model has a tuned profile (Bench & Tune → Tune), its measured load settings and the task's preset replace the values below. Turn this off to use exactly what you set here.</p>
+          <div class="preset-bar" id="preset-bar" role="group" aria-label="Optimization presets"></div>
           <p class="preset-note">Presets are benchmark candidates: they only fill this form and are never applied automatically. Run <code>npm run bench</code> before trusting one.</p>
           <p class="form-heading">Prompt</p>
           <label class="field">
@@ -517,7 +517,7 @@
             </div>
             <details class="tune-only-details">
               <summary>Only some settings (optional; replaces the stage choice above)</summary>
-              <div class="tune-only" id="tune-only" aria-label="Only these settings"></div>
+              <div class="tune-only" id="tune-only" role="group" aria-label="Only these settings"></div>
             </details>
             <p class="benchmark-progress" id="tune-progress">No tune is running. Pick a model in the Models tab, or Run all; stop any time and what was found is applied.</p>
             <section class="tune-live" id="tune-live" hidden aria-live="polite"></section>

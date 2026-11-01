@@ -56,11 +56,13 @@ test("the three tasks have full rungs and a held-back quarter", () => {
     const family = comprehension.filter((item) => item.group === group);
     assert.equal(family.length, 8, `${group} has eight inputs`);
     assert.equal(family.filter((item) => held.has(item.id)).length, 2, `${group} holds back two inputs`);
+    const heldIndices = family.flatMap((item, index) => (held.has(item.id) ? [index] : []));
+    assert.ok(heldIndices.some((index) => index < family.length / 2), `${group} holds back only its tail`);
   }
   assert.equal(new Set(comprehension.filter((item) => held.has(item.id)).map((item) => item.group)).size, 8);
 });
 
-test("the 16-item smoke set covers every task and every comprehension family", () => {
+test("the 16-item smoke set covers every task and five comprehension families", () => {
   assert.equal(SMOKE_PROMPT_IDS.length, 16);
   const smoke = SMOKE_PROMPT_IDS.map((id) => PROMPTS.find((item) => item.id === id));
   assert.ok(smoke.every(Boolean));

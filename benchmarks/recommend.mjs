@@ -71,7 +71,7 @@ export function recommend(result, { maxLossPoints = DEFAULT_MAX_LOSS_POINTS } = 
     .map((model) => ({ model, rate: categoryRate(model, CODING_CATEGORIES) }))
     .filter((entry) => entry.rate !== null)
     .sort((a, b) => b.rate - a.rate || faster(a.model, b.model))[0];
-  if (coding) items.push(describe(coding.model, "coding", `Highest pass rate on code, bug-fix and public code items: ${coding.rate}%.`));
+  if (coding) items.push(describe(coding.model, "coding", `Highest pass rate on write, fix, codebase, public code and code-comprehension items: ${coding.rate}%.`));
 
   // Normalise speed only against variants that clear the quality floor; a fast
   // but poor model must not make every usable configuration look slow.

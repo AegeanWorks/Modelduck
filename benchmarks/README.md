@@ -27,16 +27,18 @@ npm run bench:link            # after commit: run once per pending phase
 The required gate runs SmolLM2 135M, Qwen2.5 0.5B and Qwen2.5 Coder 1.5B.
 `--full-matrix` adds Qwen2.5 1.5B, Llama 3.2 3B and Phi-3.5 Mini plus their KV
 variants; on a CPU that deeper review takes hours, so it is opt-in.
-The committed baselines predate suite v14. Run `npm run bench:update` and
-`npm run tune:gate -- --update-baseline` once on the target machine before using
-the gate as a regression check; until then it is intentionally red.
+The committed cross-model baselines predate suite v14. Run `npm run bench:update`
+once on the target machine before using the cross-model gate as a regression
+check. The tuned-profile gate has no committed `baseline-profiles.json` yet, so
+`npm run tune:gate` exits with `tune_baseline_missing` rather than comparing; run
+`npm run tune:gate -- --update-baseline` once to create it.
 Suite v14 has 262 items in ten categories:
 
 | Category | Items | What is measured |
 |---|---:|---|
-| code | 30 | Write a function against 3–5 test cases: strings, arrays, Roman numerals, intervals, binary search, primes, Pascal's row and more |
-| code-long | 12 | Long functions with a 1024-token budget: an arithmetic evaluator, a CSV parser, greedy word wrap, checkout rules, matrix multiplication, an INI parser and six multi-function changes |
-| code-repo | 24 | Multi-file codebases: write a function on top of the existing helpers, fix a reported bug, or name the function holding a bug. The codebase is loaded before the answer |
+| code | 30 | Write a function against 2–5 test cases: strings, arrays, Roman numerals, intervals, binary search, primes, Pascal's row and more, including the original add/repair checks |
+| code-long | 12 | Long functions with a 1024-token budget: an arithmetic evaluator, a CSV parser, greedy word wrap, checkout rules, matrix multiplication, an INI parser, an LRU cache, a query-string parser, a dependency sort, a text table, the next calendar day and a Sudoku check |
+| code-repo | 24 | Multi-file codebases: write a function on top of the existing helpers, fix a reported bug, name the function holding a bug, or make six changes that span several functions or files. The codebase is loaded before the answer |
 | bugfix | 26 | One realistic bug each: off-by-one, wrong initial value or divisor, inverted condition, missing join, wrong side, ignored quantity and more; the repair must pass the tests |
 | bugfix-long | 12 | Multi-line functions with two or three interacting bugs, checked by several cases |
 | bugfix-repo | 12 | A user's bug report against a multi-file codebase; the corrected function must pass the tests with the rest loaded |
@@ -70,7 +72,8 @@ check, so a partly correct function earns partial credit.
 
 Speed-only variants (threads, batch, pool, sequences, context size, mmap,
 checkpoint interval/max, GPU layers) run a 16-item cross-family smoke subset
-(`SMOKE_PROMPT_IDS`); model, quantization, KV cache, flash attention and presets
+(`SMOKE_PROMPT_IDS`); it uses short prompts, so its tok/s is not comparable with
+the full-suite median. Model, quantization, KV cache, flash attention and presets
 run the full suite.
 
 Context checkpoints default to one every 8192 tokens, keeping up to 32 states per
@@ -184,8 +187,9 @@ baseline files and this JSONL history to show the same per-test percentages,
 runtime and linked commit without a terminal.
 
 Results are also written to `benchmarks/results/latest.json` (ignored).
-Generated code is written to a temp file and checked with `node --check`; it is
-never executed.
+Generated code is executed only inside the `node --permission` sandbox (no file,
+child-process, worker or network access, 5-second timeout); syntax-only checks
+use a temp file with `node --check`.
 
 ## Manifest verification
 

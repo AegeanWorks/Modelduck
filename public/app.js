@@ -359,7 +359,7 @@ function renderDashboard() {
   renderDashboardSystem();
 
   if (els.statusAnnouncer) {
-    els.statusAnnouncer.textContent =
+    const announcement =
       loaded.status === "ready" && loaded.model
         ? `${loaded.model.name} is ready.`
         : loaded.status === "loading"
@@ -367,6 +367,7 @@ function renderDashboard() {
           : loaded.status === "error"
             ? "The model could not be loaded."
             : "No model is loaded.";
+    if (els.statusAnnouncer.textContent !== announcement) els.statusAnnouncer.textContent = announcement;
   }
 }
 
@@ -465,7 +466,9 @@ function renderDashboardTuning() {
 
   const summary = document.createElement("p");
   summary.className = "tune-summary";
-  if (!total) {
+  if (state.tuneProfilesError) {
+    summary.textContent = "Saved profiles could not be read. Open Bench & Tune to retry.";
+  } else if (!total) {
     summary.textContent = "Install a model before measuring settings.";
   } else if (!overview) {
     summary.textContent = "Reading saved profiles…";
@@ -487,14 +490,13 @@ function renderDashboardTuning() {
   els.dashboardTuning.appendChild(stages);
 
   if (profiles.length) {
-    const latest = profiles[profiles.length - 1];
+    const latest = profiles
+      .slice()
+      .sort((a, b) => String(b.profile?.createdAt ?? "").localeCompare(String(a.profile?.createdAt ?? "")))[0];
     const line = document.createElement("p");
     line.className = "tune-latest";
-    const rates = TUNE_TASKS
-      .map((task) => latest.profile?.tasks?.[task]?.stats?.rate)
-      .filter((value) => Number.isFinite(value));
-    const rate = rates.length ? Math.max(...rates) : null;
-    line.textContent = `Latest: ${latest.name}${Number.isFinite(rate) ? ` · ${rate}%` : ""}`;
+    const rate = latest.profile?.tasks?.code?.stats?.rate;
+    line.textContent = `Latest: ${latest.name}${Number.isFinite(rate) ? ` · code ${rate}%` : ""}`;
     els.dashboardTuning.appendChild(line);
   }
   if (job?.status === "running") {
@@ -567,9 +569,12 @@ async function refreshDashboardTuning() {
     ]);
     state.tuneOverview = overview.models ?? [];
     state.tuneJob = status.job ?? null;
+    state.tuneProfilesError = false;
     renderDashboardTuning();
   } catch {
-    // The dashboard keeps its empty state if profiles cannot be read.
+    state.tuneOverview = [];
+    state.tuneProfilesError = true;
+    renderDashboardTuning();
   }
 }
 
@@ -912,6 +917,7 @@ async function importModel() {
     els.importPath.value = "";
     renderInstalled();
     renderCatalog();
+    renderStatus();
     showToast("Model imported", { message: `${data.model.name} is ready to load.` });
   } catch (error) {
     showError(error);
@@ -959,7 +965,7 @@ function openSettings() {
   const settings = state.settings;
   if (!settings) {
     showToast("Settings are not loaded", { message: "The server did not return settings. Reload the page and try again.", kind: "error" });
-    return;
+    return false;
   }
   els.settingSystem.value = settings.systemPrompt;
   els.settingTuned.checked = settings.useTunedProfile !== false;
@@ -995,6 +1001,7 @@ function openSettings() {
     ? "Temperature, top P and max tokens apply to the next message. Context, threads, batching, attention, mmap, checkpoints and KV cache apply after reloading the model."
     : "Changes are saved on this computer. Nothing is sent anywhere.";
   if (!els.settingsDialog.open) els.settingsDialog.showModal();
+  return true;
 }
 
 function renderPresets() {
@@ -1394,7 +1401,7 @@ function settingChips(settings) {
 }
 
 function fillSettingsFromAdvice(item) {
-  openSettings();
+  if (!openSettings()) return;
   applySettingsToForm(item.settings);
   const title = RECOMMENDATION_TITLES[item.kind] ?? item.kind;
   els.settingsNote.textContent =
@@ -2550,12 +2557,12 @@ async function pollTune() {
   }
 }
 
-async function startTune(models, { force = false, forceStale = false, stage = null, tasks = null, only = null, continueRun = false } = {}) {
+async function startTune(models, { force = false, forceStale = false, stage = null, tasks = null, only = null, continueRun = false, useForm = true } = {}) {
   // A stage button (one stage) or the re-run button (several) runs just those, whatever the boxes above say.
-  const settings = only ?? (stage ? [] : [...els.tuneOnly.querySelectorAll("input:checked")].map((input) => input.value));
+  const settings = only ?? (useForm && !stage ? [...els.tuneOnly.querySelectorAll("input:checked")].map((input) => input.value) : []);
   const all = [...els.tuneStages.querySelectorAll("input[value]")].map((input) => input.value);
   // Chosen settings run wherever they belong, so they override the stage boxes.
-  const stages = stage ? [].concat(stage) : settings.length ? all : [...els.tuneStages.querySelectorAll("input[value]:checked")].map((input) => input.value);
+  const stages = stage ? [].concat(stage) : settings.length ? all : useForm ? [...els.tuneStages.querySelectorAll("input[value]:checked")].map((input) => input.value) : all;
   if (!stages.length) {
     showToast("Choose at least one stage", { kind: "error" });
     return;
@@ -2563,7 +2570,7 @@ async function startTune(models, { force = false, forceStale = false, stage = nu
   // A part run measures its parts again on top of the saved rest; only a whole tune starts a stale profile over (ADR-040).
   const partRun = settings.length > 0 || stages.length < all.length;
   try {
-    const { job } = await request("/api/tune/start", { method: "POST", body: { models, ...(tasks && { tasks }), ...(continueRun && { continue: true }), stages, settings: settings.length ? settings : null, force: !continueRun && ((force && !partRun) || (!stage && els.tuneForce.checked)), forceStale } });
+    const { job } = await request("/api/tune/start", { method: "POST", body: { models, ...(tasks && { tasks }), ...(continueRun && { continue: true }), stages, settings: settings.length ? settings : null, force: !continueRun && (useForm ? ((force && !partRun) || (!stage && els.tuneForce.checked)) : force), forceStale } });
     state.tuneJob = job;
     // A started tune is followed on the Tune tab.
     showBenchTab("tune");
@@ -2861,16 +2868,20 @@ async function saveSettings(event) {
       previous &&
       (previous.contextSize !== data.settings.contextSize ||
         previous.threads !== data.settings.threads ||
+        previous.maxThreads !== data.settings.maxThreads ||
         previous.kvCache !== data.settings.kvCache ||
         previous.batchSize !== data.settings.batchSize ||
         previous.sequences !== data.settings.sequences ||
         previous.flashAttention !== data.settings.flashAttention ||
         previous.useMmap !== data.settings.useMmap ||
         previous.checkpoints !== data.settings.checkpoints ||
+        previous.checkpointInterval !== data.settings.checkpointInterval ||
+        previous.checkpointMax !== data.settings.checkpointMax ||
+        previous.gpuBackend !== data.settings.gpuBackend ||
         previous.gpuLayers !== data.settings.gpuLayers)
     ) {
       showToast("Reload to apply", {
-        message: "Context, threads, batching, attention, mmap, checkpoints and KV cache change the next time a model is loaded.",
+        message: "Context, threads, GPU backend, batching, attention, mmap, checkpoints and KV cache change the next time a model is loaded.",
         fix: "Open Models → Installed → Load.",
       });
     }
@@ -2973,7 +2984,7 @@ function bindEvents() {
     }
     const tune = event.target.closest("[data-dashboard-tune]");
     if (tune) {
-      void openBenchmarks().then(() => startTune([tune.dataset.dashboardTune], { forceStale: true }));
+      void openBenchmarks().then(() => startTune([tune.dataset.dashboardTune], { forceStale: true, useForm: false }));
       return;
     }
     if (event.target.closest("[data-dashboard-open-models]")) {

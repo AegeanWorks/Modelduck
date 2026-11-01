@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { access, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -26,6 +26,16 @@ test("a timing stage waits until every other running tune has paused between ans
   let acquired = false;
   const acquiring = timer.acquire().then(() => { acquired = true; });
   await tick();
+  // Wait for the timing lock to exist before the other tune asks; otherwise a
+  // loaded machine can run its holder() check before acquire() has written it.
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    try {
+      await access(path.join(dir, "timing.lock"));
+      break;
+    } catch {
+      await tick(2);
+    }
+  }
   assert.equal(acquired, false, "the other tune has not reached a pause point yet");
 
   let resumed = false;

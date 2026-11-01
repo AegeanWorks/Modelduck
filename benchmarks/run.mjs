@@ -298,6 +298,10 @@ async function runModel(engine, entry, spec, options, { index = 0, total = 0 } =
   const promptList = spec.promptIds
     ? PROMPTS.filter((prompt) => spec.promptIds.includes(prompt.id))
     : PROMPTS;
+  if (spec.promptIds) {
+    const missing = spec.promptIds.filter((id) => !PROMPTS.some((prompt) => prompt.id === id));
+    if (missing.length) throw new Error(`Benchmark variant ${spec.id} asks for unknown prompt ids: ${missing.join(", ")}`);
+  }
   const prompts = [];
   for (const [promptIndex, prompt] of promptList.entries()) {
     emit(options, {

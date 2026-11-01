@@ -211,14 +211,17 @@ async function main() {
       const state = await evaluate(`(() => {
         const button = document.querySelector('[data-bench-tab="${tab}"]');
         const panel = document.querySelector('[data-bench-panel="${tab}"]');
-        const otherVisible = [...document.querySelectorAll("[data-bench-panel]")]
-          .filter((node) => node.dataset.benchPanel !== "${tab}" && !node.hidden).length;
-        return { selected: button.getAttribute("aria-selected"), hidden: panel.hidden, display: getComputedStyle(panel).display, otherVisible };
+        const controlled = document.getElementById(button.getAttribute("aria-controls"));
+        const otherDisplay = [...document.querySelectorAll("[data-bench-panel]")]
+          .filter((node) => node.dataset.benchPanel !== "${tab}")
+          .map((node) => getComputedStyle(node).display);
+        return { selected: button.getAttribute("aria-selected"), hidden: panel.hidden, display: getComputedStyle(panel).display, controlled: controlled === panel, otherDisplayed: otherDisplay.filter((value) => value !== "none").length };
       })()`);
       assert.equal(state.selected, "true", `the ${tab} Bench tab did not become selected`);
       assert.equal(state.hidden, false, `the ${tab} Bench panel stayed hidden`);
       assert.notEqual(state.display, "none", `the ${tab} Bench panel is not displayed`);
-      assert.equal(state.otherVisible, 0, `the ${tab} Bench tab left another panel visible`);
+      assert.equal(state.controlled, true, `the ${tab} Bench tab's aria-controls does not point at its panel`);
+      assert.equal(state.otherDisplayed, 0, `the ${tab} Bench tab left another panel visible`);
     }
     await evaluate('document.getElementById("benchmark-dialog").close(), true');
 

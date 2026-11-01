@@ -268,7 +268,8 @@ curl http://127.0.0.1:4141/v1/completions \
 The `model` field is accepted for compatibility; the loaded model answers.
 `GET /v1/models[/:id]` lists installed models (unknown ids 404); text completions
 take one string prompt. A tuned model's task preset (`x-modelduck-task`: code,
-comprehension or recall; default code) sets the chat defaults; values you send win.
+comprehension or recall; or a `modelduck_task` body field, with the header
+winning; default code) sets the chat defaults; values you send win.
 
 In an OpenAI SDK, set `baseURL: "http://127.0.0.1:4141/v1"` and any API key
 (ModelDuck ignores it). `stream: true` returns standard `data:` chunks ending
