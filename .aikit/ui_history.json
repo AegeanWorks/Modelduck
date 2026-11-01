@@ -474,5 +474,19 @@
     "final_snapshot_digest": "",
     "final_snapshot_entries": 0,
     "surface_digest": "0f60c084c19f222ddb51ad38d991f8dd998198d3b62943c25074ec9a750238f8"
+  },
+  {
+    "schema": 1,
+    "surface": "app",
+    "baseline_commit": "d091ae209a4b9187f85f2f321ab440c10b7ff218",
+    "contract_hash": "c6a291e913a9c8f174aadf7fb264b0941c55e9f4999a9a43152f1fb616845d11",
+    "started_at": 1793491516.1440933,
+    "finished_at": 1793491524.7277846,
+    "strikes": 0,
+    "reviewer": "Command Code (AI; static UI test and headless smoke opened Models, Bench, Settings and Server, including Server immediately after Settings, with no console exceptions; 370 tests)",
+    "allowed_removals": [],
+    "final_snapshot_digest": "",
+    "final_snapshot_entries": 0,
+    "surface_digest": "810bee3fd0ea1d7704d4b1136a22faf832a92cdf54be5221ed32f5117149ad2c"
   }
 ]
