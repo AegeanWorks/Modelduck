@@ -722,6 +722,12 @@ a {
   gap: 5px;
 }
 
+.tune-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
 .tune-chip {
   padding: 3px 6px;
   border: 1px solid var(--line);
@@ -1163,7 +1169,6 @@ a {
   padding: 8px 10px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  outline: 0;
   background: var(--bg-2);
   color: var(--text);
   font-size: 13px;
@@ -3133,4 +3138,162 @@ a {
 
 .key-actions {
   margin-inline-start: auto;
+}
+
+/* Benchmark gate reports --------------------------------------------------- */
+
+.benchmark-card {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.benchmark-card:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.benchmark-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 28px;
+  margin: 12px 0;
+}
+
+.benchmark-metric {
+  display: flex;
+  flex-direction: column;
+  min-width: 86px;
+}
+
+.benchmark-metric strong {
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.benchmark-metric small {
+  margin-top: 2px;
+  color: var(--faint);
+  font-size: 9.5px;
+}
+
+.benchmark-types {
+  margin-top: 14px;
+}
+
+.benchmark-types h4 {
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.benchmark-items {
+  margin-top: 14px;
+}
+
+.benchmark-items summary {
+  color: var(--muted);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.benchmark-commit,
+.benchmark-empty {
+  margin: 10px 0 0;
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  line-height: 1.5;
+}
+
+.benchmark-empty {
+  margin-top: 12px;
+  font-family: var(--font);
+  font-size: 11.5px;
+}
+
+.benchmark-history {
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.benchmark-history h3 {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 500;
+}
+
+.benchmark-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.benchmark-chip {
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.benchmark-advice {
+  margin-top: 20px;
+}
+
+.benchmark-advice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0 22px;
+  margin-top: 10px;
+}
+
+.benchmark-advice-card {
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+
+.benchmark-advice-card h4 {
+  margin: 2px 0 0;
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.benchmark-advice-stats,
+.benchmark-advice-why {
+  margin: 4px 0 0;
+  color: var(--faint);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.benchmark-advice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+#tune-models,
+#tune-runs-list,
+#tune-run-detail {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+@media (max-width: 640px) {
+  .benchmark-card {
+    overflow-x: auto;
+  }
 }

@@ -22,7 +22,15 @@ import {
 test("the benchmark keeps at least three different small model classes", () => {
   assert.ok(BENCHMARK_MODELS.length >= 3);
   assert.ok(new Set(BENCHMARK_MODELS.map((model) => model.kind)).size >= 3);
-  assert.ok(PROMPTS.length >= 8);
+  assert.equal(PROMPTS.length, 262);
+});
+
+test("every matrix variant asks only for shipped prompt ids", () => {
+  for (const spec of [...BENCHMARK_MATRIX, ...CHAT_MATRIX, ...MODEL_MATRIX]) {
+    for (const id of spec.promptIds ?? []) {
+      assert.ok(PROMPTS.some((prompt) => prompt.id === id), `${spec.id} asks for ${id}`);
+    }
+  }
 });
 
 test("the matrix covers size, quantization, KV cache, context and threads", () => {

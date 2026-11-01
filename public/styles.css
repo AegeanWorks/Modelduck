@@ -122,9 +122,6 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
   border-color: var(--line-strong);
   background: rgba(255, 255, 255, 0.045);
 }
-[data-theme="light"] .status-card {
-  background: rgba(255, 255, 255, 0.55);
-}
 .status-dot {
   width: 9px;
   height: 9px;
@@ -234,9 +231,6 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.035);
   color: var(--muted);
-}
-[data-theme="light"] .small-btn {
-  background: rgba(255, 255, 255, 0.6);
 }
 .small-btn:hover {
   border-color: var(--line-strong);
@@ -382,7 +376,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 [data-theme="light"] .model-card {
-  background: rgba(255, 255, 255, 0.5);
+  background: transparent;
 }
 .model-card:hover {
   border-color: var(--line-strong);
@@ -460,7 +454,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
   background: rgba(255, 255, 255, 0.02);
 }
 [data-theme="light"] .import-box {
-  background: rgba(255, 255, 255, 0.5);
+  background: transparent;
 }
 .import-box h3 {
   margin: 0 0 3px;
@@ -534,7 +528,6 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
   padding: 9px 10px;
   border: 1px solid var(--line);
   border-radius: 9px;
-  outline: 0;
   background: var(--bg-2);
   color: var(--text);
   font-size: 12.5px;
@@ -1056,8 +1049,6 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visib
 
 button.tune-chip {
   background: transparent;
-  font: inherit;
-  font-size: 11px;
   cursor: pointer;
 }
 button.tune-chip:hover:not(:disabled) {

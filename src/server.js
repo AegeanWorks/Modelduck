@@ -28,11 +28,33 @@ import { answersFile, listRuns, loadRun, summarizeAnswers } from "./tune-runs.js
 import { TunedSettings } from "./tuned-settings.js";
 import { readSteps, writeSteps } from "./tune-steps.js";
 import { DEFAULT_STEPS, estimateTune, settingNames } from "../benchmarks/tune-grid.mjs";
+import { STAGES } from "../benchmarks/tune.mjs";
 import { handleOpenAI } from "./openai.js";
 import { settingPresets } from "./config.js";
 import { recommendCatalog, recommendModels } from "./recommend.js";
 import { systemInfo } from "./system.js";
 import { TASKS, suiteSummary } from "../benchmarks/tasks.mjs";
+
+function validateTuneSelection(tasks, stages) {
+  const unknownTasks = (tasks ?? []).filter((id) => !TASKS.some((task) => task.id === id));
+  if (unknownTasks.length) {
+    throw new AppError("Unknown task", {
+      code: "unknown_task",
+      status: 400,
+      why: `${unknownTasks.join(", ")} is not a benchmark task.`,
+      fix: `Use one of: ${TASKS.map((task) => task.id).join(", ")}.`,
+    });
+  }
+  const unknownStages = (stages ?? []).filter((stage) => !STAGES.includes(stage));
+  if (unknownStages.length) {
+    throw new AppError("Unknown tune stage", {
+      code: "unknown_stage",
+      status: 400,
+      why: `${unknownStages.join(", ")} is not a tune stage.`,
+      fix: `Use one of: ${STAGES.join(", ")}.`,
+    });
+  }
+}
 
 // Live tune updates: changes within this window go out together; a comment keeps idle connections open.
 const STREAM_BATCH_MS = 250;
@@ -251,6 +273,9 @@ export function createHttpServer({
         });
       }
       const body = await readJsonBody(req);
+      const requestedTasks = Array.isArray(body.tasks) ? body.tasks.map(String) : null;
+      const requestedStages = Array.isArray(body.stages) ? body.stages.map(String) : null;
+      validateTuneSelection(requestedTasks, requestedStages);
       sendJson(res, 202, {
         job: benchmarks.start({
           phase: body.phase ?? "model",
@@ -258,9 +283,9 @@ export function createHttpServer({
           download: body.download === true,
           fullMatrix: body.fullMatrix === true,
           model: body.model ? String(body.model) : null,
-          tasks: Array.isArray(body.tasks) ? body.tasks.map(String) : null,
+          tasks: requestedTasks,
           force: body.force === true,
-          stages: Array.isArray(body.stages) ? body.stages.map(String) : null,
+          stages: requestedStages,
         }),
       });
       return;
@@ -392,6 +417,8 @@ export function createHttpServer({
       });
       const only = Array.isArray(body.settings) && body.settings.length ? body.settings.map(String) : null;
       const stages = Array.isArray(body.stages) ? body.stages.map(String) : null;
+      const tasks = Array.isArray(body.tasks) ? body.tasks.map(String) : null;
+      validateTuneSelection(tasks, stages);
       // forceStale starts over only where the saved profile was measured on another suite, runtime or machine,
       // and only for a whole tune: a part run re-measures its parts on top of the saved rest (ADR-040).
       // Continuing never starts over: it finishes what the earlier run left (ADR-051).
@@ -410,7 +437,7 @@ export function createHttpServer({
       sendJson(res, 202, {
         job: tunes.start({
           models,
-          tasks: Array.isArray(body.tasks) ? body.tasks.map(String) : null,
+          tasks,
           stages,
           settings: only,
           force: body.force === true,
@@ -559,6 +586,7 @@ export function createHttpServer({
 
     if (pathname === "/api/server-settings" && method === "PUT") {
       if (!serverSettings) throw new AppError("Server settings unavailable", { status: 503 });
+      if (!isLoopbackRequest(req)) throw new AppError("Server settings are local only", { code: "server_settings_local_only", status: 403, why: "Remote clients cannot change the listener, CORS or API keys.", fix: "Open Server settings on the computer running ModelDuck." });
       const body = await readJsonBody(req);
       const next = await serverSettings.update(body.settings ?? body);
       sendJson(res, 200, {
@@ -572,6 +600,7 @@ export function createHttpServer({
 
     if (pathname === "/api/server-settings/api-keys" && method === "POST") {
       if (!serverSettings) throw new AppError("Server settings unavailable", { status: 503 });
+      if (!isLoopbackRequest(req)) throw new AppError("Server settings are local only", { code: "server_settings_local_only", status: 403, why: "Remote clients cannot mint API keys.", fix: "Open Server settings on the computer running ModelDuck." });
       const body = await readJsonBody(req);
       const created = await serverSettings.createKey(body.label);
       sendJson(res, 201, {
@@ -585,6 +614,7 @@ export function createHttpServer({
     const routeMatch = pathname.match(/^\/api\/server-settings\/api-keys\/([^/]+)$/);
     if (routeMatch && method === "DELETE") {
       if (!serverSettings) throw new AppError("Server settings unavailable", { status: 503 });
+      if (!isLoopbackRequest(req)) throw new AppError("Server settings are local only", { code: "server_settings_local_only", status: 403, why: "Remote clients cannot revoke API keys.", fix: "Open Server settings on the computer running ModelDuck." });
       const deleted = await serverSettings.revokeKey(decodeURIComponent(routeMatch[1]));
       if (!deleted) {
         throw new AppError("API key not found", {

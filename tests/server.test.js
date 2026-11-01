@@ -26,16 +26,18 @@ function parseSse(text) {
     });
 }
 
-function rawStatus(port, path, headers) {
+function rawStatus(port, path, headers, method = "GET", body = null) {
   return new Promise((resolve, reject) => {
-    const request = http.get(
-      { hostname: "127.0.0.1", port, path, headers },
+    const request = http.request(
+      { hostname: "127.0.0.1", port, path, method, headers },
       (response) => {
         response.resume();
         response.on("end", () => resolve(response.statusCode));
       },
     );
     request.on("error", reject);
+    if (body) request.write(body);
+    request.end();
   });
 }
 
@@ -237,22 +239,36 @@ test("requests with a non-loopback Host are refused", async (t) => {
   const harness = await makeHarness(t);
   assert.equal(await rawStatus(harness.port, "/api/state", { host: "attacker.example" }), 403);
   assert.equal(await rawStatus(harness.port, "/api/state", { host: "localhost" }), 200);
+  const headers = { host: "attacker.example", "content-type": "application/json" };
+  assert.equal(await rawStatus(harness.port, "/api/server-settings", headers, "PUT", "{}"), 403);
+  assert.equal(await rawStatus(harness.port, "/api/server-settings/api-keys", headers, "POST", JSON.stringify({ label: "remote" })), 403);
+  assert.equal(await rawStatus(harness.port, "/api/server-settings/api-keys/missing", headers, "DELETE"), 403);
 });
 
 test("settings updates are validated and persisted", async (t) => {
   const harness = await makeHarness(t);
+  const seed = await fetch(`${harness.base}/api/settings`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ settings: { speedPreset: "quiet", systemPrompt: "keep me" } }),
+  });
+  assert.equal(seed.status, 200);
   const response = await fetch(`${harness.base}/api/settings`, {
     method: "PUT",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ settings: { temperature: 9, contextSize: 1 } }),
+    body: JSON.stringify({ settings: { temperature: 9, contextSize: 1, warpDrive: 1 } }),
   });
   assert.equal(response.status, 200);
   const data = await response.json();
   assert.equal(data.settings.temperature, 2);
   assert.equal(data.settings.contextSize, 512);
+  assert.equal(data.settings.warpDrive, undefined);
 
   const persisted = await fetch(`${harness.base}/api/settings`).then((item) => item.json());
   assert.equal(persisted.settings.temperature, 2);
+  assert.equal(persisted.settings.speedPreset, "quiet");
+  assert.equal(persisted.settings.systemPrompt, "keep me");
+  assert.equal(persisted.settings.warpDrive, undefined);
 });
 
 test("model load and unload routes use the engine", async (t) => {
@@ -537,6 +553,12 @@ test("tunes for one model or all installed models are scheduled, watched and can
   const bad = await post("/api/tune/start", { models: "all", settings: ["warpDrive"] });
   assert.equal(bad.status, 400);
   assert.equal((await bad.json()).error.code, "unknown_setting");
+  const badTask = await post("/api/tune/start", { models: "all", tasks: ["poetry"] });
+  assert.equal(badTask.status, 400);
+  assert.equal((await badTask.json()).error.code, "unknown_task");
+  const badStage = await post("/api/tune/start", { models: "all", stages: ["warp"] });
+  assert.equal(badStage.status, 400);
+  assert.equal((await badStage.json()).error.code, "unknown_stage");
 
   const [installed] = harness.registry.listPublic();
   await post("/api/tune/start", { models: [installed.id], tasks: ["code"] });

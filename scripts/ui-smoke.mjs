@@ -53,15 +53,18 @@ function browserCandidates() {
 }
 
 async function main() {
+  const allowSkip = process.argv.includes("--allow-skip");
   if (typeof WebSocket !== "function") {
-    console.log("[ui-smoke] skipped: Node 22+ is needed for the built-in WebSocket; npm test still checks static wiring");
+    console.log("[ui-smoke] skipped: Node 22+ is needed for the built-in WebSocket; pass --allow-skip to accept");
+    if (!allowSkip) process.exitCode = 1;
     return;
   }
 
   const { existsSync } = await import("node:fs");
   const browserPath = browserCandidates().find((candidate) => existsSync(candidate));
   if (!browserPath) {
-    console.log("[ui-smoke] skipped: no Edge or Chrome found; npm test still checks static wiring");
+    console.log("[ui-smoke] skipped: no Edge or Chrome found; pass --allow-skip to accept");
+    if (!allowSkip) process.exitCode = 1;
     return;
   }
 
@@ -273,7 +276,24 @@ async function main() {
       "horizontal",
       "the narrow Bench rail must announce a horizontal tablist",
     );
+    for (const tab of ["models", "runs"]) {
+      await evaluate(`document.querySelector('[data-bench-tab="${tab}"]').click(), true`);
+      await delay(80);
+      const fit = await evaluate(`(() => {
+        const body = document.querySelector(".bench-shell .benchmark-body");
+        return { scroll: body.scrollWidth, client: body.clientWidth };
+      })()`);
+      assert.ok(fit.scroll <= fit.client + 1, `the ${tab} Bench panel overflows at 390px (${fit.scroll} > ${fit.client})`);
+    }
     await evaluate('document.getElementById("benchmark-dialog").close(), true');
+    for (const [button, dialog] of [["open-settings", "settings-dialog"], ["open-server", "server-dialog"]]) {
+      await evaluate(`document.getElementById("${button}").click(), true`);
+      assert.ok(await waitFor(() => evaluate(`document.getElementById("${dialog}").open`), 3_000), `${dialog} did not open at 390px`);
+      const rect = await evaluate(`(() => { const r = document.getElementById("${dialog}").getBoundingClientRect(); return { width: r.width, height: r.height }; })()`);
+      assert.ok(rect.width <= 390, `${dialog} is wider than a 390px viewport`);
+      assert.ok(rect.height >= 800, `${dialog} is shorter than the 390px viewport`);
+      await evaluate(`document.getElementById("${dialog}").close(), true`);
+    }
 
     const pageErrors = await evaluate("window.__uiSmokeErrors ?? []");
     assert.deepEqual([...exceptions, ...pageErrors], [], "the control panel raised a console exception");

@@ -24,7 +24,6 @@ import {
 } from "../src/benchmark-base.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const BASELINE = path.join(HERE, "baseline.json");
 const BASELINE_MODEL = path.join(HERE, "baseline-model.json");
 const BASELINE_CHAT = path.join(HERE, "baseline-chat.json");
 const RESULTS_DIR = path.join(HERE, "results");
@@ -229,8 +228,24 @@ function formatSize(bytes) {
   return `${(value / (1024 * 1024)).toFixed(0)} MB`;
 }
 
+/** Resolve a variant's prompt list once, refusing unknown ids before a model is loaded. */
+function promptListFor(spec) {
+  const prompts = spec.promptIds ? PROMPTS.filter((prompt) => spec.promptIds.includes(prompt.id)) : PROMPTS;
+  if (spec.promptIds) {
+    const missing = spec.promptIds.filter((id) => !PROMPTS.some((prompt) => prompt.id === id));
+    if (missing.length) {
+      throw new AppError("Benchmark variant asks for unknown prompts", {
+        code: "benchmark_prompt_unknown",
+        why: `${spec.id} asks for: ${missing.join(", ")}.`,
+        fix: "Remove the unknown prompt ids from benchmarks/matrix.mjs.",
+      });
+    }
+  }
+  return prompts;
+}
+
 function failedVariant(entry, spec, error) {
-  const checksTotal = PROMPTS.reduce((sum, prompt) => sum + prompt.checks.length, 0);
+  const checksTotal = promptListFor(spec).reduce((sum, prompt) => sum + checkCount(prompt), 0);
   return {
     key: spec.family,
     variantId: spec.id,
@@ -273,6 +288,7 @@ function failedVariant(entry, spec, error) {
 }
 
 async function runModel(engine, entry, spec, options, { index = 0, total = 0 } = {}) {
+  const promptList = promptListFor(spec);
   const contextSize = options.contextSize ?? spec.contextSize ?? 2048;
   const threads = options.threads ?? spec.threads ?? 8;
   const kvCache = spec.kvCache ?? "f16";
@@ -295,13 +311,6 @@ async function runModel(engine, entry, spec, options, { index = 0, total = 0 } =
   });
   const memoryBytes = (await engine.status())?.memory?.cpuRam ?? null;
   const systemPrompt = spec.systemPrompt ?? SYSTEM_PROMPT;
-  const promptList = spec.promptIds
-    ? PROMPTS.filter((prompt) => spec.promptIds.includes(prompt.id))
-    : PROMPTS;
-  if (spec.promptIds) {
-    const missing = spec.promptIds.filter((id) => !PROMPTS.some((prompt) => prompt.id === id));
-    if (missing.length) throw new Error(`Benchmark variant ${spec.id} asks for unknown prompt ids: ${missing.join(", ")}`);
-  }
   const prompts = [];
   for (const [promptIndex, prompt] of promptList.entries()) {
     emit(options, {
@@ -566,6 +575,8 @@ async function main() {
       fix: "Choose a catalog model that appears in benchmarks/matrix.mjs.",
     });
   }
+  // Validate every variant's prompt ids before a model is loaded.
+  for (const spec of matrix) promptListFor(spec);
   const baselinePath = options.phase === "chat" ? BASELINE_CHAT : BASELINE_MODEL;
   const runtimeModule = await import("node-llama-cpp");
   const nodeLlamaCpp = await runtimeModule.getModuleVersion().catch(() => "unknown");
@@ -662,6 +673,45 @@ async function main() {
     if (templateChanges.length) {
       log(options, `\nDeliberate model update: ${templateChanges.map(describe).join(", ")}.`);
     }
+  }
+
+  if (baseline && baseline.suiteVersion !== SUITE_VERSION && !options.updateBaseline) {
+    throw new AppError("The benchmark suite changed", {
+      code: "benchmark_suite_changed",
+      why: `${path.basename(baselinePath)} is suite v${baseline.suiteVersion}; this run is v${SUITE_VERSION}.`,
+      fix: "Review the new prompts, then run npm run bench -- --update-baseline.",
+    });
+  }
+  if (baseline && baseline.testHash !== testHash && !options.updateBaseline) {
+    throw new AppError("The benchmark test definitions changed", {
+      code: "benchmark_tests_changed",
+      why: `The baseline was recorded with test hash ${baseline.testHash ?? "missing"}; this run uses ${testHash}.`,
+      fix: "Review benchmarks/CHANGELOG.md, then update the baseline deliberately.",
+    });
+  }
+  if (
+    baseline &&
+    baseline.runtime?.nodeLlamaCpp &&
+    baseline.runtime.nodeLlamaCpp !== runtime.nodeLlamaCpp &&
+    !options.updateBaseline
+  ) {
+    throw new AppError("The inference runtime changed", {
+      code: "benchmark_runtime_changed",
+      why: `The baseline used node-llama-cpp ${baseline.runtime.nodeLlamaCpp}; this run uses ${runtime.nodeLlamaCpp}.`,
+      fix: "Review the runtime changelog, then update the baseline deliberately.",
+    });
+  }
+  if (
+    baseline &&
+    baseline.runtime?.promptFingerprintVersion &&
+    baseline.runtime.promptFingerprintVersion !== runtime.promptFingerprintVersion &&
+    !options.updateBaseline
+  ) {
+    throw new AppError("The prompt fingerprint changed", {
+      code: "benchmark_fingerprint_changed",
+      why: `The baseline used manifest v${baseline.runtime.promptFingerprintVersion}; this run uses v${runtime.promptFingerprintVersion}.`,
+      fix: "Review src/generation-manifest.js, then update the baseline deliberately.",
+    });
   }
 
   const engine = new LlamaEngine({ registry });
@@ -817,45 +867,6 @@ async function main() {
       options,
       `  ${String(test.label || test.id).padEnd(28)} ${String(test.percent.toFixed(1) + "%").padStart(6)}  (${test.passed}/${test.total})`,
     );
-  }
-
-  if (baseline && baseline.suiteVersion !== SUITE_VERSION && !options.updateBaseline) {
-    throw new AppError("The benchmark suite changed", {
-      code: "benchmark_suite_changed",
-      why: `baseline.json is suite v${baseline.suiteVersion}; this run is v${SUITE_VERSION}.`,
-      fix: "Review the new prompts, then run npm run bench -- --update-baseline.",
-    });
-  }
-  if (baseline && baseline.testHash !== testHash && !options.updateBaseline) {
-    throw new AppError("The benchmark test definitions changed", {
-      code: "benchmark_tests_changed",
-      why: `The baseline was recorded with test hash ${baseline.testHash ?? "missing"}; this run uses ${testHash}.`,
-      fix: "Review benchmarks/CHANGELOG.md, then update the baseline deliberately.",
-    });
-  }
-  if (
-    baseline &&
-    baseline.runtime?.nodeLlamaCpp &&
-    baseline.runtime.nodeLlamaCpp !== runtime.nodeLlamaCpp &&
-    !options.updateBaseline
-  ) {
-    throw new AppError("The inference runtime changed", {
-      code: "benchmark_runtime_changed",
-      why: `The baseline used node-llama-cpp ${baseline.runtime.nodeLlamaCpp}; this run uses ${runtime.nodeLlamaCpp}.`,
-      fix: "Review the runtime changelog, then update the baseline deliberately.",
-    });
-  }
-  if (
-    baseline &&
-    baseline.runtime?.promptFingerprintVersion &&
-    baseline.runtime.promptFingerprintVersion !== runtime.promptFingerprintVersion &&
-    !options.updateBaseline
-  ) {
-    throw new AppError("The prompt fingerprint changed", {
-      code: "benchmark_fingerprint_changed",
-      why: `The baseline used manifest v${baseline.runtime.promptFingerprintVersion}; this run uses v${runtime.promptFingerprintVersion}.`,
-      fix: "Review src/generation-manifest.js, then update the baseline deliberately.",
-    });
   }
 
   if (options.updateBaseline) {

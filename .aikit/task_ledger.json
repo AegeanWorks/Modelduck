@@ -247,14 +247,14 @@
         "why": "ModelDuck is a coding optimiser; non-coding tasks diluted the tuning objective and could reward a preset that was worse on code",
         "benefits": "262 focused items, 64 real code-reading questions, three task presets, code-default API/recommendations",
         "risks": "contract: suite/task ids and API default; dependency: none; concurrency: none; state: suite/test and task hashes change, profiles stale, baselines need deliberate regeneration",
-        "mitigation": "369 tests, code-comprehension bank execution, UI smoke at 1440/390, and no baseline claim until a fresh tune/bench run"
+        "mitigation": "372 tests, code-comprehension bank execution, UI smoke at 1440/390, and no baseline claim until a fresh tune/bench run"
       }
     },
     {
       "task_id": "coding-suite-v14",
       "phase": "phase 4",
       "phase_num": 4,
-      "description": "262 items: code 136, code comprehension 64, long context 62; code/comprehension/recall task ids; 369 tests pass; UI smoke passes at 1440 and 390; project gates 4/4; tune:gate has no baseline file yet; baselines deliberately not regenerated; checklists: passed",
+      "description": "262 items: code 136, code comprehension 64, long context 62; code/comprehension/recall task ids; 372 tests pass; UI smoke passes at 1440 and 390; project gates 4/4; tune:gate has no baseline file yet; baselines deliberately not regenerated; checklists: passed",
       "files_affected": [],
       "status": "in_progress",
       "timestamp": 1793494814.4478512,

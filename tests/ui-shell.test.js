@@ -85,12 +85,26 @@ test("the control panel is wired and the chat shell is gone", () => {
     "msg-action",
     "key-row",
     "key-actions",
+    "benchmark-card",
+    "benchmark-metrics",
+    "benchmark-metric",
+    "benchmark-chips",
+    "benchmark-chip",
+    "benchmark-advice-grid",
+    "benchmark-advice-card",
+    "benchmark-advice-actions",
+    "benchmark-types",
+    "benchmark-history",
+    "benchmark-items",
+    "benchmark-commit",
+    "benchmark-empty",
   ]) {
     assert.match(cssRules, new RegExp(`\\.${selector}\\b`), `generated control has no style: .${selector}`);
   }
   for (const selector of ["tune-chip.partial", "tune-chip.pending", "tune-chip.other-device", "tune-chip.dropped"]) {
     assert.match(cssRules, new RegExp(`\\.${selector.replace(".", "\\.")}\\b`), `generated state has no style: .${selector}`);
   }
+  assert.match(cssRules, /#tune-models[\s\S]*?#tune-runs-list[\s\S]*?#tune-run-detail[\s\S]*?overflow-x:\s*auto/, "the mobile tune panels need their own horizontal scrollers");
 });
 
 test("the tuning help explains the stages and the checks", () => {

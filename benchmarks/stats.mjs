@@ -102,6 +102,8 @@ export function compareRuns(current, baseline) {
   const previous = new Map((baseline.models ?? []).map((model) => [model.variantId ?? model.key, model]));
   const variants = [];
   for (const model of current.models ?? []) {
+    // A variant that failed before producing any answer is reported as failed, not paired as a regression.
+    if (!model.prompts?.length) continue;
     const before = previous.get(model.variantId ?? model.key);
     if (!before) continue;
     const then = outcomes(before);

@@ -287,15 +287,15 @@ The **Server** panel controls the local API surface:
 | Active API keys | Generate a key once, then revoke it; only a SHA-256 hash is stored |
 | Serve on local network | Binds `0.0.0.0` on restart; needs Require authentication, else startup turns it off with a warning |
 | Enable CORS | Adds `Access-Control-Allow-Origin: *` and answers preflight on `/v1/*` only; needs Require authentication |
-
-Web pages from another site are refused (`403 cross_site_refused`) on every route except `/v1/*` with CORS on, and a request reaching this computer's loopback must name a loopback host, so a DNS-rebound page cannot pass as the UI.
 | Just-in-time loading | `/v1/chat/completions` can load a named installed model on demand |
 | Auto unload unused JIT | Unloads a JIT model after the idle TTL |
 | Max idle TTL | 1–1440 minutes |
 | Only keep last JIT model | On: a new JIT request replaces the previous JIT model. Off: a second JIT request is refused while a model is loaded |
 | Per-request MCPs / mcp.json | Persisted switches for a future MCP adapter; no tools are exposed yet |
 
-Endpoints:
+Web pages from another site are refused (`403 cross_site_refused`) on every route except `/v1/*` with CORS on, and a request reaching this computer's loopback must name a loopback host, so a DNS-rebound page cannot pass as the UI.
+
+Endpoints (selected; `src/server.js` has the complete route list):
 
 ```text
 GET    /api/server-settings
@@ -404,11 +404,12 @@ exists, every ARIA reference resolves, the four control-panel dialogs are presen
 and no chat shell or deleted chat route remains. `npm run ui:smoke` starts a
 temporary ModelDuck and a headless Edge or Chrome, opens Models, Bench & Tune,
 Settings and Server, checks all six Bench sections and 390px reflow, and fails on
-a missing dialog or console exception. It needs Node 22+ and a Chromium browser; the
-server, browser and temporary data folder are cleaned up.
+a missing dialog or console exception. It needs Node 22+ and a Chromium browser;
+without them it exits 1 unless you pass `-- --allow-skip`. The server, browser and
+temporary data folder are cleaned up.
 
 The benchmark needs the installed benchmark models. Use
-`npm run bench:model -- --download` once, then run both phases for every
+`npm run bench -- --download` once, then run both phases for every
 generation-affecting change.
 
 ## What's Inside

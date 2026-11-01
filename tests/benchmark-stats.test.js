@@ -70,6 +70,14 @@ test("a consistent decline fails as significant; a broad drop fails the floor", 
   assert.ok(result.reasons.some((reason) => /floor/.test(reason)));
 });
 
+test("a variant that failed before answering is not counted as a regression", () => {
+  const baseline = run({ v: [["a", true], ["b", true]] });
+  const current = { models: [{ variantId: "v", prompts: [], failed: true }] };
+  const result = compareRuns(current, baseline);
+  assert.equal(result.verdict, "pass");
+  assert.deepEqual(result.variants, []);
+});
+
 test("improvements and new variants never fail the gate", () => {
   const baseline = run({ v: [["a", false], ["b", true]] });
   const current = run({ v: [["a", true], ["b", true]], extra: [["a", false]] });
