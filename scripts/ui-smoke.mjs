@@ -246,6 +246,22 @@ async function main() {
     }
 
     await evaluate('document.getElementById("open-settings").click(), true');
+    assert.ok(await waitFor(() => evaluate('document.getElementById("settings-dialog").open'), 3_000), "the Settings dialog did not open for help");
+    const helpState = await evaluate(`(() => {
+      const count = document.querySelectorAll(".field-help").length;
+      const button = document.querySelector("#setting-context").closest("label").querySelector(".field-help");
+      button.click();
+      const popover = document.getElementById("field-help-popover");
+      return { count, open: popover.matches(":popover-open") || getComputedStyle(popover).display !== "none", text: popover.textContent };
+    })()`);
+    assert.ok(helpState.count >= 20, `too few inline help controls (${helpState.count})`);
+    assert.equal(helpState.open, true, "the inline help popover did not open");
+    assert.match(helpState.text, /context/i, `the inline help text is missing: ${JSON.stringify(helpState)}`);
+    await evaluate('document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }))');
+    assert.equal(await evaluate('document.getElementById("field-help-popover").matches(":popover-open")'), false, "Escape did not close the inline help");
+    await evaluate('document.getElementById("settings-dialog").close(), true');
+
+    await evaluate('document.getElementById("open-settings").click(), true');
     await delay(120);
     await evaluate('document.getElementById("settings-dialog").close(), true');
     await evaluate('document.getElementById("open-server").click(), true');

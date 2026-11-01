@@ -108,7 +108,11 @@ test("the control panel is wired and the chat shell is gone", () => {
 });
 
 test("the tuning help explains the stages and the checks", () => {
+  const allCss = `${css}\n${theme}`.replace(/\/\*[\s\S]*?\*\//g, "");
   assert.match(html, /id="tune-help"/);
+  assert.match(html, /id="field-help-popover"/);
+  assert.match(app, /const SETTING_HELP = \{/);
+  assert.match(allCss, /\.field-help\b/, "missing inline help style");
   for (const text of [
     "How tuning works",
     "Local measurement, not training",

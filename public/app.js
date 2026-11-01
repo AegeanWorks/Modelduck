@@ -134,6 +134,172 @@ const els = {
   toastRoot: $("toast-root"),
 };
 
+const SETTING_HELP = {
+  "setting-tuned": "Apply the saved preset for each tuned model. Turn this off to use only the values on this form.",
+  "setting-speed-preset": "Which measured speed preset to apply: Fastest uses the most threads, Light leaves half idle, Quiet uses at most a quarter.",
+  "setting-system": "The base instruction sent before every request. A task preset or a per-request system message can override it.",
+  "setting-temp": "Sampling randomness: 0 is deterministic; higher values produce more varied answers.",
+  "setting-topp": "Keep the most likely tokens until this share of probability is covered. Lower values trim more.",
+  "setting-topk": "Sample only from the K most likely tokens; 0 disables this filter.",
+  "setting-minp": "Drop tokens below this fraction of the best token's probability; 0 disables it.",
+  "setting-repeat": "Penalty for repeating tokens; 1 disables it.",
+  "setting-reasoning": "Adds a reasoning instruction. Auto is a short nudge; Deep asks the model to work through the problem first.",
+  "setting-overflow": "What to do when the prompt exceeds the context: Shift drops the oldest tokens; Strict refuses instead.",
+  "setting-structured": "Constrain the reply to a JSON object or the JSON schema below.",
+  "setting-schema": "The JSON Schema used when structured output is JSON schema. Invalid schemas are refused before generation.",
+  "setting-max": "Maximum number of tokens generated for one answer.",
+  "setting-repeat-prompt": "Send the user's text two or three times in the model prompt only; the transcript stays unchanged.",
+  "setting-context": "Maximum context tokens the model can see. Reload the model to apply.",
+  "setting-threads": "CPU threads used for inference. More is not always faster; reload to apply.",
+  "setting-max-threads": "Upper bound for the llama.cpp worker pool. Reload to apply.",
+  "setting-batch": "Tokens evaluated per batch. Larger batches use more memory; reload to apply.",
+  "setting-sequences": "Parallel context slots. More slots use more RAM; reload to apply.",
+  "setting-gpu-backend": "Backend used for offload. Auto chooses a compatible CUDA, Vulkan or Metal backend; reload to apply.",
+  "setting-gpu-layers": "Layers offloaded to the GPU. 0 keeps inference on the CPU; reload to apply.",
+  "setting-flash": "Use flash attention where the backend supports it; reload to apply.",
+  "setting-mmap": "Map weights through the OS page cache instead of copying them into RAM; reload to apply.",
+  "setting-checkpoints": "Keep prefix states so long contexts can be reused faster; reload to apply.",
+  "setting-checkpoint-interval": "How many tokens between prefix checkpoints; reload to apply.",
+  "setting-checkpoint-max": "How many checkpoints one sequence may keep. More costs memory; reload to apply.",
+  "setting-kv": "Precision of the KV cache. Lower precision saves memory and may lose a little quality; reload to apply.",
+  "server-port": "Port the local server listens on after the next restart.",
+  "server-ttl": "Minutes an unused just-in-time model stays loaded before it is unloaded.",
+  "server-auth": "Require an API key for /v1 and for /api requests from other machines.",
+  "server-lan": "Listen on all network interfaces. Requires authentication.",
+  "server-cors": "Allow browser API clients from other origins on /v1 only. Requires authentication.",
+  "server-jit": "Load a named installed model automatically on the first API request.",
+  "server-jit-auto": "Unload a just-in-time model after the idle TTL.",
+  "server-jit-last": "Keep only the most recently used JIT model loaded; a second JIT request is refused while one is loaded.",
+  "server-mcp-request": "Allow a request to choose per-request MCP servers. No tools are exposed yet.",
+  "server-mcp-json": "Allow MCP servers from mcp.json. No tools are exposed yet.",
+  "benchmark-phase": "Model reloading is the required gate; Model usage rechecks sampling and prompting after the model phase.",
+  "benchmark-baseline": "Replace the saved comparison baseline with this run. Use only for a deliberate baseline change.",
+  "benchmark-download": "Download any missing benchmark models before starting.",
+  "benchmark-full": "Add Llama 3B and Phi 3.8B plus their KV variants; this is much slower.",
+  "benchmark-show-old": "Show reports measured on older benchmark suites. They are hidden by default.",
+  "tune-force": "Discard the selected models' saved profile results and measure every chosen stage again.",
+};
+
+const STAGE_HELP = {
+  device: "Measures CPU and GPU; the fastest placement that keeps the same answers wins.",
+  quality: "Chooses context size and KV cache before speed is measured on that load shape.",
+  speed: "Tunes threads, batch, attention, memory mapping and checkpoints for identical answers.",
+  sampling: "Tunes sampling separately for each task after the load settings are fixed.",
+  prompt: "Tunes the system prompt, reasoning mode and prompt repetition per task.",
+};
+
+const TUNE_STEP_HELP = {
+  "device.backends": "Backends to probe. CPU is always kept as the reference, so a GPU wins only when it is faster without losing answers.",
+  "lanes.cpu": "How many tunes may use the CPU lane at the same time.",
+  "lanes.gpu": "How many tunes may use the GPU lanes; 0 makes GPU models wait for the CPU lane.",
+  "load.contextSize": "Context sizes to try. The tuner prefers the largest that fits and loses no answers.",
+  "load.kvCache": "KV cache types to try. Lower precision saves memory; types that lose answers are rejected.",
+  "load.flashAttention": "Flash attention values to try where the backend supports them.",
+  "load.useMmap": "Try mapping weights from disk or copying them into RAM.",
+  "load.batchSize": "Evaluation batch sizes to try. Larger batches can be faster but use more memory.",
+  "load.threads": "CPU thread counts to try, capped at three quarters of the logical cores.",
+  "load.checkpointing.enabled": "Try context checkpointing for hybrid or sliding-window models.",
+  "load.checkpointing.interval": "Checkpoint intervals to try, in tokens.",
+  "load.checkpointing.max": "Maximum checkpoint counts to try.",
+  "sampling.temperature": "Temperature values to try for every task; 0 is deterministic.",
+  "sampling.maxTokens.code": "Answer-length candidates for the code task.",
+  "sampling.maxTokens.comprehension": "Answer-length candidates for code comprehension.",
+  "sampling.maxTokens.recall": "Answer-length candidates for long context.",
+  "sampling.repeatPenalty": "Repeat-penalty values to try.",
+  "sampling.minP": "Min-p values to try.",
+  "sampling.topP": "Top-p values to try.",
+  "sampling.topK": "Top-k values to try; 0 disables top-k.",
+  "prompt.systemPrompt": "System prompts to try, one per line. The first is the reference.",
+  "prompt.reasoning": "Reasoning modes to try: off, auto or deep.",
+  "prompt.promptRepeat": "Prompt-repeat counts to try: 1, 2 or 3.",
+};
+
+const helpPopover = $("field-help-popover");
+let helpAnchor = null;
+
+function helpButton(label, text) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "field-help";
+  button.textContent = "?";
+  button.title = text;
+  button.setAttribute("aria-label", `About ${label}`);
+  button.setAttribute("aria-expanded", "false");
+  button.setAttribute("aria-controls", "field-help-popover");
+  button.setAttribute("aria-describedby", "field-help-popover");
+  button.dataset.help = text;
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    toggleHelp(button);
+  });
+  return button;
+}
+
+function positionHelp(button) {
+  const rect = button.getBoundingClientRect();
+  const box = helpPopover.getBoundingClientRect();
+  const left = Math.min(Math.max(12, rect.left + rect.width / 2 - box.width / 2), innerWidth - box.width - 12);
+  let top = rect.bottom + 8;
+  if (top + box.height > innerHeight - 12) top = Math.max(12, rect.top - box.height - 8);
+  helpPopover.style.left = `${left}px`;
+  helpPopover.style.top = `${top}px`;
+}
+
+function showHelp(button) {
+  hideHelp();
+  const host = button.closest("dialog[open]") ?? document.body;
+  if (helpPopover.parentElement !== host) host.appendChild(helpPopover);
+  helpPopover.textContent = button.dataset.help;
+  if (typeof helpPopover.showPopover === "function") {
+    if (!helpPopover.matches(":popover-open")) helpPopover.showPopover();
+  } else {
+    helpPopover.hidden = false;
+    helpPopover.style.display = "block";
+  }
+  helpAnchor = button;
+  button.setAttribute("aria-expanded", "true");
+  positionHelp(button);
+}
+
+function hideHelp() {
+  if (!helpAnchor) return;
+  const nativePopover = typeof helpPopover.hidePopover === "function";
+  if (nativePopover && helpPopover.matches(":popover-open")) {
+    helpPopover.hidePopover();
+  }
+  if (nativePopover) {
+    helpPopover.style.display = "";
+  } else {
+    helpPopover.hidden = true;
+    helpPopover.style.display = "none";
+  }
+  helpAnchor.setAttribute("aria-expanded", "false");
+  helpAnchor = null;
+}
+
+function toggleHelp(button) {
+  if (helpAnchor === button) hideHelp();
+  else showHelp(button);
+}
+
+function markSettingHelp() {
+  for (const [id, text] of Object.entries(SETTING_HELP)) {
+    const input = document.getElementById(id);
+    const label = input?.closest("label");
+    if (!label || label.querySelector(".field-help")) continue;
+    const caption = label.querySelector(":scope > span") ?? label;
+    const name = (caption.textContent || id).trim().replace(/\s+/g, " ").split(" ").slice(0, 5).join(" ");
+    caption.appendChild(helpButton(name, text));
+  }
+  for (const label of document.querySelectorAll("#tune-stages .tune-stage")) {
+    const input = label.querySelector("input[value]");
+    const span = label.querySelector("span");
+    if (!input || !span || span.querySelector(".field-help")) continue;
+    span.appendChild(helpButton(label.querySelector("strong")?.textContent ?? "stage", STAGE_HELP[input.value]));
+  }
+}
+
 const state = {
   // Models whose tune details are expanded in the Bench dialog, and their sweep logs once loaded.
   tuneOpen: new Set(),
@@ -2650,6 +2816,7 @@ function renderTuneSettings(steps) {
       const caption = Object.assign(document.createElement("span"), { textContent: label });
       if (kind === "checkbox") field.append(input, caption);
       else field.append(caption, input);
+      if (TUNE_STEP_HELP[key]) caption.appendChild(helpButton(label, TUNE_STEP_HELP[key]));
       group.appendChild(field);
     }
     els.tuneSettingsForm.appendChild(group);
@@ -2687,7 +2854,9 @@ function renderTuneOnly(names) {
     for (const name of names.filter((item) => (SETTING_GUIDE[item]?.[0] ?? "speed") === stage)) {
       const option = Object.assign(document.createElement("label"), { className: "check", title: SETTING_GUIDE[name]?.[2] ?? name });
       const box = Object.assign(document.createElement("input"), { type: "checkbox", value: name });
-      option.append(box, Object.assign(document.createElement("span"), { textContent: SETTING_GUIDE[name]?.[1] ?? name }));
+      const caption = Object.assign(document.createElement("span"), { textContent: SETTING_GUIDE[name]?.[1] ?? name });
+      caption.appendChild(helpButton(SETTING_GUIDE[name]?.[1] ?? name, SETTING_GUIDE[name]?.[2] ?? name));
+      option.append(box, caption);
       group.appendChild(option);
     }
     if (group.querySelector("input")) els.tuneOnly.appendChild(group);
@@ -3014,6 +3183,15 @@ function bindEvents() {
   showBenchTab(savedBenchTab());
   syncBenchOrientation();
   BENCH_NARROW?.addEventListener("change", syncBenchOrientation);
+  markSettingHelp();
+  document.addEventListener("click", (event) => {
+    if (helpAnchor && !event.target.closest(".field-help") && !event.target.closest("#field-help-popover")) hideHelp();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && helpAnchor) hideHelp();
+  });
+  window.addEventListener("resize", hideHelp);
+  window.addEventListener("scroll", hideHelp, true);
   els.tuneRunsList.addEventListener("click", (event) => {
     const resume = event.target.closest("[data-tune-continue]");
     if (resume) {

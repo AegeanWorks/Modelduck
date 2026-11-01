@@ -3019,6 +3019,55 @@ a {
   min-width: 620px;
 }
 
+.field-help {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  margin-inline-start: 5px;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 9px;
+  line-height: 1;
+  vertical-align: middle;
+  cursor: help;
+}
+
+.field-help:hover,
+.field-help:focus-visible,
+.field-help[aria-expanded="true"] {
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.field-help-popover {
+  position: fixed;
+  z-index: 120;
+  width: min(320px, calc(100vw - 24px));
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  color: var(--muted);
+  box-shadow: var(--shadow);
+  font-size: 11.5px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.field-help-popover:not(:popover-open) {
+  display: none;
+}
+
+.field-help-popover:popover-open {
+  display: block;
+}
+
 @media (max-width: 640px) {
   .benchmark-dialog {
     width: 100vw;
