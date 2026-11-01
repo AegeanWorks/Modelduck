@@ -530,5 +530,19 @@
     "final_snapshot_digest": "",
     "final_snapshot_entries": 0,
     "surface_digest": "dca4591c1e0bb081e6d417860912b4e61c3863b173d1d262505ed4c51e103bdf"
+  },
+  {
+    "schema": 1,
+    "surface": "app",
+    "baseline_commit": "dcdc227e69913c36e3bcc547194825fec0000a06",
+    "contract_hash": "c6a291e913a9c8f174aadf7fb264b0941c55e9f4999a9a43152f1fb616845d11",
+    "started_at": 1793520790.896152,
+    "finished_at": 1793520801.2672822,
+    "strikes": 0,
+    "reviewer": "Command Code (AI; reviewed generated control styling via static CSS guard and headless smoke at 1440 and 390; delegated by the user on 2026-11-01)",
+    "allowed_removals": [],
+    "final_snapshot_digest": "",
+    "final_snapshot_entries": 0,
+    "surface_digest": "1730d05672c0ec91d5c5b79fa28487087027be9fb8cb1832ae7b274eae66a603"
   }
 ]
