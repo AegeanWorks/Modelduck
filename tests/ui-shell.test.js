@@ -73,6 +73,11 @@ test("the control panel is wired and the chat shell is gone", () => {
       `legacy selector .${dead} is still in styles.css`,
     );
   }
+  assert.match(html, /id="tune-tasks"/);
+  for (const id of ["tune-task-code", "tune-task-comprehension", "tune-task-recall"]) {
+    assert.ok(html.includes(id), `missing tuning task checkbox: ${id}`);
+  }
+  assert.match(cssRules, /\.tune-scope\b/, "missing tuning task scope style");
   for (const selector of ["dashboard", "rail", "metric-strip", "panel", "status-card"]) {
     assert.match(cssRules, new RegExp(`\\.${selector}\\b`), `missing control-panel selector .${selector}`);
   }

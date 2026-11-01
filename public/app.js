@@ -102,6 +102,7 @@ const els = {
   benchmarkChatBase: $("benchmark-chat-base"),
   tuneRunState: $("tune-run-state"),
   tuneStages: $("tune-stages"),
+  tuneTasks: $("tune-tasks"),
   tuneForce: $("tune-force"),
   tuneAll: $("tune-all"),
   tuneCancel: $("tune-cancel"),
@@ -179,6 +180,9 @@ const SETTING_HELP = {
   "benchmark-full": "Add Llama 3B and Phi 3.8B plus their KV variants; this is much slower.",
   "benchmark-show-old": "Show reports measured on older benchmark suites. They are hidden by default.",
   "tune-force": "Discard the selected models' saved profile results and measure every chosen stage again.",
+  "tune-task-code": "Tune the code task's sampling and prompt settings. Shared device, quality and speed stages still run once.",
+  "tune-task-comprehension": "Tune code-comprehension sampling and prompt settings. Shared device, quality and speed stages still run once.",
+  "tune-task-recall": "Tune long-context sampling and prompt settings. Shared device, quality and speed stages still run once.",
 };
 
 const STAGE_HELP = {
@@ -2771,9 +2775,15 @@ async function pollTune() {
 async function startTune(models, { force = false, forceStale = false, stage = null, tasks = null, only = null, continueRun = false, useForm = true } = {}) {
   // A stage button (one stage) or the re-run button (several) runs just those, whatever the boxes above say.
   const settings = only ?? (useForm && !stage ? [...els.tuneOnly.querySelectorAll("input:checked")].map((input) => input.value) : []);
-  const all = [...els.tuneStages.querySelectorAll("input[value]")].map((input) => input.value);
+  const all = [...els.tuneStages.querySelectorAll(".tune-stage input[value]")].map((input) => input.value);
   // Chosen settings run wherever they belong, so they override the stage boxes.
-  const stages = stage ? [].concat(stage) : settings.length ? all : useForm ? [...els.tuneStages.querySelectorAll("input[value]:checked")].map((input) => input.value) : all;
+  const stages = stage ? [].concat(stage) : settings.length ? all : useForm ? [...els.tuneStages.querySelectorAll(".tune-stage input[value]:checked")].map((input) => input.value) : all;
+  const selectedTasks = useForm ? [...els.tuneTasks.querySelectorAll("input:checked")].map((input) => input.value) : TUNE_TASKS;
+  if (!selectedTasks.length) {
+    showToast("Choose at least one task", { kind: "error" });
+    return;
+  }
+  const taskList = tasks ?? (selectedTasks.length === TUNE_TASKS.length ? null : selectedTasks);
   if (!stages.length) {
     showToast("Choose at least one stage", { kind: "error" });
     return;
@@ -2781,7 +2791,7 @@ async function startTune(models, { force = false, forceStale = false, stage = nu
   // A part run measures its parts again on top of the saved rest; only a whole tune starts a stale profile over (ADR-040).
   const partRun = settings.length > 0 || stages.length < all.length;
   try {
-    const { job } = await request("/api/tune/start", { method: "POST", body: { models, ...(tasks && { tasks }), ...(continueRun && { continue: true }), stages, settings: settings.length ? settings : null, force: !continueRun && (useForm ? ((force && !partRun) || (!stage && els.tuneForce.checked)) : force), forceStale } });
+    const { job } = await request("/api/tune/start", { method: "POST", body: { models, ...(taskList && { tasks: taskList }), ...(continueRun && { continue: true }), stages, settings: settings.length ? settings : null, force: !continueRun && (useForm ? ((force && !partRun) || (!stage && els.tuneForce.checked)) : force), forceStale } });
     state.tuneJob = job;
     // A started tune is followed on the Tune tab.
     showBenchTab("tune");

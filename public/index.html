@@ -509,6 +509,13 @@
               <label class="check tune-stage"><input type="checkbox" value="speed" checked /><span><strong>Speed</strong><small>Flash attention, memory map, batch and threads: fastest with identical answers. Saves the Fastest and Light presets.</small></span></label>
               <label class="check tune-stage"><input type="checkbox" value="sampling" checked /><span><strong>Sampling</strong><small>Temperature, answer length, repeat penalty, min-p, top-p and top-k, per task.</small></span></label>
               <label class="check tune-stage"><input type="checkbox" value="prompt" checked /><span><strong>Prompt</strong><small>System prompt, reasoning off or on, and prompt repetition, per task.</small></span></label>
+              <div class="tune-scope" id="tune-tasks" role="group" aria-label="Tasks to tune">
+                <p class="eyebrow">Tasks</p>
+                <label class="check"><input id="tune-task-code" type="checkbox" value="code" checked /><span>Code</span></label>
+                <label class="check"><input id="tune-task-comprehension" type="checkbox" value="comprehension" checked /><span>Comprehension</span></label>
+                <label class="check"><input id="tune-task-recall" type="checkbox" value="recall" checked /><span>Long context</span></label>
+                <p class="tune-scope-note">Only selected tasks are tuned; the shared device, quality and speed stages run once.</p>
+              </div>
               <div class="benchmark-controls tune-actions">
                 <label class="check" title="Discard the chosen models' saved results and measure everything again"><input id="tune-force" type="checkbox" /><span>Re-tune from scratch</span></label>
                 <button class="primary-btn" id="tune-all" type="button" title="Tune every installed model with the choices above">Run all</button>
