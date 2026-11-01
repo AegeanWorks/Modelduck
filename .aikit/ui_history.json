@@ -572,5 +572,19 @@
     "final_snapshot_digest": "",
     "final_snapshot_entries": 0,
     "surface_digest": "17b2a47025377eb976559760d5069111be0e7ae63a3a5cd1ff3f3907c8a8208b"
+  },
+  {
+    "schema": 1,
+    "surface": "app",
+    "baseline_commit": "f07a4cbfe6e1913c84671f9830ef1341db4084fa",
+    "contract_hash": "c6a291e913a9c8f174aadf7fb264b0941c55e9f4999a9a43152f1fb616845d11",
+    "started_at": 1793535140.6419005,
+    "finished_at": 1793535157.0646174,
+    "strikes": 0,
+    "reviewer": "Command Code (AI; reviewed inline setting help at 1440 and 390, opened the shared popover, checked Escape dismissal and fixture-backed smoke; delegated by the user on 2026-11-01)",
+    "allowed_removals": [],
+    "final_snapshot_digest": "",
+    "final_snapshot_entries": 0,
+    "surface_digest": "8f59bcdab53ba23f216343683d4486d661719daae8f0ecc52f371e1cebff2f3e"
   }
 ]
