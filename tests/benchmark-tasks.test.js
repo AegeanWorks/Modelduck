@@ -4,8 +4,8 @@ import test from "node:test";
 import { PROMPTS } from "../benchmarks/suite.mjs";
 import { CODE_GROUPS, TASKS, TASK_RUNGS, codeGroupOf, speedItems, suiteSummary, taskHoldout, taskPrompts, taskRungs, taskSubsetHash, tuneRungs, withDiscriminatingRungs } from "../benchmarks/tasks.mjs";
 
-test("the four tasks cover every suite item exactly once", () => {
-  assert.deepEqual(TASKS.map((task) => task.id), ["chat", "code", "math", "recall"]);
+test("the three tasks cover every suite item exactly once", () => {
+  assert.deepEqual(TASKS.map((task) => task.id), ["code", "comprehension", "recall"]);
   const seen = new Map();
   for (const task of TASKS) {
     for (const prompt of taskPrompts(task.id)) {
@@ -18,7 +18,7 @@ test("the four tasks cover every suite item exactly once", () => {
 
 test("an unknown task is refused with a fix", () => {
   assert.throws(() => taskPrompts("poetry"), (error) =>
-    error.code === "unknown_task" && /poetry/.test(error.why) && /chat, code, math, recall/.test(error.fix));
+    error.code === "unknown_task" && /poetry/.test(error.why) && /code, comprehension, recall/.test(error.fix));
 });
 
 test("rungs grow, nest and stop at the task's tuning items", () => {
@@ -34,20 +34,20 @@ test("rungs grow, nest and stop at the task's tuning items", () => {
 });
 
 test("the first rung mixes categories instead of taking the first ones in suite order", () => {
-  const chat = taskRungs("chat")[0];
-  const buckets = new Set(taskPrompts("chat").filter((prompt) => chat.includes(prompt.id)).map((prompt) => prompt.category));
-  assert.ok(buckets.size >= Math.min(chat.length, 4), `only ${[...buckets].join(", ")}`);
+  const code = taskRungs("code")[0];
+  const buckets = new Set(taskPrompts("code").filter((prompt) => code.includes(prompt.id)).map((prompt) => prompt.category));
+  assert.ok(buckets.size >= Math.min(code.length, 4), `only ${[...buckets].join(", ")}`);
 });
 
 test("tune rungs give each task its rungs and the load stage every task's first two rungs", () => {
-  const rungs = tuneRungs(["math", "recall"]);
-  assert.deepEqual(Object.keys(rungs).sort(), ["holdout", "load", "loadByTask", "math", "recall", "speed"]);
-  assert.deepEqual(rungs.loadByTask.math, taskRungs("math")[1], "each task's share of the last load level");
+  const rungs = tuneRungs(["comprehension", "recall"]);
+  assert.deepEqual(Object.keys(rungs).sort(), ["comprehension", "holdout", "load", "loadByTask", "recall", "speed"]);
+  assert.deepEqual(rungs.loadByTask.comprehension, taskRungs("comprehension")[1], "each task's share of the last load level");
   assert.deepEqual(rungs.speed, [speedItems()]);
-  assert.deepEqual(rungs.math, taskRungs("math"));
+  assert.deepEqual(rungs.comprehension, taskRungs("comprehension"));
   assert.equal(rungs.load.length, 2);
-  assert.deepEqual(rungs.load[0], [...taskRungs("math")[0], ...taskRungs("recall")[0]]);
-  assert.deepEqual(rungs.load[1], [...taskRungs("math")[1], ...taskRungs("recall")[1]]);
+  assert.deepEqual(rungs.load[0], [...taskRungs("comprehension")[0], ...taskRungs("recall")[0]]);
+  assert.deepEqual(rungs.load[1], [...taskRungs("comprehension")[1], ...taskRungs("recall")[1]]);
 });
 
 test("the task subset hash is stable and changes with an item definition", () => {
@@ -66,7 +66,7 @@ test("coding categories map to the three tuning views", () => {
   assert.equal(codeGroupOf("bugfix-long"), "fix");
   assert.equal(codeGroupOf("code-repo"), "repo");
   assert.equal(codeGroupOf("bugfix-repo"), "repo");
-  assert.equal(codeGroupOf("knowledge"), null);
+  assert.equal(codeGroupOf("code-comprehension"), null);
 });
 
 test("the speed workload is six fixed items covering every task", () => {
@@ -77,29 +77,29 @@ test("the speed workload is six fixed items covering every task", () => {
 });
 
 test("saturated items leave the search rungs but stay in the final set", () => {
-  const rungs = tuneRungs(["math"]);
-  const full = rungs.math.at(-1);
+  const rungs = tuneRungs(["comprehension"]);
+  const full = rungs.comprehension.at(-1);
   const saturated = new Set(full.slice(0, 20));
-  const { rungs: search, tunedOn } = withDiscriminatingRungs(rungs, saturated, ["math"]);
+  const { rungs: search, tunedOn } = withDiscriminatingRungs(rungs, saturated, ["comprehension"]);
   const keep = full.slice(20);
-  assert.equal(search.math.at(-1).length, keep.length);
-  assert.ok(search.math.every((rung) => rung.every((id) => !saturated.has(id))));
-  assert.deepEqual(search.final.math, full, "the final check still uses every tuning item");
-  assert.deepEqual(tunedOn.math.ids, keep);
-  assert.deepEqual(tunedOn.math.excluded, full.slice(0, 20));
-  assert.equal(tunedOn.math.fellBack, false);
-  assert.deepEqual(search.loadByTask.math, search.math[1]);
+  assert.equal(search.comprehension.at(-1).length, keep.length);
+  assert.ok(search.comprehension.every((rung) => rung.every((id) => !saturated.has(id))));
+  assert.deepEqual(search.final.comprehension, full, "the final check still uses every tuning item");
+  assert.deepEqual(tunedOn.comprehension.ids, keep);
+  assert.deepEqual(tunedOn.comprehension.excluded, full.slice(0, 20));
+  assert.equal(tunedOn.comprehension.fellBack, false);
+  assert.deepEqual(search.loadByTask.comprehension, search.comprehension[1]);
 });
 
 test("a task left with too few discriminating items keeps its whole search set", () => {
-  const rungs = tuneRungs(["math"]);
-  const full = rungs.math.at(-1);
+  const rungs = tuneRungs(["comprehension"]);
+  const full = rungs.comprehension.at(-1);
   const nearlyAll = new Set(full.slice(0, full.length - 5));
-  const { rungs: search, tunedOn } = withDiscriminatingRungs(rungs, nearlyAll, ["math"]);
-  assert.deepEqual(search.math, rungs.math);
-  assert.equal(tunedOn.math.fellBack, true);
-  assert.deepEqual(tunedOn.math.ids, full);
-  assert.deepEqual(tunedOn.math.excluded, []);
+  const { rungs: search, tunedOn } = withDiscriminatingRungs(rungs, nearlyAll, ["comprehension"]);
+  assert.deepEqual(search.comprehension, rungs.comprehension);
+  assert.equal(tunedOn.comprehension.fellBack, true);
+  assert.deepEqual(tunedOn.comprehension.ids, full);
+  assert.deepEqual(tunedOn.comprehension.excluded, []);
 });
 
 test("every task's last rung scores at least 36 items, enough to separate settings, with a quarter held back (ADR-054)", () => {
@@ -118,13 +118,13 @@ test("a quarter of each task is held back from tuning, across its categories, ne
     const categories = new Set(all.filter((prompt) => held.includes(prompt.id)).map((prompt) => prompt.category));
     assert.ok(categories.size >= Math.min(3, new Set(all.map((prompt) => prompt.category)).size), `${task.id} holds back only ${[...categories].join(", ")}`);
   }
-  assert.deepEqual(tuneRungs(["math"]).holdout.math, taskHoldout("math"));
+  assert.deepEqual(tuneRungs(["comprehension"]).holdout.comprehension, taskHoldout("comprehension"));
 });
 
 test("the suite summary describes every task's question types, sources, checks and held-back items", () => {
   const summary = suiteSummary();
   assert.equal(summary.items, PROMPTS.length);
-  assert.deepEqual(summary.tasks.map((task) => task.id), ["chat", "code", "math", "recall"]);
+  assert.deepEqual(summary.tasks.map((task) => task.id), ["code", "comprehension", "recall"]);
   const code = summary.tasks.find((task) => task.id === "code");
   assert.equal(code.items, taskPrompts("code").length);
   assert.equal(code.held, taskHoldout("code").length);
@@ -136,4 +136,8 @@ test("the suite summary describes every task's question types, sources, checks a
   assert.ok(humaneval.sources.includes("HumanEval") && humaneval.sources.includes("MBPP"));
   assert.equal(code.types.reduce((sum, type) => sum + type.items, 0), code.items);
   assert.equal(code.types.reduce((sum, type) => sum + type.held, 0), code.held);
+  const comprehension = summary.tasks.find((task) => task.id === "comprehension");
+  assert.equal(comprehension.items, 64);
+  assert.deepEqual(comprehension.types.map((type) => type.category), ["code-comprehension"]);
+  assert.deepEqual(comprehension.types[0].checks, ["exact"]);
 });

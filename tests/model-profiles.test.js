@@ -41,10 +41,10 @@ const TUNE = {
   load: { settings: { contextSize: 8192, threads: 8, kvCache: "q8_0", temperature: 0.7, maxTokens: 512 }, stats: { rate: 90 } },
   tasks: {
     code: { settings: { temperature: 0.2, maxTokens: 1024 }, stats: { rate: 75, vsDefault: { rateDelta: 10, b: 0, c: 2, pValue: 0.5 } } },
-    math: { settings: { temperature: 0, maxTokens: 768 }, stats: { rate: 60 } },
+    comprehension: { settings: { temperature: 0, maxTokens: 768 }, stats: { rate: 60 } },
   },
   speed: { fastest: { threads: 8, batchSize: 512 }, light: { threads: 4, batchSize: 512 }, quiet: { threads: 2, batchSize: 512 } },
-  stages: { device: "done", quality: "done", speed: "done", sampling: { code: "done", math: "done" }, prompt: { code: "done", math: "partial" } },
+  stages: { device: "done", quality: "done", speed: "done", sampling: { code: "done", comprehension: "done" }, prompt: { code: "done", comprehension: "partial" } },
   progress: { quality: { status: "done" }, sweeps: [] },
   sweeps: [{ stage: "speed", axis: "threads", rungs: [] }],
   runs: 321,
@@ -75,7 +75,7 @@ test("a tune becomes a profile with load settings, task presets and its statisti
 });
 
 test("a profile records which items its search used", () => {
-  const tunedOn = { math: { items: 48, ids: ["m-1", "m-2"], excluded: ["m-3"], fellBack: false } };
+  const tunedOn = { comprehension: { items: 48, ids: ["m-1", "m-2"], excluded: ["m-3"], fellBack: false } };
   const value = profileFromTune({ ...TUNE, tunedOn }, { catalogId: "qwen2.5-0.5b-instruct-q4", fingerprint: FINGERPRINT });
   assert.deepEqual(value.tunedOn, tunedOn);
   assert.equal("tunedOn" in profile(), false, "a tune without a filtered search omits it");
@@ -100,7 +100,7 @@ test("a profile recipe carries settings and a receipt, and imports back", () => 
   const imported = importRecipe(recipe);
   assert.deepEqual(imported.load.settings, { contextSize: 8192, threads: 8, kvCache: "q8_0" });
   assert.deepEqual(imported.tasks.code.settings, { temperature: 0.2, maxTokens: 1024 });
-  assert.equal(imported.tasks.math.settings.maxTokens, 768);
+  assert.equal(imported.tasks.comprehension.settings.maxTokens, 768);
   assert.equal(imported.search.imported, true);
   assert.equal(imported.stages, null, "an imported profile is not marked as tuned here");
   assert.equal(imported.speed.quiet.threads, 2);
@@ -150,7 +150,7 @@ test("a preset's clearly worse question types are named", () => {
 test("a profile keeps its speed presets, stage status and progress", () => {
   const value = profile();
   assert.equal(value.speed.light.threads, 4);
-  assert.equal(value.stages.prompt.math, "partial");
+  assert.equal(value.stages.prompt.comprehension, "partial");
   assert.equal(value.progress.quality.status, "done");
 });
 
@@ -193,7 +193,7 @@ test("the current fingerprint names this machine, runtime, test and model file",
 });
 
 test("unfinished stages are listed per task", () => {
-  assert.deepEqual(pendingWork(profile(), ["code", "math", "recall"]), ["prompt:math", "sampling:recall", "prompt:recall"]);
+  assert.deepEqual(pendingWork(profile(), ["code", "comprehension", "recall"]), ["prompt:comprehension", "sampling:recall", "prompt:recall"]);
   assert.deepEqual(pendingWork(profile(), ["code"], ["quality", "speed"]), []);
   assert.deepEqual(pendingWork(null, ["code"], ["quality"]), ["quality"]);
 });
@@ -233,7 +233,7 @@ test("a tune reuses what is saved before measuring again", () => {
   const fresh = { profile: profile(), stale: [], warnings: [] };
   assert.deepEqual(planTune(null, ["code"]), { resume: null });
   assert.deepEqual(planTune(fresh, ["code"]), { skip: true });
-  assert.deepEqual(planTune(fresh, ["code", "math"]), { resume: { ...profile().progress, sweeps: profile().sweeps } }, "math's prompt stage is unfinished");
+  assert.deepEqual(planTune(fresh, ["code", "comprehension"]), { resume: { ...profile().progress, sweeps: profile().sweeps } }, "comprehension's prompt stage is unfinished");
   const stale = { ...fresh, stale: ["suiteVersion"], warnings: ["The test suite changed (v8 → v9)."] };
   assert.deepEqual(planTune(stale, ["code"]), { skip: true }, "a stale profile is still used, with its warning");
   assert.throws(() => planTune(stale, ["recall"]), (error) => error.code === "tune_profile_stale" && /--force/.test(error.fix));
@@ -250,8 +250,8 @@ const PROGRESS = {
   device: { status: "done", settings: { gpuBackend: "vulkan" } },
   quality: { status: "done", settings: { contextSize: 8192 } },
   speed: { status: "done", settings: { threads: 8 } },
-  sampling: { code: { status: "done", settings: { temperature: 0.2 } }, math: { status: "done", settings: { temperature: 0 } } },
-  prompt: { code: { status: "done", settings: { reasoning: "off" } }, math: { status: "partial", settings: {} } },
+  sampling: { code: { status: "done", settings: { temperature: 0.2 } }, comprehension: { status: "done", settings: { temperature: 0 } } },
+  prompt: { code: { status: "done", settings: { reasoning: "off" } }, comprehension: { status: "partial", settings: {} } },
   sweeps: [],
   runs: 10,
 };
@@ -265,9 +265,9 @@ test("choosing some stages measures them again on top of the saved rest, even wh
   assert.equal(quality.resume.quality, undefined, "the chosen stage starts over");
   assert.deepEqual(quality.resume.device, PROGRESS.device, "the other stages stay as the starting point");
   assert.deepEqual(quality.resume.sampling, PROGRESS.sampling);
-  const prompt = planTune(stale, ["code", "math"], ["prompt"]);
+  const prompt = planTune(stale, ["code", "comprehension"], ["prompt"]);
   assert.deepEqual(prompt.rerun, ["prompt:code"], "a partial stage resumes instead of starting over");
-  assert.deepEqual(Object.keys(prompt.resume.prompt), ["math"]);
+  assert.deepEqual(Object.keys(prompt.resume.prompt), ["comprehension"]);
   assert.deepEqual(planTune(stale, ["code"], ["device"]).rerun, ["device"]);
   assert.throws(() => planTune(stale, ["recall"]), (error) => error.code === "tune_profile_stale", "a full run of a stale profile still needs --force");
 });
@@ -279,7 +279,7 @@ test("a profile records which parts were measured under an older fingerprint and
   const measuredUnder = measuredUnderAfter({ profile: saved }, now, TUNE.stages, ["quality"]);
   assert.deepEqual(measuredUnder.quality, now);
   assert.deepEqual(measuredUnder.device, FINGERPRINT, "parts not measured again keep their fingerprint");
-  assert.deepEqual(measuredUnder["prompt:math"], FINGERPRINT);
+  assert.deepEqual(measuredUnder["prompt:comprehension"], FINGERPRINT);
   await saveProfile(dir, profileFromTune(TUNE, { catalogId: "qwen2.5-0.5b-instruct-q4", fingerprint: now, measuredUnder }));
   const loaded = await loadProfile(dir, "qwen2.5-0.5b-instruct-q4", now);
   assert.deepEqual(loaded.stale, ["suiteVersion"]);
@@ -301,20 +301,23 @@ test("a profile remembers the device each part was measured on and flags parts f
   await saveProfile(dir, profileFromTune({ ...TUNE, load: { settings: { gpuBackend: "cpu" } } }, { catalogId: "qwen2.5-0.5b-instruct-q4", fingerprint: FINGERPRINT, measuredOn }));
   const loaded = await loadProfile(dir, "qwen2.5-0.5b-instruct-q4", FINGERPRINT);
   assert.deepEqual(loaded.stale, [], "another device is not a stale profile");
-  assert.ok(loaded.deviceParts.includes("quality") && loaded.deviceParts.includes("prompt:math"));
+  assert.ok(loaded.deviceParts.includes("quality") && loaded.deviceParts.includes("prompt:comprehension"));
   assert.ok(!loaded.deviceParts.includes("device"));
   assert.match(loaded.warnings.at(-1), /measured on the vulkan GPU.*now on the CPU/i);
   assert.deepEqual(measuredOnAfter(null, TUNE.stages, [], "vulkan").quality, "vulkan", "a fresh tune measures everything on its device");
 });
 
 test("continuing a run measures only what is not done yet, even on a stale profile", () => {
-  // An interrupted prompt-only run: chat finished again, code was cleared and never reached.
-  const progress = structuredClone(PROGRESS);
-  progress.prompt = { chat: { status: "done", settings: { reasoning: "off" } } };
-  const profile = { ...profileWith(progress), stages: { ...TUNE.stages, prompt: { chat: "done" } } };
-  const stale = { profile, stale: ["suiteVersion"], warnings: ["changed"] };
-  const plan = planTune(stale, ["chat", "code"], ["prompt"], null, { continueRun: true });
+  const stale = { profile: withProgress(), stale: ["suiteVersion"], warnings: ["changed"] };
+  const plan = planTune(stale, ["code", "comprehension"], ["prompt"], null, { continueRun: true });
   assert.deepEqual(plan.rerun, [], "nothing finished is measured again");
-  assert.deepEqual(plan.resume.prompt, progress.prompt, "the finished part stays as it is");
-  assert.deepEqual(planTune(stale, ["chat"], ["prompt"], null, { continueRun: true }), { skip: true }, "nothing left to continue");
+  assert.deepEqual(plan.resume.prompt, PROGRESS.prompt, "the finished and partial task results are kept");
+
+  // An interrupted prompt-only run: comprehension finished and nothing else was reached.
+  const progress = structuredClone(PROGRESS);
+  progress.prompt = { comprehension: { status: "done", settings: { reasoning: "off" } } };
+  const profile = { ...profileWith(progress), stages: { ...TUNE.stages, prompt: { comprehension: "done" } } };
+  const finished = { profile, stale: ["suiteVersion"], warnings: ["changed"] };
+  const done = planTune(finished, ["comprehension"], ["prompt"], null, { continueRun: true });
+  assert.deepEqual(done, { skip: true }, "nothing left to continue");
 });

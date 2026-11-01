@@ -73,7 +73,7 @@ test("the model and chat phases cover their own settings", () => {
   assert.ok(CHAT_MATRIX.some((variant) => variant.repeatPenalty === 1.2));
   assert.ok(CHAT_MATRIX.some((variant) => variant.promptRepeat === 2));
   assert.ok(CHAT_MATRIX.some((variant) => variant.reasoning === "deep"));
-  assert.ok(CHAT_MATRIX.some((variant) => variant.structuredOutput === "json_schema"));
+  assert.ok(!CHAT_MATRIX.some((variant) => variant.structuredOutput === "json_schema"), "the removed JSON-format prompt has no variant");
   assert.ok(CHAT_MATRIX.every((variant) => variant.seed === 42));
 });
 
@@ -103,7 +103,7 @@ test("a selected model-phase base drives every chat variant", () => {
     assert.equal(variant.seed, 42);
   }
   assert.ok(matrix.some((variant) => variant.topK === 20));
-  assert.ok(matrix.some((variant) => variant.structuredOutput === "json_schema"));
+  assert.ok(!matrix.some((variant) => variant.structuredOutput === "json_schema"));
 });
 
 test("fenced answers and trailing punctuation normalize for exact checks", () => {
@@ -112,21 +112,12 @@ test("fenced answers and trailing punctuation normalize for exact checks", () =>
   assert.equal(stripFence("```js\nconst x = 1;\n```"), "const x = 1;");
 });
 
-test("exact, JSON, list and format checks are deterministic", async () => {
-  const exact = await evaluateResponse(PROMPTS[0], "quack!");
+test("exact checks are deterministic on the coding suite", async () => {
+  const exactPrompt = PROMPTS.find((prompt) => prompt.id === "read-sumTo-5");
+  const exact = await evaluateResponse(exactPrompt, "55");
   assert.equal(exact.passed, exact.total);
-
-  const jsonPrompt = PROMPTS.find((prompt) => prompt.id === "json-format");
-  const json = await evaluateResponse(jsonPrompt, '{"name":"ModelDuck","answer":42}');
-  assert.equal(json.passed, json.total);
-
-  const listPrompt = PROMPTS.find((prompt) => prompt.id === "list-three");
-  const list = await evaluateResponse(listPrompt, "red, green, blue");
-  assert.equal(list.passed, list.total);
-
-  const lowerPrompt = PROMPTS.find((prompt) => prompt.id === "lowercase");
-  const lower = await evaluateResponse(lowerPrompt, "the quick brown fox jumps.");
-  assert.equal(lower.passed, lower.total);
+  const wrong = await evaluateResponse(exactPrompt, "54");
+  assert.ok(wrong.passed < wrong.total);
 });
 
 test("code checks require a matching function and valid JavaScript syntax", async () => {
@@ -141,22 +132,10 @@ test("code checks require a matching function and valid JavaScript syntax", asyn
   assert.ok(bad.passed < bad.total);
 });
 
-test("web-benchmark-style tasks parse choices, numbers and passages", async () => {
-  const choice = await evaluateResponse(
-    PROMPTS.find((prompt) => prompt.id === "mmlu"),
-    "B",
-  );
-  assert.equal(choice.passed, choice.total);
-
-  const math = await evaluateResponse(
-    PROMPTS.find((prompt) => prompt.id === "gsm8k"),
-    "15",
-  );
-  assert.equal(math.passed, math.total);
-
-  const reading = await evaluateResponse(
-    PROMPTS.find((prompt) => prompt.id === "squad"),
-    "At dusk.",
-  );
-  assert.equal(reading.passed, reading.total);
+test("code comprehension asks for a value from the code shown", async () => {
+  const prompt = PROMPTS.find((item) => item.id === "read-clamp-1");
+  const correct = await evaluateResponse(prompt, "5");
+  assert.equal(correct.passed, correct.total);
+  const wrong = await evaluateResponse(prompt, "4");
+  assert.ok(wrong.passed < wrong.total);
 });

@@ -49,7 +49,7 @@ server and the tuning control panel: Models, Bench & Tune, Settings and Server.
    browser. Closing that window does not stop the local server; press **Ctrl+C**
    in the terminal to quit.
 3. Click **Models → Discover**, download a starter model, then **Install → Load**.
-4. Open **Bench → Tune** to optimize the model, or **Models → Load** to serve it.
+4. Open **Bench & Tune → Tune** to optimize the model, or **Models → Load** to serve it.
    Chat lives in ChatDuck; point it at `http://127.0.0.1:4141`.
 
 No model is bundled. A good first pick is **Qwen2.5 0.5B Instruct** (469 MB,
@@ -73,7 +73,7 @@ npm run dev                  # restart on source changes
 npm test                     # hermetic unit + integration tests
 npm run ui:smoke             # headless control-panel and dialog check
 npm run tune -- --model qwen2.5-0.5b-instruct-q4   # tune one model (reuses a saved profile)
-npm run tune -- --model <id> --tasks code,math --force   # re-tune chosen tasks
+npm run tune -- --model <id> --tasks code,comprehension --force   # re-tune chosen tasks
 npm run tune -- --model <id> --interactive   # choose every setting's steps first
 npm run tune -- --model <id> --stages quality,speed   # run some stages; the rest stay default
 npm run tune -- --model <id> --stages device   # about a minute: does it run faster on the GPU?
@@ -100,18 +100,17 @@ device. It is off by default so a missing driver never prevents local inference 
 - **Chat lives in ChatDuck** — the separate static client at
   https://github.com/AegeanWorks/Chatduck speaks the same `/v1` API. ModelDuck's
   own page is a control panel for Models, Bench & Tune, Settings and Server.
-- **Benchmark panel** - folded under the tuner: run either phase, read per-test
-  rates; older-suite reports show only when asked.
-- **Settings tuner** - **Bench → Tune** finds the best settings for each installed
+- **Benchmark** — its own tab and gate: run either phase and read per-test rates;
+  older-suite reports appear only when asked.
+- **Settings tuner** - **Bench & Tune → Tune** finds the best settings for each installed
   model, in order: device (CPU or GPU, measured, with a partial offload when the
   full one will not fit), context (largest that
-  fits in free memory) and KV cache, speed settings (threads, batch, flash, mmap), then sampling and prompt per task (chat, code, math, long
-  context). A setting changes only on a clear paired gain (Holm-corrected), a value that falls significantly behind stops early, each preset is checked on unseen items, and a model that cannot load stops the tune. A re-tune skips items no earlier setting has flipped. Profiles export and import as checked recipes, and clearly worse question types are named. For code, it tries coding directives, searches on our own items, and keeps every coding view in mind.
+  fits in free memory) and KV cache, speed settings (threads, batch, flash, mmap), then sampling and prompt per task (code, comprehension, long context). A setting changes only on a clear paired gain (Holm-corrected), a value that falls significantly behind stops early, each preset is checked on unseen items, and a model that cannot load stops the tune. A re-tune skips items no earlier setting has flipped. Profiles export and import as checked recipes, and clearly worse question types are named. For code, it tries coding directives, searches on our own items, and keeps every coding view in mind.
   Each step is saved and applied, so a
   tune can stop anywhere, a stage or task can run again alone, a table names
   each task's best model, and
   **Run all** tunes models in CPU and GPU lanes, live;
-  **Tune runs** keeps every run and answer; stopped runs continue. **Tune
+  **Runs** keeps every run and answer; stopped runs continue. **Tune
   settings** edits the values each setting is tried at and the lanes for this PC. **Benchmark** lists each task's question types and checks.
   **Recommended for this PC** ranks installed models by measured answers and speed, then catalog estimates.
   The client chooses a preset per task with `x-modelduck-task`; **Settings** has the tuned on/off switch
@@ -129,11 +128,9 @@ phase (`npm run bench`) changes one load setting at a time across models, and th
 chosen configuration.
 
 The default set is SmolLM2 135M, Qwen2.5 0.5B and Qwen2.5 Coder 1.5B. `--full-matrix` / `npm run bench:full`
-adds Qwen2.5 1.5B, Llama 3.2 3B and Phi-3.5 Mini with KV-cache variants (hours on a CPU). Suite v13 runs 356 items: 296
-questions ModelDuck authored (code, multi-file codebases, bug fixes, chat, math,
-long context, comprehension, facts) plus 60 items copied from
-permissively licensed public benchmarks (GSM8K 16, MMLU 12,
-HumanEval 12, MBPP 8 and TruthfulQA 12) with source and licence recorded per item;
+adds Qwen2.5 1.5B, Llama 3.2 3B and Phi-3.5 Mini with KV-cache variants (hours on a CPU). Suite v14 runs 262 items: 242
+questions ModelDuck authored for code, multi-file codebases, bug fixes, code comprehension and long-context recall, plus 20 public
+HumanEval and MBPP tasks. No other tasks are part of the suite;
 see [benchmarks/NOTICE-benchmarks.md](benchmarks/NOTICE-benchmarks.md). Public items
 may be in a model's training data, so the report shows **own questions** and
 **public benchmarks** apart, with public results per dataset.
@@ -150,16 +147,16 @@ npm run bench:report
 npm run bench:link                 # after commit: attach the run to HEAD
 ```
 
-The chat phase only changes sampling and prompting, so run it when those change; a
-model-only baseline update leaves the chat baseline on its previous suite. Run
+The model-usage phase only changes sampling and prompting, so run it when those change; a
+model-only baseline update leaves the model-usage baseline on its previous suite. Run
 `npm run bench:all` when both phases must describe the same suite.
 
 A model-phase recommendation can become the chat base without rerunning the model
 phase. **Use for chat** in the Bench panel, or `npm run bench -- --select-base
-<variantId>`, writes `benchmarks/chat-base.json`; the next chat phase loads that
+<variantId>`, writes `benchmarks/chat-base.json`; the next model-usage phase loads that
 measured model, quantization, KV cache, context and reload settings. `--base-variant
 <variantId>` uses one for a single run without saving it. With no selection, the
-chat phase uses Qwen2.5 0.5B Q4 at its default settings.
+model-usage phase uses Qwen2.5 0.5B Q4 at its default settings.
 
 `npm run bench -- --model <catalogId>` (the tuner replaces it in the Bench panel)
 sweeps 17 reload settings for that model on the 16-item smoke set, writes
@@ -187,7 +184,8 @@ is stored on chat messages, exposed as the OpenAI `system_fingerprint`, and
 written to the benchmark history.
 
 Baseline files are `benchmarks/baseline-model.json` and
-`benchmarks/baseline-chat.json`; the local SQLite and JSONL history live in
+`benchmarks/baseline-chat.json`; the committed files predate suite v14, so
+regenerate both before treating a delta as a regression. The local SQLite and JSONL history live in
 `benchmarks/history.sqlite` and `benchmarks/history.jsonl`. The **Bench** button
 in ModelDuck starts either phase with live progress and shows every test
 percentage, runtime, suite/test hash and the linked commit; four recommendation
@@ -269,8 +267,8 @@ curl http://127.0.0.1:4141/v1/completions \
 
 The `model` field is accepted for compatibility; the loaded model answers.
 `GET /v1/models[/:id]` lists installed models (unknown ids 404); text completions
-take one string prompt. A tuned model's task preset (`x-modelduck-task`: chat,
-code, math or recall; default chat) sets the chat defaults; values you send win.
+take one string prompt. A tuned model's task preset (`x-modelduck-task`: code,
+comprehension or recall; default code) sets the chat defaults; values you send win.
 
 In an OpenAI SDK, set `baseURL: "http://127.0.0.1:4141/v1"` and any API key
 (ModelDuck ignores it). `stream: true` returns standard `data:` chunks ending
@@ -303,6 +301,7 @@ PUT    /api/server-settings
 POST   /api/server-settings/api-keys
 DELETE /api/server-settings/api-keys/:id
 GET    /api/benchmarks
+GET    /api/benchmarks/suite
 GET    /api/benchmarks/status
 POST   /api/benchmarks/run
 POST   /api/benchmarks/cancel
@@ -399,10 +398,11 @@ npm test
 ```
 
 `npm test` also checks the control-panel wiring: every element the app looks up
-exists, the four dialogs are present, and no chat shell or deleted chat route
-remains. `npm run ui:smoke` starts a temporary ModelDuck and a headless Edge or
-Chrome, opens Models, Bench & Tune, Settings and Server, and fails on a missing
-dialog or console exception. It needs Node 22+ and a Chromium browser; the
+exists, every ARIA reference resolves, the four control-panel dialogs are present,
+and no chat shell or deleted chat route remains. `npm run ui:smoke` starts a
+temporary ModelDuck and a headless Edge or Chrome, opens Models, Bench & Tune,
+Settings and Server, checks all six Bench sections and 390px reflow, and fails on
+a missing dialog or console exception. It needs Node 22+ and a Chromium browser; the
 server, browser and temporary data folder are cleaned up.
 
 The benchmark needs the installed benchmark models. Use
@@ -447,6 +447,7 @@ modelduck/
 │   ├── index.html <- the control panel
 │   ├── app.js <- state and interactions, no framework
 │   ├── styles.css <- dark/light responsive theme
+│   ├── redesign.css
 │   └── brand/
 │       └── duck.svg <- the ModelDuck mascot and favicon
 ├── scripts/
@@ -464,6 +465,7 @@ modelduck/
 │   ├── repo-items-v13.mjs
 │   ├── own-items-v12.mjs
 │   ├── own-items-v13.mjs
+│   ├── comprehension-items.mjs
 │   ├── recommend.mjs
 │   ├── stats.mjs
 │   ├── tasks.mjs        <- suite items and tuning rungs
@@ -502,7 +504,7 @@ modelduck/
 │   ├── benchmark-suite-v10.test.js
 │   ├── benchmark-suite-v11.test.js
 │   ├── benchmark-suite-v12.test.js
-│   ├── benchmark-suite-v13.test.js
+│   ├── benchmark-suite-v14.test.js
 │   ├── benchmark-suite-v13-repo.test.js
 │   ├── reference-solutions-v9.js
 │   ├── reference-solutions-v13.js

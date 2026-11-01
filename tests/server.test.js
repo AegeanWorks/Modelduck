@@ -413,7 +413,7 @@ test("recommendations rank installed models and list fitting catalog models", as
   assert.ok(Array.isArray(data.installed) && Array.isArray(data.catalog));
   assert.ok(data.installed.every((row) => row.fit !== "will_not_fit"));
   const fallback = await (await fetch(`${harness.base}/api/recommendations?task=poetry`)).json();
-  assert.equal(fallback.task, "chat", "an unknown task falls back to chat");
+  assert.equal(fallback.task, "code", "an unknown task falls back to code");
 });
 
 test("a profile recipe exports as a file and imports for an installed model", async (t) => {
@@ -589,8 +589,8 @@ test("OpenAI chat completions use the tuned preset as defaults, and the client's
     {
       load: { settings: { threads: 6 } },
       tasks: {
-        chat: { settings: { temperature: 0.15, maxTokens: 300, systemPrompt: "Question your own conclusions.", reasoning: "off" } },
-        code: { settings: { temperature: 0, maxTokens: 900, systemPrompt: "Think from first principles." } },
+        code: { settings: { temperature: 0, maxTokens: 900, systemPrompt: "Think from first principles.", reasoning: "off" } },
+        recall: { settings: { temperature: 0.4, maxTokens: 321, systemPrompt: "Recall the document carefully.", reasoning: "auto" } },
       },
       sweeps: [],
       runs: 1,
@@ -609,21 +609,27 @@ test("OpenAI chat completions use the tuned preset as defaults, and the client's
   });
 
   assert.equal((await ask({})).status, 200);
-  assert.equal(chats[0].settings.temperature, 0.15);
-  assert.equal(chats[0].settings.maxTokens, 300);
+  assert.equal(chats[0].settings.temperature, 0);
+  assert.equal(chats[0].settings.maxTokens, 900);
   assert.equal(chats[0].settings.reasoning, "off", "the reasoning setting reaches the engine");
-  assert.equal(chats[0].systemPrompt, "Question your own conclusions.");
+  assert.equal(chats[0].systemPrompt, "Think from first principles.");
 
   await ask({ temperature: 0.9, max_tokens: 20, messages: [{ role: "system", content: "Be a pirate." }, { role: "user", content: "hi" }] });
   assert.equal(chats[1].settings.temperature, 0.9);
   assert.equal(chats[1].settings.maxTokens, 20);
   assert.equal(chats[1].systemPrompt, "Be a pirate.");
 
+  await ask({}, { "x-modelduck-task": "recall" });
+  assert.equal(chats[2].settings.maxTokens, 321);
+  assert.equal(chats[2].systemPrompt, "Recall the document carefully.");
+  assert.equal(chats[2].settings.reasoning, "auto");
+  await ask({ modelduck_task: "recall" });
+  assert.equal(chats[3].settings.maxTokens, 321);
+  assert.equal(chats[3].systemPrompt, "Recall the document carefully.");
+
   await ask({}, { "x-modelduck-task": "code" });
-  assert.equal(chats[2].settings.maxTokens, 900);
-  assert.equal(chats[2].systemPrompt, "Think from first principles.");
-  await ask({ modelduck_task: "code" });
-  assert.equal(chats[3].settings.maxTokens, 900);
+  assert.equal(chats[4].settings.maxTokens, 900);
+  assert.equal(chats[4].systemPrompt, "Think from first principles.");
 
   const unknown = await ask({}, { "x-modelduck-task": "poetry" });
   assert.equal(unknown.status, 400);
@@ -711,7 +717,7 @@ test("the benchmark suite route describes every task's questions", async (t) => 
   const response = await fetch(`${harness.base}/api/benchmarks/suite`);
   assert.equal(response.status, 200);
   const suite = await response.json();
-  assert.ok(suite.suiteVersion >= 12);
-  assert.deepEqual(suite.tasks.map((task) => task.id), ["chat", "code", "math", "recall"]);
+  assert.ok(suite.suiteVersion >= 14);
+  assert.deepEqual(suite.tasks.map((task) => task.id), ["code", "comprehension", "recall"]);
   assert.ok(suite.tasks.every((task) => task.types.length && task.held > 0 && task.tunedOn > 0));
 });

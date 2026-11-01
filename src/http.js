@@ -152,7 +152,7 @@ export async function readJsonBody(req, { limitBytes = 2 * 1024 * 1024 } = {}) {
         code: "body_too_large",
         status: 413,
         why: `The request is larger than ${Math.round(limitBytes / 1024)} KB.`,
-        fix: "Send a shorter message or a smaller conversation history.",
+        fix: "Send a shorter message or a smaller request body.",
       });
     }
     chunks.push(chunk);

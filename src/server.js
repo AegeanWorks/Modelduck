@@ -292,8 +292,8 @@ export function createHttpServer({
 
     // What to run on this machine: measured models first, then catalog estimates (ADR-069).
     if (pathname === "/api/recommendations" && method === "GET") {
-      const wanted = new URL(req.url, "http://localhost").searchParams.get("task") ?? "chat";
-      const task = TASKS.some((item) => item.id === wanted) ? wanted : "chat";
+      const wanted = new URL(req.url, "http://localhost").searchParams.get("task") ?? "code";
+      const task = TASKS.some((item) => item.id === wanted) ? wanted : "code";
       const system = systemInfo();
       const memory = { free: system.freeMemory, total: system.totalMemory };
       const models = registry.listPublic().map((model) => ({ ...model, profileId: profileIdFor(model.fileName) }));

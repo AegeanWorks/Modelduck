@@ -1,44 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { moreMathPrompts, moreRecallPrompts } from "../benchmarks/own-items-v10.mjs";
+import { moreRecallPrompts } from "../benchmarks/own-items-v10.mjs";
 import { repoPrompts } from "../benchmarks/repo-items-v10.mjs";
 import { PROMPTS, SUITE_VERSION, evaluateTextCheck, runJavaScriptTests } from "../benchmarks/suite.mjs";
 import { taskPrompts } from "../benchmarks/tasks.mjs";
-
-/** Each answer worked out again, independently of the item text. */
-const MATH_REFERENCE = {
-  "math-pens-price": (27 / 3) * 2,
-  "math-train-distance": (240 / 3) * 5,
-  "math-mother-age": (() => { for (let son = 1; son < 100; son += 1) if (4 * son + 20 === 2 * (son + 20)) return 4 * son; return null; })(),
-  "math-tank-fill": 1200 - 1200 * 0.35,
-  "math-workers-days": (7 * 12) / 21,
-  "math-jacket-price": 80 * 0.75 * 1.1,
-  "math-sum-to-fifty": Array.from({ length: 50 }, (_, index) => index + 1).reduce((a, b) => a + b, 0),
-  "math-rectangle-area": 15 * (46 / 2 - 15),
-  "math-remainder": 1000 % 37,
-  "math-cookie-eggs": (60 / 12) * 3,
-  "math-marbles": (54 / 3) * 2,
-  "math-fuel": (350 / 100) * 6,
-  "math-clock-minutes": 9 * 60 + 45 + 2 * 60 + 50,
-  "math-test-average": 87 * 5 - 85 * 4,
-  "math-ball-percent": (7 / (5 + 7 + 8)) * 100,
-  "math-reverse-percent": 96 / 1.2,
-  "math-reading-days": Math.ceil((400 - 130) / 18),
-  "math-notebook-price": (13 - 7) / 2,
-  "math-tile-count": (10 / 2) * (14 / 2),
-  "math-phone-bill": 15 + 230 * 0.1,
-  "math-population": 8000 * 1.1 * 1.1,
-  "math-savings": Array.from({ length: 6 }, (_, week) => 12 + 3 * week).reduce((a, b) => a + b, 0),
-  "math-common-multiple": (() => { for (let n = 1; ; n += 1) if (n % 4 === 0 && n % 6 === 0 && n % 10 === 0) return n; })(),
-  "math-rope-pieces": 7.5 / 0.25,
-  "math-work-hours": (17 * 60 + 15 - (8 * 60 + 30) - 45) / 60,
-  "math-class-ratio": (40 / 8) * 5,
-  "math-triangle-angle": Math.max(60, ((180 - 60) / 3) * 2),
-  "math-apple-price": (9 / 12) * 20,
-  "math-powers": 2 ** 10 - 10 ** 2,
-  "math-average-speed": (15 * 2 + 10 * 3) / 5,
-};
 
 const lines = (prompt) => prompt.split("\n");
 
@@ -66,22 +32,11 @@ function recallAnswer(item) {
   return lines(item.prompt).filter((line) => line.endsWith(`colour ${colour}.`)).length;
 }
 
-test("suite v10 gives math and recall at least 51 items each", () => {
+test("suite v10 keeps a substantial long-context workload", () => {
   assert.ok(SUITE_VERSION >= 10);
-  assert.ok(PROMPTS.length >= 256);
+  assert.ok(PROMPTS.length >= 198);
   assert.equal(new Set(PROMPTS.map((prompt) => prompt.id)).size, PROMPTS.length, "ids stay unique");
-  assert.ok(taskPrompts("math").length >= 51);
-  assert.ok(taskPrompts("recall").length >= 51);
-});
-
-test("every new math answer matches an independent calculation", () => {
-  const items = moreMathPrompts();
-  assert.equal(items.length, 30);
-  for (const item of items) {
-    assert.equal(item.checks[0].value, MATH_REFERENCE[item.id], item.id);
-    assert.ok(Number.isInteger(item.checks[0].value), `${item.id} has a whole-number answer`);
-    assert.equal(evaluateTextCheck(item.checks[0], `So the result is: Answer: ${item.checks[0].value}`).passed, true, item.id);
-  }
+  assert.equal(taskPrompts("recall").length, 62);
 });
 
 test("every generated recall answer can be read back from its own text, and only once", () => {

@@ -10,7 +10,7 @@ const PROFILE = {
   load: { settings: { threads: 8 } },
   tasks: {
     code: { settings: { temperature: 0.1 }, stats: { rate: 75, items: 24, latencyMs: 900, ci95: { low: 1, high: 2 } } },
-    math: { settings: { temperature: 0 }, stats: { rate: 50, items: 21, latencyMs: 2000 } },
+    comprehension: { settings: { temperature: 0 }, stats: { rate: 50, items: 21, latencyMs: 2000 } },
   },
   sweeps: [{ big: true }],
 };
@@ -31,18 +31,18 @@ test("a baseline is comparable only on the same suite, items and runtime", () =>
 });
 
 test("a drop of more than one item fails the gate; one item or a gain does not", () => {
-  const current = { qwen: { code: { rate: 70.9, items: 24, latencyMs: 950 }, math: { rate: 42.8, items: 21, latencyMs: 1500 } } };
+  const current = { qwen: { code: { rate: 70.9, items: 24, latencyMs: 950 }, comprehension: { rate: 42.8, items: 21, latencyMs: 1500 } } };
   const result = compareToBaseline(baseline(), current);
   assert.equal(result.passed, false);
   const code = result.rows.find((row) => row.task === "code");
-  const math = result.rows.find((row) => row.task === "math");
+  const comprehension = result.rows.find((row) => row.task === "comprehension");
   assert.equal(code.regression, false, "4.1 pts is within one 24-item step");
-  assert.equal(math.regression, true, "7.2 pts is more than one 21-item step");
-  assert.equal(math.latencyDeltaMs, -500);
+  assert.equal(comprehension.regression, true, "7.2 pts is more than one 21-item step");
+  assert.equal(comprehension.latencyDeltaMs, -500);
 });
 
 test("a task or model missing from the current run is reported, not silently passed", () => {
   const result = compareToBaseline(baseline(), { qwen: { code: { rate: 75, items: 24, latencyMs: 900 } } });
   assert.equal(result.passed, false);
-  assert.equal(result.rows.find((row) => row.task === "math").missing, true);
+  assert.equal(result.rows.find((row) => row.task === "comprehension").missing, true);
 });

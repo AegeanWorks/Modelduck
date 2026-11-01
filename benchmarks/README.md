@@ -10,8 +10,7 @@ second is optional:
 2. **Model usage phase** (optional) — once a model configuration is fixed, which
    sampling and prompting setup gives the best answers? It varies temperature,
    top-k, top-p, min-p, repeat penalty, repeated user prompts, reasoning
-   directives, system prompts and JSON-schema structured output. Run it when those
-   settings change.
+   directives and system prompts. Run it when those settings change.
 
 ```bash
 npm run bench -- --download   # required model phase; first run fetches models
@@ -28,30 +27,41 @@ npm run bench:link            # after commit: run once per pending phase
 The required gate runs SmolLM2 135M, Qwen2.5 0.5B and Qwen2.5 Coder 1.5B.
 `--full-matrix` adds Qwen2.5 1.5B, Llama 3.2 3B and Phi-3.5 Mini plus their KV
 variants; on a CPU that deeper review takes hours, so it is opt-in.
-Suite v12 has 310 items in eighteen categories:
+The committed baselines predate suite v14. Run `npm run bench:update` and
+`npm run tune:gate -- --update-baseline` once on the target machine before using
+the gate as a regression check; until then it is intentionally red.
+Suite v14 has 262 items in ten categories:
 
 | Category | Items | What is measured |
 |---|---:|---|
-| code | 30 | 28 functions run against 3–5 test cases each (strings, arrays, Roman numerals, intervals, binary search, primes, Pascal's row and more), plus the original add/repair checks |
-| code-long | 6 | Long tasks with a 1024-token budget: an arithmetic evaluator with precedence and parentheses, a CSV line parser, greedy word wrap, checkout with buy-N-get-one-free, matrix multiplication and an INI parser |
-| bugfix | 26 | One realistic bug each: off-by-one, wrong initial value or divisor, inverted condition, missing join, lexicographic sort, assignment in a condition, wrong side, ignored quantity and more; the repair must pass the tests |
-| code-repo | 18 | Multi-file codebases (v10: a shop with tax, a search index, a meeting calendar; v11: a bank ledger, an order and shipping service and a Markdown renderer with six or seven files), each with a distractor file: functions to write on top of the existing helpers, which are loaded before the answer, and "which function holds this reported bug?" questions |
-| bugfix-repo | 6 | A user's bug report against one of those codebases; the corrected function must pass the tests with the rest of the codebase loaded |
-| bugfix-long | 6 | Multi-line functions with two or three interacting bugs (binary search, interval merge, a crashing word counter, Roman numerals, cart total with coupon, CSV parsing) |
-| comprehension | 10 | Who/what, event order, negation, time arithmetic, two-step inference, main idea, close distractor, counting, temporal negation and abstaining when the answer is absent |
-| recall | 48 | Locker-register lookups at the start, second, middle and end, a reverse lookup, two needles, list position, latest value wins; v10 adds 40 generated from a fixed seed: PIN lookups at four depths in 20/50/80-row registers, reverse lookups, the latest status in a delivery log, the sum of two balances and colour counts |
-| facts | 11 | Capitals, a chemical symbol, a planet, an author, a year, a boiling point, continents, photosynthesis and Italy |
-| instruction, reasoning, knowledge, format, context | 89 | The original v1–v2 tasks plus exact-prefix, three-way comparison, largest-ocean, JSON-array and long-context code checks; v10 adds 30 own word problems (rates, percentages, ages, time, averages) scored on the last number; v12 adds 30 chat items that follow an instruction or a format (bullets, JSON, YAML, a table, word limits, lowercase, no digits, a start or end word) and 12 long-context items (two-step lookups, event order from a shuffled log, absence, a definition used far below) |
-| public-math | 16 | GSM8K word problems; the check reads the last number in the reply |
-| public-knowledge | 12 | MMLU multiple-choice items across subjects |
+| code | 30 | Write a function against 3–5 test cases: strings, arrays, Roman numerals, intervals, binary search, primes, Pascal's row and more |
+| code-long | 12 | Long functions with a 1024-token budget: an arithmetic evaluator, a CSV parser, greedy word wrap, checkout rules, matrix multiplication, an INI parser and six multi-function changes |
+| code-repo | 24 | Multi-file codebases: write a function on top of the existing helpers, fix a reported bug, or name the function holding a bug. The codebase is loaded before the answer |
+| bugfix | 26 | One realistic bug each: off-by-one, wrong initial value or divisor, inverted condition, missing join, wrong side, ignored quantity and more; the repair must pass the tests |
+| bugfix-long | 12 | Multi-line functions with two or three interacting bugs, checked by several cases |
+| bugfix-repo | 12 | A user's bug report against a multi-file codebase; the corrected function must pass the tests with the rest loaded |
 | public-code | 20 | HumanEval (12) and MBPP (8) tasks translated from Python to JavaScript, checked by their original cases |
-| public-truthful | 12 | TruthfulQA MC1 items; the answer letter is rotated by item position |
+| code-comprehension | 64 | Read a small JavaScript function and report what it returns for eight inputs per function; the expected value is computed from the exact code shown |
+| context | 14 | Long-context documents: needle lookups, code in a long document, two-step lookups, event order, absence and cross-references |
+| recall | 48 | Locker registers, PIN lookups at four depths, reverse lookups, latest status, two balances and colour counts |
 
-Every public item records its dataset, original id and licence in `source`, and
-[NOTICE-benchmarks.md](NOTICE-benchmarks.md) carries the attribution and the
-changes made. Public items may be in a model's training data, so their categories
-are reported separately from the private tasks; do not read a `public-*` gain as
-general ability.
+Chat, math, factual history and the old prose-comprehension items are not part of
+the coding suite. Every public item records its dataset, original id and licence
+in `source`, and [NOTICE-benchmarks.md](NOTICE-benchmarks.md) carries the
+attribution and the changes made.
+
+The suite has three tasks. Each is tuned on its own rung sizes and holds back a
+quarter of its items for the unseen check (ADR-054, ADR-072):
+
+| Task id | Label | Question types | Items | Rungs | Held back |
+|---|---|---|---:|---|---:|
+| `code` | Code | write, fix, codebase and public code | 136 | 12, 24, 48 | 35 |
+| `comprehension` | Code comprehension | read a function and report its result | 64 | 12, 24, 48 | 16 |
+| `recall` | Long context | needle, lookup and cross-reference | 62 | 12, 24, 46 | 16 |
+
+`x-modelduck-task` and the tune verbs accept these three ids; the default is
+`code`. The API's `GET /api/benchmarks/suite` returns the same task, type and
+hold-out description the Bench page renders.
 
 Executable checks run the generated JavaScript in a child process started with
 `node --permission` and no allow flags, so file, child-process, worker and network
@@ -70,7 +80,7 @@ remains the off baseline.
 
 Speed is the median generated tokens per second; `runtimeMs` is the variant's
 wall-clock time. The model phase runs one factor at a time on representative
-models at temperature 0; the chat phase runs generation-only variants on the
+models at temperature 0; the model-usage phase runs generation-only variants on the
 configuration chosen by the first phase with 42-seed sampling.
 
 ## Statistics and the gate
@@ -102,7 +112,8 @@ model run, `benchmarks/recommend.mjs` derives four cards:
 
 - **Best quality** — highest item pass rate (speed breaks a tie).
 - **Best overall** — 70 % quality + 30 % speed, within 15 points of the best.
-- **Best coding** — highest pass rate over `code`, `bugfix` and `public-code`.
+- **Best coding** — highest pass rate over the coding categories: write, fix,
+  codebase, public code and code comprehension.
 - **Fastest within budget** — fastest variant within 5 points of the best.
 
 A separate speed-tuning card compares each smoke variant with its family's base

@@ -157,8 +157,9 @@ async function main() {
     await send("Emulation.setDeviceMetricsOverride", { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
     await send("Page.navigate", { url: `http://127.0.0.1:${port}/` });
 
-    assert.ok(await waitFor(() => evaluate('Boolean(document.querySelector(".control"))')), "the control panel did not render");
+    assert.ok(await waitFor(() => evaluate('Boolean(document.querySelector(".dashboard"))')), "the dashboard did not render");
     assert.equal(await evaluate('document.getElementById("messages") === null'), true, "the chat shell is still present");
+    assert.equal(await evaluate('document.getElementById("dashboard-models") !== null'), true, "the model dashboard is missing");
 
     const dialogs = [
       ["open-models", "models-dialog"],
@@ -188,10 +189,75 @@ async function main() {
       await waitFor(() => evaluate('document.getElementById("server-dialog").open'), 2_000),
       "the Server dialog must open immediately after Settings",
     );
+    await evaluate('document.getElementById("server-dialog").close(), true');
+
+    await evaluate('document.getElementById("open-benchmarks").click(), true');
+    assert.ok(
+      await waitFor(() => evaluate('document.getElementById("benchmark-dialog").open'), 3_000),
+      "the Bench dialog did not open",
+    );
+    assert.equal(
+      await evaluate('document.querySelectorAll("[data-bench-tab]").length'),
+      6,
+      "the Bench rail must list all six sections",
+    );
+    assert.equal(
+      await evaluate('document.querySelector(".bench-nav").getAttribute("aria-orientation")'),
+      "vertical",
+      "the wide Bench rail must announce a vertical tablist",
+    );
+    for (const tab of ["tune", "models", "runs", "settings", "suite", "gate"]) {
+      await evaluate(`document.querySelector('[data-bench-tab="${tab}"]').click(), true`);
+      const state = await evaluate(`(() => {
+        const button = document.querySelector('[data-bench-tab="${tab}"]');
+        const panel = document.querySelector('[data-bench-panel="${tab}"]');
+        const otherVisible = [...document.querySelectorAll("[data-bench-panel]")]
+          .filter((node) => node.dataset.benchPanel !== "${tab}" && !node.hidden).length;
+        return { selected: button.getAttribute("aria-selected"), hidden: panel.hidden, display: getComputedStyle(panel).display, otherVisible };
+      })()`);
+      assert.equal(state.selected, "true", `the ${tab} Bench tab did not become selected`);
+      assert.equal(state.hidden, false, `the ${tab} Bench panel stayed hidden`);
+      assert.notEqual(state.display, "none", `the ${tab} Bench panel is not displayed`);
+      assert.equal(state.otherVisible, 0, `the ${tab} Bench tab left another panel visible`);
+    }
+    await evaluate('document.getElementById("benchmark-dialog").close(), true');
+
+    await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+    await delay(400);
+    assert.equal(
+      await evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth"),
+      true,
+      "the dashboard overflows horizontally at 390px",
+    );
+    await evaluate('document.getElementById("open-models").click(), true');
+    assert.ok(
+      await waitFor(() => evaluate('document.getElementById("models-dialog").open'), 3_000),
+      "the Models dialog did not open at 390px",
+    );
+    assert.ok(
+      (await evaluate('document.getElementById("models-dialog").getBoundingClientRect().width')) <= 390,
+      "the Models dialog is wider than a 390px viewport",
+    );
+    await evaluate('document.getElementById("models-dialog").close(), true');
+    await evaluate('document.getElementById("open-benchmarks").click(), true');
+    assert.ok(
+      await waitFor(() => evaluate('document.getElementById("benchmark-dialog").open'), 3_000),
+      "the Bench dialog did not open at 390px",
+    );
+    assert.ok(
+      (await evaluate('document.getElementById("benchmark-dialog").getBoundingClientRect().width')) >= 389,
+      "the Bench dialog must fill a 390px viewport",
+    );
+    assert.equal(
+      await evaluate('document.querySelector(".bench-nav").getAttribute("aria-orientation")'),
+      "horizontal",
+      "the narrow Bench rail must announce a horizontal tablist",
+    );
+    await evaluate('document.getElementById("benchmark-dialog").close(), true');
 
     const pageErrors = await evaluate("window.__uiSmokeErrors ?? []");
     assert.deepEqual([...exceptions, ...pageErrors], [], "the control panel raised a console exception");
-    console.log("[ui-smoke] control panel and all four dialogs are OK");
+    console.log("[ui-smoke] control panel, four dialogs and six Bench sections are OK, including 390px reflow");
   } finally {
     ws?.close();
     browser?.kill();

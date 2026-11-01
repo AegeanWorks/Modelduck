@@ -98,7 +98,7 @@ export const DEFAULT_STEPS = freezeDeep({
   },
   sampling: {
     temperature: [0, 0.2, 0.4, 0.6, 0.8, 1],
-    maxTokens: { chat: TOKEN_STEPS, code: TOKEN_STEPS, math: TOKEN_STEPS, recall: TOKEN_STEPS },
+    maxTokens: { code: TOKEN_STEPS, comprehension: TOKEN_STEPS, recall: TOKEN_STEPS },
     repeatPenalty: [1, 1.05, 1.1, 1.15, 1.2],
     minP: [0, 0.05, 0.1, 0.15, 0.2],
     topP: [0.8, 0.85, 0.9, 0.95, 1],
@@ -258,7 +258,7 @@ export function samplingAxes(taskId, steps = DEFAULT_STEPS.sampling) {
   const noop = { greedyNoop: true };
   return Object.freeze([
     axis("temperature", "temperature", steps.temperature),
-    axis("maxTokens", "maxTokens", steps.maxTokens[taskId] ?? steps.maxTokens.chat),
+    axis("maxTokens", "maxTokens", steps.maxTokens[taskId] ?? steps.maxTokens.code),
     axis("repeatPenalty", "repeatPenalty", steps.repeatPenalty),
     axis("minP", "minP", steps.minP, noop),
     axis("topP", "topP", steps.topP, noop),
@@ -287,7 +287,7 @@ export function promptAxes(steps = DEFAULT_STEPS.prompt, task = null) {
 /** Every setting name a tune can run on its own (`--settings`), in stage order. */
 export function settingNames() {
   const load = { ...DEFAULT_STEPS.load, checkpointing: { ...DEFAULT_STEPS.load.checkpointing, enabled: true } };
-  return ["device", ...qualityAxes(load), ...speedAxes({ logicalCores: 64 }, load), ...samplingAxes("chat"), ...promptAxes()].map((axis) => axis.name ?? axis);
+  return ["device", ...qualityAxes(load), ...speedAxes({ logicalCores: 64 }, load), ...samplingAxes("code"), ...promptAxes()].map((axis) => axis.name ?? axis);
 }
 
 /** Answers one axis costs under successive halving: every value on the first rung, the better half on each next one. */
@@ -319,7 +319,7 @@ function stageCost(axes, sizes, seeds, secondsPerAnswer, reloadSeconds = 0) {
  * and prompt stages count every seed and every axis, so they are upper bounds;
  * a second pass only runs when the first changed something.
  */
-export function estimateTune(steps, { logicalCores = 8, tasks = ["chat", "code", "math", "recall"], secondsPerAnswer = 3, reloadSeconds = 5, seeds = 3 } = {}) {
+export function estimateTune(steps, { logicalCores = 8, tasks = ["code", "comprehension", "recall"], secondsPerAnswer = 3, reloadSeconds = 5, seeds = 3 } = {}) {
   const rungs = tuneRungs(tasks);
   const device = stageCost([{ patches: steps.device.backends }], [speedItems().length], 1, secondsPerAnswer, reloadSeconds);
   const quality = stageCost(qualityAxes(steps.load), rungs.load.map((rung) => rung.length), 1, secondsPerAnswer, 2 * reloadSeconds);
@@ -341,7 +341,7 @@ export function estimateTune(steps, { logicalCores = 8, tasks = ["chat", "code",
  * pass: the denominator of its time left (ADR-045). Sampling and prompt count every
  * seed, so it is an upper bound; a memory-budget axis asks none.
  */
-export function expectedAnswers(steps, { logicalCores = 8, tasks = ["chat", "code", "math", "recall"], stages = ["device", "quality", "speed", "sampling", "prompt"], only = null, seeds = 3 } = {}) {
+export function expectedAnswers(steps, { logicalCores = 8, tasks = ["code", "comprehension", "recall"], stages = ["device", "quality", "speed", "sampling", "prompt"], only = null, seeds = 3 } = {}) {
   const rungs = tuneRungs(tasks);
   const chosen = (axes) => axes.filter((axis) => !axis.budget && (!only || only.includes(axis.name)));
   const cost = (axes, sizes, seedCount) => chosen(axes).reduce((sum, axis) => sum + axisAnswers(axis.patches.length, sizes, seedCount, axis.full), 0);

@@ -384,19 +384,6 @@ export function buildChatMatrix(selection = {}) {
     chatVariant("chat-system-concise", "concise system prompt", {
       systemPrompt: "Answer in as few words as possible. Obey the requested format exactly.",
     }),
-    chatVariant("chat-structured-json", "JSON schema grammar", {
-      structuredOutput: "json_schema",
-      jsonSchema: JSON.stringify({
-        type: "object",
-        properties: {
-          name: { const: "ModelDuck" },
-          answer: { const: 42 },
-        },
-        required: ["name", "answer"],
-        additionalProperties: false,
-      }),
-      promptIds: ["json-format"],
-    }),
   ];
 }
 

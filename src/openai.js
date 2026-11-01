@@ -317,10 +317,10 @@ export async function handleOpenAI(
   const parsed = isChat ? toMessages(body) : { prompt: toPrompt(body) };
   const current = await ensureReady({ engine, jit, body, res });
   if (!current) return;
-  // A tuned model's preset for the task (x-modelduck-task header or modelduck_task, default chat) becomes the defaults; client values still win.
+  // A tuned model's preset for the task (x-modelduck-task header or modelduck_task, default code) becomes the defaults; client values still win.
   let applied = null;
   if (isChat && tuned) {
-    const task = String(req.headers["x-modelduck-task"] ?? body.modelduck_task ?? "chat");
+    const task = String(req.headers["x-modelduck-task"] ?? body.modelduck_task ?? "code");
     try {
       applied = await tuned.resolve(current.model?.id ?? null, task);
     } catch (error) {

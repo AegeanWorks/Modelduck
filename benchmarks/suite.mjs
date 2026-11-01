@@ -6,8 +6,9 @@ import { moreChatPrompts, moreContextPrompts } from "./own-items-v12.mjs";
 import { moreKnowledgePrompts, moreLongBugPrompts, moreLongCodePrompts, moreMathPromptsV13 } from "./own-items-v13.mjs";
 import { changeAndTracePrompts } from "./repo-items-v13.mjs";
 import { publicPrompts } from "./public-items.mjs";
+import { codeComprehensionPrompts } from "./comprehension-items.mjs";
 
-export const SUITE_VERSION = 13;
+export const SUITE_VERSION = 14;
 
 export const SYSTEM_PROMPT =
   "You are a precise assistant. Follow the requested output format exactly. " +
@@ -74,7 +75,7 @@ const LOCKERS = Array.from({ length: 30 }, (_value, index) => ({
 const LOCKER_TABLE = LOCKERS.map((item) => `Locker ${item.number}: owner ${item.owner}, code ${item.code}.`).join("\n");
 const locker = (number) => LOCKERS.find((item) => item.number === number);
 
-export const PROMPTS = [
+const ALL_PROMPTS = [
   {
     id: "exact-word",
     label: "Exact word",
@@ -276,7 +277,30 @@ export const PROMPTS = [
   ...changeAndTracePrompts(),
   ...factPrompts(),
   ...publicPrompts(),
+  ...codeComprehensionPrompts(),
 ];
+
+/**
+ * The coding suite keeps three workloads: implementation and repair, code
+ * comprehension, and long-context recall. Historical items stay in their
+ * modules but are not part of a run.
+ */
+const SUITE_CATEGORIES = new Set([
+  "code",
+  "code-long",
+  "code-repo",
+  "bugfix",
+  "bugfix-long",
+  "bugfix-repo",
+  "public-code",
+  "code-comprehension",
+  "context",
+  "recall",
+]);
+
+export const PROMPTS = Object.freeze(
+  ALL_PROMPTS.filter((prompt) => SUITE_CATEGORIES.has(prompt.category) && prompt.id !== "squad"),
+);
 
 /* v5 families ------------------------------------------------------------- */
 
@@ -511,11 +535,10 @@ function factPrompts() {
  * spend most of the run re-measuring the same answers.
  */
 export const SMOKE_PROMPT_IDS = Object.freeze([
-  "exact-word", "arithmetic", "json-format", "needle",
-  "code-palindrome", "code-fibonacci", "bug-sum-to", "bug-max-of",
-  "read-who", "read-train-time", "recall-locker-middle", "recall-two-needles",
-  "fact-capital-japan", "fact-gold-symbol",
-  "pub-gsm8k-84", "pub-humaneval-31",
+  "needle", "context-code",
+  "recall-locker-first", "recall-locker-middle", "recall-two-needles",
+  "javascript", "code-palindrome", "code-fibonacci", "bug-sum-to", "bug-max-of", "repo-cart-total",
+  "read-sumTo-1", "read-clamp-1", "read-factorial-1", "read-repeatWord-1", "read-isEven-1",
 ]);
 
 export function stripFence(text) {

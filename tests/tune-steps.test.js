@@ -50,7 +50,7 @@ test("checkpointing can be switched on as one speed axis of interval × max", ()
 });
 
 test("the sampling steps are the user's, and truncation axes are marked as no-ops when greedy", () => {
-  const axes = samplingAxes("math");
+  const axes = samplingAxes("comprehension");
   assert.deepEqual(axes.map((axis) => axis.name), ["temperature", "maxTokens", "repeatPenalty", "minP", "topP", "topK"]);
   assert.deepEqual(values(axes, "temperature"), [0, 0.2, 0.4, 0.6, 0.8, 1]);
   assert.deepEqual(values(axes, "maxTokens"), [64, 128, 256, 512, 1024, 2048]);
@@ -116,11 +116,11 @@ test("user steps are checked against the settings ranges; bad values are reporte
 });
 
 test("the estimate covers all four stages and the worst case of two passes", () => {
-  const estimate = estimateTune(DEFAULT_STEPS, { logicalCores: 16, tasks: ["chat"], secondsPerAnswer: 3, reloadSeconds: 5 });
+  const estimate = estimateTune(DEFAULT_STEPS, { logicalCores: 16, tasks: ["comprehension"], secondsPerAnswer: 3, reloadSeconds: 5 });
   assert.equal(estimate.quality.configs, 3, "only the KV cache is measured; the context size is a memory budget (ADR-043)");
   assert.equal(estimate.speed.configs, 2 + 2 + 6 + 7);
-  assert.equal(estimate.sampling.chat.configs, 6 + 6 + 5 + 5 + 5 + 3);
-  assert.equal(estimate.prompt.chat.configs, 22 + 2 + 2);
+  assert.equal(estimate.sampling.comprehension.configs, 6 + 6 + 5 + 5 + 5 + 3);
+  assert.equal(estimate.prompt.comprehension.configs, 22 + 2 + 2);
   assert.ok(estimate.onePassSeconds > 0);
   assert.equal(estimate.worstCaseSeconds, estimate.onePassSeconds * 2);
 });
@@ -130,7 +130,7 @@ test("stage 0 probes the CPU and Vulkan by default, and the CPU is always kept a
   const { steps, problems } = normalizeSteps({ device: { backends: ["vulkan", "opencl"] } });
   assert.deepEqual(steps.device.backends, ["cpu", "vulkan"]);
   assert.ok(problems.some((problem) => problem.includes("backends opencl")));
-  assert.equal(estimateTune(DEFAULT_STEPS, { tasks: ["chat"] }).device.configs, 2);
+  assert.equal(estimateTune(DEFAULT_STEPS, { tasks: ["comprehension"] }).device.configs, 2);
 });
 
 test("lane counts are settings, since every PC has different CPU and GPU", () => {
@@ -150,13 +150,13 @@ test("every setting a tune can run on its own has a name, in stage order", () =>
 });
 
 test("a run's expected answers count only its chosen stages or settings, and the budgeted context costs none", () => {
-  const whole = expectedAnswers(DEFAULT_STEPS, { logicalCores: 16, tasks: ["chat"] });
-  assert.equal(expectedAnswers(DEFAULT_STEPS, { tasks: ["chat"], stages: ["device"] }), 2 * 6, "two backends on the six speed items");
-  const prompt = expectedAnswers(DEFAULT_STEPS, { tasks: ["chat"], stages: ["prompt"] });
+  const whole = expectedAnswers(DEFAULT_STEPS, { logicalCores: 16, tasks: ["comprehension"] });
+  assert.equal(expectedAnswers(DEFAULT_STEPS, { tasks: ["comprehension"], stages: ["device"] }), 2 * 6, "two backends on the six speed items");
+  const prompt = expectedAnswers(DEFAULT_STEPS, { tasks: ["comprehension"], stages: ["prompt"] });
   assert.ok(prompt > 0 && prompt < whole);
-  const reasoning = expectedAnswers(DEFAULT_STEPS, { tasks: ["chat"], only: ["reasoning"] });
+  const reasoning = expectedAnswers(DEFAULT_STEPS, { tasks: ["comprehension"], only: ["reasoning"] });
   assert.ok(reasoning > 0 && reasoning < prompt, "one setting is a fraction of its stage");
-  assert.equal(expectedAnswers(DEFAULT_STEPS, { tasks: ["chat"], only: ["contextSize"] }), 0, "the context size is a memory budget, not measured");
+  assert.equal(expectedAnswers(DEFAULT_STEPS, { tasks: ["comprehension"], only: ["contextSize"] }), 0, "the context size is a memory budget, not measured");
 });
 
 test("time left comes from the measured pace, and never invents a number past the estimate", () => {

@@ -18,7 +18,7 @@ const fitText = (fit) => ({
 }[fit] ?? fit);
 
 /** Installed models that fit, measured ones first, ranked by quality then speed. */
-export function recommendModels({ models, profiles = {}, memory = {}, task = "chat", limit = LIMIT }) {
+export function recommendModels({ models, profiles = {}, memory = {}, task = "code", limit = LIMIT }) {
   const available = Number(memory.free) || 0;
   const rows = models.map((model) => {
     const profile = profiles[model.profileId] ?? profiles[model.id] ?? null;

@@ -1,49 +1,17 @@
 {
   "version": 1,
   "active_task": {
-    "task_id": "ui-regression",
+    "task_id": "coding-suite-v14",
     "last_phase": "phase 4",
     "active_phase": 5,
     "status": "completed",
-    "updated_at": 1793491468.5828462,
+    "updated_at": 1793494814.4478512,
     "owner": "commandcode:1",
     "started_by": "commandcode:1",
     "continuations": [],
-    "completed_at": 1793491474.3102112
+    "completed_at": 1793494821.4427333
   },
   "checkpoints": [
-    {
-      "task_id": "suite-v13",
-      "phase": "phase 4",
-      "phase_num": 4,
-      "description": "[2/3] suite v13: 34 items for knowledge, long functions, long bug fixes and math, with references, failing buggy versions and derived answers (ADR-060). checklists: passed",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793476895.142344,
-      "timestamp_str": "2026-10-31 23:01:35",
-      "agent": "claude-opus-5.5"
-    },
-    {
-      "task_id": "suite-v13",
-      "phase": "phase 4",
-      "phase_num": 4,
-      "description": "[3/3] 12 codebase items: six multi-function changes and six fixes from a failing test's output, checked through a hidden scenario that keeps every code block (ADR-061). checklists: passed",
-      "files_affected": [],
-      "status": "in_progress",
-      "timestamp": 1793477207.7860427,
-      "timestamp_str": "2026-10-31 23:06:47",
-      "agent": "claude-opus-5.5"
-    },
-    {
-      "task_id": "suite-v13",
-      "phase": "completed",
-      "phase_num": 5,
-      "description": "Task 'suite-v13' completed successfully.",
-      "status": "completed",
-      "timestamp": 1793477219.234216,
-      "timestamp_str": "2026-10-31 23:06:59",
-      "agent": "claude-opus-5.5"
-    },
     {
       "task_id": "tune-smarter",
       "phase": "phase 2",
@@ -263,6 +231,44 @@
       "status": "completed",
       "timestamp": 1793491474.310215,
       "timestamp_str": "2026-11-01 03:04:34",
+      "agent": "commandcode:1"
+    },
+    {
+      "task_id": "coding-suite-v14",
+      "phase": "phase 2",
+      "phase_num": 2,
+      "description": "[1/1] keep code, code comprehension and long context only; remove chat, math, factual, prose comprehension and squad",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793494798.2974124,
+      "timestamp_str": "2026-11-01 03:59:58",
+      "agent": "commandcode:1",
+      "impact_assessment": {
+        "why": "ModelDuck is a coding optimiser; non-coding tasks diluted the tuning objective and could reward a preset that was worse on code",
+        "benefits": "262 focused items, 64 real code-reading questions, three task presets, code-default API/recommendations",
+        "risks": "contract: suite/task ids and API default; dependency: none; concurrency: none; state: suite/test and task hashes change, profiles stale, baselines need deliberate regeneration",
+        "mitigation": "368 tests, code-comprehension bank execution, UI smoke at 1440/390, and no baseline claim until a fresh tune/bench run"
+      }
+    },
+    {
+      "task_id": "coding-suite-v14",
+      "phase": "phase 4",
+      "phase_num": 4,
+      "description": "262 items: code 136, code comprehension 64, long context 62; code/comprehension/recall task ids; 368 tests pass; UI smoke passes at 1440 and 390; 4/4 gates; baselines deliberately not regenerated; checklists: passed",
+      "files_affected": [],
+      "status": "in_progress",
+      "timestamp": 1793494814.4478512,
+      "timestamp_str": "2026-11-01 04:00:14",
+      "agent": "commandcode:1"
+    },
+    {
+      "task_id": "coding-suite-v14",
+      "phase": "completed",
+      "phase_num": 5,
+      "description": "Task 'coding-suite-v14' completed successfully.",
+      "status": "completed",
+      "timestamp": 1793494821.442735,
+      "timestamp_str": "2026-11-01 04:00:21",
       "agent": "commandcode:1"
     }
   ]

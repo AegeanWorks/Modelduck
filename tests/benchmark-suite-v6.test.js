@@ -37,7 +37,7 @@ test("v8 suite: unique ids, new families present, smoke ids resolve", () => {
   const ids = PROMPTS.map((prompt) => prompt.id);
   assert.equal(new Set(ids).size, ids.length);
   const categories = new Set(PROMPTS.map((prompt) => prompt.category));
-  for (const family of ["code", "bugfix", "comprehension", "recall", "facts"]) assert.ok(categories.has(family), family);
+  for (const family of ["code", "bugfix", "code-comprehension", "recall"]) assert.ok(categories.has(family), family);
   for (const id of SMOKE_PROMPT_IDS) assert.ok(ids.includes(id), id);
   assert.equal(executable.length, 66 + 12, "v13 adds six long functions and six long bug fixes");
 });
@@ -126,8 +126,8 @@ const PUBLIC_REFERENCE = {
 
 test("public items carry source and license, and translated code cases hold", () => {
   const publicItems = PROMPTS.filter((prompt) => prompt.category.startsWith("public-"));
-  assert.equal(publicItems.length, 60);
-  assert.equal(PROMPTS.length - publicItems.length, 250 + 46, "ModelDuck's own questions stay in the suite");
+  assert.equal(publicItems.length, 20);
+  assert.equal(PROMPTS.length - publicItems.length, 242, "ModelDuck's own questions stay in the suite");
   for (const prompt of publicItems) {
     assert.ok(prompt.source?.dataset && prompt.source?.license, prompt.id);
     for (const check of prompt.checks.filter((item) => item.type === "jsTests")) {
@@ -136,8 +136,6 @@ test("public items carry source and license, and translated code cases hold", ()
       }
     }
   }
-  const letters = new Set(publicItems.filter((prompt) => prompt.category === "public-truthful").map((prompt) => prompt.checks[0].value));
-  assert.ok(letters.size > 1, "TruthfulQA answers are not all the same letter");
   assert.equal(evaluateTextCheck({ type: "number", value: 1600 }, "1,600").passed, true);
   assert.equal(evaluateTextCheck({ type: "number", value: 75 }, "$75.00").passed, true);
   assert.equal(evaluateTextCheck({ type: "number", value: 600 }, "25 x 3 = 75\n75 x 8 = 600").passed, true);

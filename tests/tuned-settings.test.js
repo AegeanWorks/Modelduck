@@ -43,7 +43,7 @@ test("a tuned model's load settings and the chosen task's sampling are applied",
 });
 
 test("a task the profile lacks keeps the user's sampling", async (t) => {
-  const forMath = await (await setup(t)).resolve("m1", "math");
+  const forMath = await (await setup(t)).resolve("m1", "comprehension");
   assert.equal(forMath.task, null);
   assert.equal("temperature" in forMath.settings, false);
 });
@@ -92,8 +92,8 @@ test("the Light speed preset and a task's tuned prompt settings are applied", as
     {
       load: { settings: { contextSize: 8192, threads: 8 } },
       speed: { fastest: { threads: 8 }, light: { threads: 4 }, quiet: { threads: 2 } },
-      tasks: { math: { settings: { temperature: 0, systemPrompt: "Think from first principles.", reasoning: "auto" } } },
-      stages: { quality: "done", speed: "done", sampling: { math: "done" }, prompt: { math: "done" } },
+      tasks: { comprehension: { settings: { temperature: 0, systemPrompt: "Think from first principles.", reasoning: "auto" } } },
+      stages: { quality: "done", speed: "done", sampling: { comprehension: "done" }, prompt: { comprehension: "done" } },
       sweeps: [],
       runs: 1,
       budgetExhausted: false,
@@ -101,12 +101,12 @@ test("the Light speed preset and a task's tuned prompt settings are applied", as
     { catalogId: "tuned-model", fingerprint: await fingerprint(ENTRY) },
   ));
   const settings = { value: { ...DEFAULT_SETTINGS, speedPreset: "light" } };
-  const resolved = await new TunedSettings({ profilesDir: dir, registry, settings, fingerprint }).resolve("m1", "math");
+  const resolved = await new TunedSettings({ profilesDir: dir, registry, settings, fingerprint }).resolve("m1", "comprehension");
   assert.equal(resolved.settings.threads, 4);
   assert.equal(resolved.settings.systemPrompt, "Think from first principles.");
   assert.equal(resolved.settings.reasoning, "auto");
   assert.equal(resolved.speedPreset, "light");
-  const quiet = await new TunedSettings({ profilesDir: dir, registry, settings: { value: { ...DEFAULT_SETTINGS, speedPreset: "quiet" } }, fingerprint }).resolve("m1", "math");
+  const quiet = await new TunedSettings({ profilesDir: dir, registry, settings: { value: { ...DEFAULT_SETTINGS, speedPreset: "quiet" } }, fingerprint }).resolve("m1", "comprehension");
   assert.equal(quiet.settings.threads, 2);
   assert.equal(quiet.speedPreset, "quiet");
 });
@@ -118,7 +118,7 @@ test("only quality was tuned: those keys apply and everything else stays default
     { load: { settings: { contextSize: 8192 } }, tasks: {}, stages: { quality: "done", speed: "pending", sampling: {}, prompt: {} }, sweeps: [], runs: 1, budgetExhausted: false },
     { catalogId: "tuned-model", fingerprint: await fingerprint(ENTRY) },
   ));
-  const resolved = await new TunedSettings({ profilesDir: dir, registry, settings: { value: DEFAULT_SETTINGS }, fingerprint }).resolve("m1", "chat");
+  const resolved = await new TunedSettings({ profilesDir: dir, registry, settings: { value: DEFAULT_SETTINGS }, fingerprint }).resolve("m1", "code");
   assert.deepEqual(resolved.settings, { contextSize: 8192 });
   assert.equal(resolved.task, null);
   assert.equal(resolved.stages.speed, "pending");

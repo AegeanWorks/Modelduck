@@ -8,15 +8,8 @@ import { PROMPTS, SUITE_VERSION } from "./suite.mjs";
  * to exactly one task, so a tune never scores the same item twice.
  */
 export const TASKS = Object.freeze([
-  Object.freeze({
-    id: "chat",
-    label: "Chat",
-    categories: Object.freeze([
-      "instruction", "format", "comprehension", "knowledge", "facts", "public-knowledge", "public-truthful",
-    ]),
-  }),
   Object.freeze({ id: "code", label: "Code", categories: Object.freeze(["code", "code-long", "code-repo", "bugfix", "bugfix-long", "bugfix-repo", "public-code"]) }),
-  Object.freeze({ id: "math", label: "Math", categories: Object.freeze(["reasoning", "public-math"]) }),
+  Object.freeze({ id: "comprehension", label: "Code comprehension", categories: Object.freeze(["code-comprehension"]) }),
   Object.freeze({ id: "recall", label: "Long context", categories: Object.freeze(["context", "recall"]) }),
 ]);
 
@@ -57,13 +50,17 @@ export function taskPrompts(taskId, prompts = PROMPTS) {
 }
 
 /**
- * Deal items round-robin across category/dataset buckets so a small rung
- * samples the whole task instead of its first category.
+ * Deal items round-robin across family buckets so a small rung samples the whole
+ * task instead of its first category.
  */
+function bucketKey(prompt) {
+  return `${prompt.category}/${prompt.group ?? prompt.source?.dataset ?? "own"}`; // aikit:allow-secret bucket label
+}
+
 function stratified(prompts) {
   const buckets = new Map();
   for (const prompt of prompts) {
-    const key = `${prompt.category}/${prompt.source?.dataset ?? "own"}`; // aikit:allow-secret bucket label
+    const key = bucketKey(prompt);
     if (!buckets.has(key)) buckets.set(key, []);
     buckets.get(key).push(prompt.id);
   }
@@ -77,13 +74,13 @@ function stratified(prompts) {
 
 /**
  * A task split into the items tuned on and those held back: the last quarter of every
- * category/dataset bucket, so each kind of item is checked unseen, both in stratified order.
+ * family bucket, so each kind of item is checked unseen, both in stratified order.
  */
 function split(taskId, prompts) {
   const items = taskPrompts(taskId, prompts);
   const buckets = new Map();
   for (const prompt of items) {
-    const key = `${prompt.category}/${prompt.source?.dataset ?? "own"}`; // aikit:allow-secret bucket label
+    const key = bucketKey(prompt);
     if (!buckets.has(key)) buckets.set(key, []);
     buckets.get(key).push(prompt.id);
   }
@@ -145,10 +142,15 @@ export function withDiscriminatingRungs(rungs, saturated = null, taskIds = TASKS
   return { rungs: search, tunedOn };
 }
 
-/** The speed stage's fixed workload: the first item of every task, plus a second code and recall item for longer prompts. */
+/** The speed stage's fixed workload: the first item of every task, then a second item for each task. */
 export function speedItems(prompts = PROMPTS) {
   const order = (taskId) => stratified(taskPrompts(taskId, prompts));
-  return [...TASKS.map((task) => order(task.id)[0]), order("code")[1], order("recall")[1]];
+  return [
+    ...TASKS.map((task) => order(task.id)[0]),
+    order("code")[1],
+    order("comprehension")[1],
+    order("recall")[1],
+  ];
 }
 
 /** Hash of every item definition a tune can ask, by task; part of a profile's comparability key. */

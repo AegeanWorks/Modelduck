@@ -144,14 +144,14 @@ test("a tune runs the tune script for one model and its tasks, saving into the d
       return fakeChild();
     },
   });
-  const job = runner.start({ phase: "tune", model: "qwen2.5-0.5b-instruct-q4", tasks: ["code", "math"] });
+  const job = runner.start({ phase: "tune", model: "qwen2.5-0.5b-instruct-q4", tasks: ["code", "comprehension"] });
   assert.equal(job.phase, "tune");
-  assert.deepEqual(job.tasks, ["code", "math"]);
+  assert.deepEqual(job.tasks, ["code", "comprehension"]);
   const { args } = calls[0];
   assert.equal(args[0], path.join("benchmarks", "tune-run.mjs"));
   const value = (flag) => args[args.indexOf(flag) + 1];
   assert.equal(value("--model"), "qwen2.5-0.5b-instruct-q4");
-  assert.equal(value("--tasks"), "code,math");
+  assert.equal(value("--tasks"), "code,comprehension");
   assert.equal(value("--home"), path.join("project", "home"));
   assert.equal(value("--models-dir"), path.join("project", "models"));
   assert.ok(args.includes("--events"));

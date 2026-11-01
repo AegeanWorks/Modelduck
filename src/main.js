@@ -19,7 +19,7 @@ import { systemInfo } from "./system.js";
 
 const HELP = `${APP_NAME} ${VERSION}
 
-Run a GGUF model locally and chat with it in your browser.
+Run a GGUF model locally and manage it in your browser.
 
 Usage:
   npm start -- [options]

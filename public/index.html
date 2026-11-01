@@ -11,68 +11,139 @@
     <title>ModelDuck Code — server and tuner</title>
     <link rel="icon" href="/brand/duck.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/redesign.css" />
     <script type="module" src="/app.js"></script>
   </head>
   <body>
+    <a class="skip-link" href="#main">Skip to content</a>
     <div class="app" id="app">
-      <header class="app-bar">
-        <div class="brand">
-          <h1>ModelDuck Code</h1>
-          <span class="brand-note">server · tuner</span>
+      <aside class="rail" aria-label="ModelDuck workbench">
+        <div class="rail-brand">
+          <img class="rail-mark" src="/brand/duck.svg" alt="" width="34" height="34" />
+          <div class="rail-brand-copy">
+            <h1>ModelDuck</h1>
+            <span>local workbench</span>
+          </div>
         </div>
-        <nav class="app-nav" aria-label="ModelDuck">
-          <button class="ghost-btn" id="open-models" type="button">Models</button>
-          <button class="ghost-btn" id="open-benchmarks" type="button">Bench &amp; Tune</button>
-          <button class="ghost-btn" id="open-settings" type="button">Settings</button>
-          <button class="ghost-btn" id="open-server" type="button">Server</button>
-          <button class="icon-btn" id="theme-toggle" type="button" title="Toggle light and dark theme">
-            <span id="theme-icon" aria-hidden="true">☾</span>
+        <nav class="rail-nav" aria-label="Sections">
+          <button class="rail-link is-current" id="nav-overview" type="button" aria-current="page">
+            <span class="rail-index">01</span><span>Overview</span>
+          </button>
+          <button class="rail-link" id="open-models" type="button">
+            <span class="rail-index">02</span><span>Models</span><span class="rail-count" id="rail-model-count">0</span>
+          </button>
+          <button class="rail-link" id="open-benchmarks" type="button">
+            <span class="rail-index">03</span><span>Bench &amp; Tune</span>
+          </button>
+          <button class="rail-link" id="open-settings" type="button">
+            <span class="rail-index">04</span><span>Settings</span>
+          </button>
+          <button class="rail-link" id="open-server" type="button">
+            <span class="rail-index">05</span><span>Server</span>
           </button>
         </nav>
-      </header>
-      <main class="control">
-        <section class="control-card">
+        <div class="rail-status">
+          <p class="rail-label">Runtime</p>
           <button class="status-card" id="status-card" type="button">
-            <span class="status-dot" id="status-dot"></span>
+            <span class="status-dot" id="status-dot" aria-hidden="true"></span>
             <span class="status-copy">
               <strong id="status-model">No model loaded</strong>
               <small id="status-detail">Open Models to begin</small>
             </span>
           </button>
-          <button class="model-pill" id="model-pill" type="button">
-            <span class="dot" id="model-pill-dot"></span>
-            <span id="model-pill-name">No model</span>
+        </div>
+        <div class="rail-foot">
+          <button class="icon-btn" id="theme-toggle" type="button" title="Toggle light and dark theme" aria-label="Toggle light and dark theme">
+            <span id="theme-icon" aria-hidden="true">☾</span>
           </button>
-        </section>
-        <section class="control-note">
-          <p class="eyebrow">Chat moved to ChatDuck</p>
-          <h2>Server and tuning, without the chat shell.</h2>
-          <p>ModelDuck serves the OpenAI-compatible API and tunes the model. Use ChatDuck, the separate static chat client, against this server.</p>
-          <p class="control-links">
-            <a class="primary-btn" href="http://127.0.0.1:4173" target="_blank" rel="noreferrer">Open ChatDuck</a>
-          </p>
-        </section>
-        <footer class="control-foot" id="context-note">No model loaded.</footer>
-      </main>
+          <a href="http://127.0.0.1:4173" target="_blank" rel="noreferrer">ChatDuck <span aria-hidden="true">↗</span></a>
+        </div>
+      </aside>
+      <div class="workspace">
+        <header class="topbar">
+          <div class="crumb"><span>ModelDuck</span><span class="crumb-sep">/</span><strong>Overview</strong></div>
+          <div class="top-actions">
+            <span class="server-state" id="top-server-state">API idle</span>
+            <button class="small-btn" id="hero-models" type="button">Manage models</button>
+            <button class="primary-btn" id="hero-bench" type="button">Open Bench &amp; Tune</button>
+          </div>
+        </header>
+        <main class="dashboard" id="main">
+          <span class="sr-only" id="status-announcer" role="status" aria-live="polite"></span>
+          <section class="masthead">
+            <div>
+              <p class="eyebrow">Local inference · coding</p>
+              <h2>Serve the model.<br />Tune the code.</h2>
+              <p class="masthead-lede">A GGUF model runs on this machine. ModelDuck exposes the OpenAI-compatible API, measures the settings that matter for code, and leaves chat to ChatDuck.</p>
+            </div>
+            <div class="masthead-aside">
+              <span class="masthead-rule"></span>
+              <p class="masthead-note">Everything stays local. The only network request is a model download you start.</p>
+              <button class="ghost-btn" id="masthead-server" type="button">Open server settings <span aria-hidden="true">↗</span></button>
+            </div>
+          </section>
+          <section class="metric-strip" aria-label="System status">
+            <div class="metric"><span>Runtime</span><strong id="dash-runtime">Idle</strong><small id="dash-runtime-detail">No model loaded</small></div>
+            <div class="metric"><span>Installed</span><strong id="dash-model-count">0</strong><small>GGUF models</small></div>
+            <div class="metric"><span>Tuned</span><strong id="dash-tuned-count">—</strong><small>measured profiles</small></div>
+            <div class="metric"><span>API</span><strong id="dash-api-state">Open</strong><small id="dash-api-detail">loopback · CORS off</small></div>
+          </section>
+          <div class="dashboard-grid">
+            <section class="panel panel-models" aria-labelledby="dash-models-title">
+              <div class="panel-head">
+                <div><p class="panel-kicker">Library</p><h3 id="dash-models-title">Installed models</h3></div>
+                <button class="ghost-btn" data-dashboard-open-models="true" type="button">Manage all</button>
+              </div>
+              <div class="dash-model-list" id="dashboard-models"></div>
+            </section>
+            <section class="panel panel-tune" aria-labelledby="dash-tune-title">
+              <div class="panel-head">
+                <div><p class="panel-kicker">Measure</p><h3 id="dash-tune-title">Tuning</h3></div>
+                <span class="badge" id="dash-tune-state">idle</span>
+              </div>
+              <div id="dashboard-tuning" class="dash-tuning"></div>
+              <button class="primary-btn panel-cta" data-dashboard-open-bench="true" type="button">Open Bench &amp; Tune</button>
+            </section>
+            <section class="panel panel-connect" aria-labelledby="dash-connect-title">
+              <div class="panel-head">
+                <div><p class="panel-kicker">Connect</p><h3 id="dash-connect-title">OpenAI-compatible API</h3></div>
+                <span class="badge" id="dash-connect-badge">/v1</span>
+              </div>
+              <div class="api-line"><code id="dash-api-url">http://127.0.0.1:4141/v1</code><button class="small-btn" id="dashboard-copy-api" type="button">Copy URL</button></div>
+              <div class="dash-facts" id="dashboard-connect-facts"></div>
+              <p class="panel-note">Point ChatDuck, Aider or any OpenAI-compatible client at this URL.</p>
+              <a class="primary-btn panel-cta" href="http://127.0.0.1:4173" target="_blank" rel="noreferrer">Open ChatDuck <span aria-hidden="true">↗</span></a>
+            </section>
+            <section class="panel panel-system" aria-labelledby="dash-system-title">
+              <div class="panel-head">
+                <div><p class="panel-kicker">This machine</p><h3 id="dash-system-title">System</h3></div>
+              </div>
+              <div class="dash-facts" id="dashboard-system"></div>
+            </section>
+          </div>
+          <footer class="dashboard-foot"><span id="context-note">No model loaded.</span><span id="dash-footer-version">ModelDuck</span></footer>
+        </main>
+      </div>
     </div>
+
     <dialog class="dialog models-dialog" id="models-dialog" aria-labelledby="models-title">
       <div class="dialog-head">
         <div>
           <p class="eyebrow">Library</p>
           <h2 id="models-title">Models</h2>
         </div>
-        <button class="icon-btn dialog-close" type="button" data-close-dialog="models-dialog" title="Close">
+        <button class="icon-btn dialog-close" type="button" data-close-dialog="models-dialog" aria-label="Close" title="Close">
           <span aria-hidden="true">×</span>
         </button>
       </div>
       <div class="tabs" role="tablist" aria-label="Model views">
-        <button class="tab active" type="button" data-tab="discover" role="tab" aria-selected="true">Discover</button>
-        <button class="tab" type="button" data-tab="installed" role="tab" aria-selected="false">
+        <button class="tab active" type="button" data-tab="discover" role="tab" aria-selected="true" id="models-tab-discover" aria-controls="tab-discover">Discover</button>
+        <button class="tab" type="button" data-tab="installed" role="tab" aria-selected="false" id="models-tab-installed" aria-controls="tab-installed">
           Installed <span class="tab-count" id="installed-count">0</span>
         </button>
       </div>
       <div class="dialog-body">
-        <section class="tab-panel" id="tab-discover" role="tabpanel">
+        <section class="tab-panel" id="tab-discover" role="tabpanel" aria-labelledby="models-tab-discover">
           <div class="discover-intro">
             <div>
               <h3>Pick a brain</h3>
@@ -83,7 +154,7 @@
           <div class="catalog-grid" id="catalog-grid"></div>
         </section>
 
-        <section class="tab-panel" id="tab-installed" role="tabpanel" hidden>
+        <section class="tab-panel" id="tab-installed" role="tabpanel" aria-labelledby="models-tab-installed" hidden>
           <div class="installed-toolbar">
             <p><strong id="models-total">0</strong> model(s) in <code id="models-dir">your model folder</code></p>
             <div class="toolbar-actions">
@@ -98,7 +169,7 @@
               <p>Paste its full path. ModelDuck copies it into your model folder and scans its metadata.</p>
             </div>
             <div class="import-row">
-              <input id="import-path" type="text" placeholder="C:\models\my-model.gguf" autocomplete="off" />
+              <input id="import-path" type="text" placeholder="C:\models\my-model.gguf" autocomplete="off" aria-label="GGUF file path" />
               <button class="primary-btn" id="import-btn" type="button">Import</button>
             </div>
           </div>
@@ -112,12 +183,13 @@
           <p class="eyebrow">Tuning</p>
           <h2 id="settings-title">Settings</h2>
         </div>
-        <button class="icon-btn dialog-close" type="button" data-close-dialog="settings-dialog" title="Close">
+        <button class="icon-btn dialog-close" type="button" data-close-dialog="settings-dialog" aria-label="Close" title="Close">
           <span aria-hidden="true">×</span>
         </button>
       </div>
       <form id="settings-form">
         <div class="dialog-body settings-body">
+          <p class="form-heading">Tuned profile</p>
           <div class="tuned-row">
             <label class="check"><input id="setting-tuned" type="checkbox" /><span>Use tuned settings for tuned models</span></label>
             <label class="field"><span>Speed preset</span>
@@ -131,6 +203,7 @@
           <p class="preset-note">When a model has a tuned profile (Bench → Tune), its measured load settings and the task's preset replace the values below. Turn this off to use exactly what you set here.</p>
           <div class="preset-bar" id="preset-bar" aria-label="Optimization presets"></div>
           <p class="preset-note">Presets are benchmark candidates: they only fill this form and are never applied automatically. Run <code>npm run bench</code> before trusting one.</p>
+          <p class="form-heading">Prompt</p>
           <label class="field">
             <span>System prompt</span>
             <textarea id="setting-system" rows="4" spellcheck="true"></textarea>
@@ -138,6 +211,7 @@
           </label>
 
           <div class="settings-grid">
+            <div class="form-divider full"><span>Sampling and response</span></div>
             <label class="field">
               <span>Temperature <output id="temp-out">0.70</output></span>
               <input id="setting-temp" type="range" min="0" max="2" step="0.05" />
@@ -208,6 +282,7 @@
               </select>
               <small>Duplicates the user's text in the model prompt only. The transcript stays clean.</small>
             </label>
+            <div class="form-divider full"><span>Runtime</span><small>Reload the model to apply</small></div>
             <label class="field">
               <span>Context size</span>
               <input id="setting-context" type="number" min="512" max="32768" step="512" />
@@ -329,12 +404,13 @@
           <p class="eyebrow">API server</p>
           <h2 id="server-title">Server settings</h2>
         </div>
-        <button class="icon-btn dialog-close" type="button" data-close-dialog="server-dialog" title="Close">
+        <button class="icon-btn dialog-close" type="button" data-close-dialog="server-dialog" aria-label="Close" title="Close">
           <span aria-hidden="true">×</span>
         </button>
       </div>
       <form id="server-form">
         <div class="dialog-body settings-body">
+          <p class="form-heading">Listener</p>
           <div class="settings-grid">
             <label class="field">
               <span>Server port</span>
@@ -348,12 +424,15 @@
             </label>
           </div>
           <div class="check-grid">
+            <div class="form-divider full"><span>Access</span></div>
             <label class="check"><input id="server-auth" type="checkbox" /> Require authentication for API and LAN clients</label>
             <label class="check"><input id="server-lan" type="checkbox" /> Serve on local network</label>
             <label class="check"><input id="server-cors" type="checkbox" /> Enable CORS for API clients</label>
+            <div class="form-divider full"><span>Just-in-time</span></div>
             <label class="check"><input id="server-jit" type="checkbox" /> Just-in-time model loading</label>
             <label class="check"><input id="server-jit-auto" type="checkbox" /> Auto unload unused JIT models</label>
             <label class="check"><input id="server-jit-last" type="checkbox" /> Only keep the last JIT loaded model (off refuses a second)</label>
+            <div class="form-divider full"><span>MCP</span></div>
             <label class="check"><input id="server-mcp-request" type="checkbox" /> Allow per-request MCPs</label>
             <label class="check"><input id="server-mcp-json" type="checkbox" /> Allow servers from mcp.json</label>
           </div>
@@ -368,7 +447,7 @@
             <div class="key-head">
               <h3>API keys <span class="badge" id="server-key-count">0 active</span></h3>
               <div class="import-row">
-                <input id="server-key-label" type="text" placeholder="Key label (e.g. laptop)" autocomplete="off" />
+                <input id="server-key-label" type="text" placeholder="Key label (e.g. laptop)" autocomplete="off" aria-label="Key label" />
                 <button class="primary-btn" id="server-key-create" type="button">Create key</button>
               </div>
             </div>
@@ -393,131 +472,137 @@
           <p class="eyebrow">Settings tuner and quality gate</p>
           <h2 id="benchmark-title">Tune &amp; benchmark</h2>
         </div>
-        <button class="icon-btn dialog-close" type="button" data-close-dialog="benchmark-dialog" title="Close">
+        <button class="icon-btn dialog-close" type="button" data-close-dialog="benchmark-dialog" aria-label="Close" title="Close">
           <span aria-hidden="true">×</span>
         </button>
       </div>
-      <div class="dialog-body benchmark-body">
-        <div class="bench-tabs" role="tablist" aria-label="Tune and benchmark">
+      <div class="bench-shell">
+        <div class="bench-nav-wrap">
+          <p class="bench-nav-label">Bench sections</p>
+          <div class="bench-tabs bench-nav" role="tablist" aria-label="Tune and benchmark" aria-orientation="vertical">
           <button class="bench-tab" type="button" role="tab" id="bench-tab-tune" data-bench-tab="tune" aria-controls="bench-panel-tune" aria-selected="true">Tune<span class="bench-tab-dot" id="bench-tab-dot" hidden title="A tune is running"></span></button>
           <button class="bench-tab" type="button" role="tab" id="bench-tab-models" data-bench-tab="models" aria-controls="bench-panel-models" aria-selected="false">Models</button>
           <button class="bench-tab" type="button" role="tab" id="bench-tab-runs" data-bench-tab="runs" aria-controls="bench-panel-runs" aria-selected="false">Runs</button>
           <button class="bench-tab" type="button" role="tab" id="bench-tab-settings" data-bench-tab="settings" aria-controls="bench-panel-settings" aria-selected="false">Tune settings</button>
           <button class="bench-tab" type="button" role="tab" id="bench-tab-suite" data-bench-tab="suite" aria-controls="bench-panel-suite" aria-selected="false">Benchmark</button>
-          <button class="bench-tab" type="button" role="tab" id="bench-tab-gate" data-bench-tab="gate" aria-controls="bench-panel-gate" aria-selected="false">Benchmark gate</button>
+          <button class="bench-tab" type="button" role="tab" id="bench-tab-gate" data-bench-tab="gate" aria-controls="benchmark-reports" aria-selected="false">Benchmark gate</button>
         </div>
-        <section class="benchmark-run bench-panel" id="bench-panel-tune" role="tabpanel" aria-labelledby="bench-tab-tune" data-bench-panel="tune">
-          <div class="benchmark-head">
-            <div>
-              <p class="eyebrow">Settings tuner</p>
-              <h3 id="tune-title">Find the best settings for each model</h3>
+        </div>
+        <div class="dialog-body benchmark-body">
+
+          <section class="benchmark-run bench-panel" id="bench-panel-tune" role="tabpanel" aria-labelledby="bench-tab-tune" data-bench-panel="tune">
+            <div class="benchmark-head">
+              <div>
+                <p class="eyebrow">Settings tuner</p>
+                <h3 id="tune-title">Find the best settings for each model</h3>
+              </div>
+              <span class="badge" id="tune-run-state">idle</span>
             </div>
-            <span class="badge" id="tune-run-state">idle</span>
-          </div>
-          <p class="tune-intro">
-            Measures each installed model on this PC and saves the best settings as presets the app applies
-            automatically, per task (chat, code, math, long context). Results are kept: a stopped tune keeps what it
-            found, and choosing only some stages or settings measures just those again on top of the rest.
-          </p>
-          <div class="tune-stage-list" id="tune-stages">
-            <label class="check tune-stage"><input type="checkbox" value="device" checked /><span><strong>Device</strong><small>CPU or GPU: whichever answers fastest while getting as many answers right.</small></span></label>
-            <label class="check tune-stage"><input type="checkbox" value="quality" checked /><span><strong>Quality</strong><small>Context size and KV cache: the most correct answers.</small></span></label>
-            <label class="check tune-stage"><input type="checkbox" value="speed" checked /><span><strong>Speed</strong><small>Flash attention, memory map, batch and threads: fastest with identical answers. Saves the Fastest and Light presets.</small></span></label>
-            <label class="check tune-stage"><input type="checkbox" value="sampling" checked /><span><strong>Sampling</strong><small>Temperature, answer length, repeat penalty, min-p, top-p and top-k, per task.</small></span></label>
-            <label class="check tune-stage"><input type="checkbox" value="prompt" checked /><span><strong>Prompt</strong><small>System prompt, reasoning off or on, and prompt repetition, per task.</small></span></label>
-            <div class="benchmark-controls tune-actions">
-              <label class="check" title="Discard the chosen models' saved results and measure everything again"><input id="tune-force" type="checkbox" /><span>Re-tune from scratch</span></label>
-              <button class="primary-btn" id="tune-all" type="button" title="Tune every installed model with the choices above">Run all</button>
-              <button class="small-btn" id="tune-cancel" type="button" disabled>Cancel</button>
+            <p class="tune-intro">
+              Measures each installed model on this PC and saves the best settings as presets the app applies
+              automatically, per task (code, comprehension, long context). Results are kept: a stopped tune keeps what it
+              found, and choosing only some stages or settings measures just those again on top of the rest.
+            </p>
+            <div class="tune-stage-list" id="tune-stages">
+              <label class="check tune-stage"><input type="checkbox" value="device" checked /><span><strong>Device</strong><small>CPU or GPU: whichever answers fastest while getting as many answers right.</small></span></label>
+              <label class="check tune-stage"><input type="checkbox" value="quality" checked /><span><strong>Quality</strong><small>Context size and KV cache: the most correct answers.</small></span></label>
+              <label class="check tune-stage"><input type="checkbox" value="speed" checked /><span><strong>Speed</strong><small>Flash attention, memory map, batch and threads: fastest with identical answers. Saves the Fastest and Light presets.</small></span></label>
+              <label class="check tune-stage"><input type="checkbox" value="sampling" checked /><span><strong>Sampling</strong><small>Temperature, answer length, repeat penalty, min-p, top-p and top-k, per task.</small></span></label>
+              <label class="check tune-stage"><input type="checkbox" value="prompt" checked /><span><strong>Prompt</strong><small>System prompt, reasoning off or on, and prompt repetition, per task.</small></span></label>
+              <div class="benchmark-controls tune-actions">
+                <label class="check" title="Discard the chosen models' saved results and measure everything again"><input id="tune-force" type="checkbox" /><span>Re-tune from scratch</span></label>
+                <button class="primary-btn" id="tune-all" type="button" title="Tune every installed model with the choices above">Run all</button>
+                <button class="small-btn" id="tune-cancel" type="button" disabled>Cancel</button>
+              </div>
             </div>
-          </div>
-          <details class="tune-only-details">
-            <summary>Only some settings (optional; replaces the stage choice above)</summary>
-            <div class="tune-only" id="tune-only" aria-label="Only these settings"></div>
-          </details>
-          <p class="benchmark-progress" id="tune-progress">No tune is running. Pick a model in the Models tab, or Run all; stop any time and what was found is applied.</p>
-          <section class="tune-live" id="tune-live" hidden aria-live="polite"></section>
-          <div class="tune-continue" id="tune-continue"></div>
-        </section>
-        <section class="benchmark-run bench-panel" id="bench-panel-models" role="tabpanel" aria-labelledby="bench-tab-models" data-bench-panel="models" hidden>
-          <p class="tune-intro">Every installed model with its progress per stage, why it may be out of date, and its results; Details shows each task's preset, its result on unseen questions and what was tried.</p>
-          <div class="tune-recommend" id="tune-recommend"></div>
-          <div class="tune-models" id="tune-models"></div>
-          <div class="tune-best" id="tune-best"></div>
-        </section>
-        <section class="benchmark-run bench-panel" id="bench-panel-runs" role="tabpanel" aria-labelledby="bench-tab-runs" data-bench-panel="runs" hidden>
-          <div class="tune-runs" id="tune-runs">
-            <p class="tune-intro">Every tune run with what it measured, answer by answer. Nothing is deleted.</p>
-            <div id="tune-runs-list"></div>
-            <div id="tune-run-detail"></div>
-          </div>
-        </section>
-        <section class="benchmark-run bench-panel" id="bench-panel-settings" role="tabpanel" aria-labelledby="bench-tab-settings" data-bench-panel="settings" hidden>
-          <div class="tune-settings" id="tune-settings">
-            <p class="tune-intro">The values each setting is tried at, the CPU and GPU lanes, and the devices probed, for this PC.</p>
-            <form id="tune-settings-form" class="tune-settings-form"></form>
+            <details class="tune-only-details">
+              <summary>Only some settings (optional; replaces the stage choice above)</summary>
+              <div class="tune-only" id="tune-only" aria-label="Only these settings"></div>
+            </details>
+            <p class="benchmark-progress" id="tune-progress">No tune is running. Pick a model in the Models tab, or Run all; stop any time and what was found is applied.</p>
+            <section class="tune-live" id="tune-live" hidden aria-live="polite"></section>
+            <div class="tune-continue" id="tune-continue"></div>
+          </section>
+          <section class="benchmark-run bench-panel" id="bench-panel-models" role="tabpanel" aria-labelledby="bench-tab-models" data-bench-panel="models" hidden>
+            <p class="tune-intro">Every installed model with its progress per stage, why it may be out of date, and its results; Details shows each task's preset, its result on unseen questions and what was tried.</p>
+            <div class="tune-recommend" id="tune-recommend"></div>
+            <div class="tune-models" id="tune-models"></div>
+            <div class="tune-best" id="tune-best"></div>
+          </section>
+          <section class="benchmark-run bench-panel" id="bench-panel-runs" role="tabpanel" aria-labelledby="bench-tab-runs" data-bench-panel="runs" hidden>
+            <div class="tune-runs" id="tune-runs">
+              <p class="tune-intro">Every tune run with what it measured, answer by answer. Nothing is deleted.</p>
+              <div id="tune-runs-list"></div>
+              <div id="tune-run-detail"></div>
+            </div>
+          </section>
+          <section class="benchmark-run bench-panel" id="bench-panel-settings" role="tabpanel" aria-labelledby="bench-tab-settings" data-bench-panel="settings" hidden>
+            <div class="tune-settings" id="tune-settings">
+              <p class="tune-intro">The values each setting is tried at, the CPU and GPU lanes, and the devices probed, for this PC.</p>
+              <form id="tune-settings-form" class="tune-settings-form"></form>
+              <div class="benchmark-controls">
+                <button class="primary-btn" id="tune-settings-save" type="button">Save settings</button>
+                <button class="small-btn" id="tune-settings-reset" type="button">Reset to defaults</button>
+              </div>
+              <p class="benchmark-progress" id="tune-settings-note">Lists are comma-separated. Values outside what the app accepts are dropped and listed here.</p>
+            </div>
+          </section>
+          <section class="benchmark-run bench-panel" id="bench-panel-suite" role="tabpanel" aria-labelledby="bench-tab-suite" data-bench-panel="suite" hidden>
+            <p class="tune-intro">What the tuner asks each model: every task's question types, where the questions come from, how answers are checked, and how many are held back to check a preset on questions it was never tuned on.</p>
+            <div class="bench-suite" id="bench-suite"></div>
+          </section>
+          <section class="bench-panel benchmark-reports" id="benchmark-reports" role="tabpanel" aria-labelledby="bench-tab-gate" data-bench-panel="gate" hidden>
+            <p class="tune-intro">The full benchmark run and the statistics of earlier runs. Not needed for tuning.</p>
+            <label class="check benchmark-show-old">
+              <input id="benchmark-show-old" type="checkbox" />
+              <span>Show reports measured on older test suites</span>
+            </label>
+          <section class="benchmark-run">
+            <div class="benchmark-head">
+              <div>
+                <p class="eyebrow">Live run</p>
+                <h3>Benchmark this computer</h3>
+              </div>
+              <span class="badge" id="benchmark-run-state">idle</span>
+            </div>
             <div class="benchmark-controls">
-              <button class="primary-btn" id="tune-settings-save" type="button">Save settings</button>
-              <button class="small-btn" id="tune-settings-reset" type="button">Reset to defaults</button>
+              <label class="field">
+                <span>Phase</span>
+                <select id="benchmark-phase">
+                  <option value="model">Model reloading (required)</option>
+                  <option value="chat">Model usage (optional)</option>
+                </select>
+                <small>The model phase is the gate; run the chat phase when sampling or prompting changes.</small>
+              </label>
+              <label class="check">
+                <input id="benchmark-baseline" type="checkbox" />
+                <span>Replace the baseline deliberately</span>
+              </label>
+              <label class="check">
+                <input id="benchmark-download" type="checkbox" />
+                <span>Download missing models</span>
+              </label>
+              <label class="check">
+                <input id="benchmark-full" type="checkbox" />
+                <span>Full six-model matrix (slow)</span>
+              </label>
+              <button class="primary-btn" id="benchmark-start" type="button">Start</button>
+              <button class="small-btn" id="benchmark-cancel" type="button" disabled>Cancel</button>
             </div>
-            <p class="benchmark-progress" id="tune-settings-note">Lists are comma-separated. Values outside what the app accepts are dropped and listed here.</p>
-          </div>
-        </section>
-        <section class="benchmark-run bench-panel" id="bench-panel-suite" role="tabpanel" aria-labelledby="bench-tab-suite" data-bench-panel="suite" hidden>
-          <p class="tune-intro">What the tuner asks each model: every task's question types, where the questions come from, how answers are checked, and how many are held back to check a preset on questions it was never tuned on.</p>
-          <div class="bench-suite" id="bench-suite"></div>
-        </section>
-        <section class="bench-panel benchmark-reports" id="benchmark-reports" role="tabpanel" aria-labelledby="bench-tab-gate" data-bench-panel="gate" hidden>
-          <p class="tune-intro">The full benchmark run and the statistics of earlier runs. Not needed for tuning.</p>
-          <label class="check benchmark-show-old">
-            <input id="benchmark-show-old" type="checkbox" />
-            <span>Show reports measured on older test suites</span>
-          </label>
-        <section class="benchmark-run">
-          <div class="benchmark-head">
-            <div>
-              <p class="eyebrow">Live run</p>
-              <h3>Benchmark this computer</h3>
-            </div>
-            <span class="badge" id="benchmark-run-state">idle</span>
-          </div>
-          <div class="benchmark-controls">
-            <label class="field">
-              <span>Phase</span>
-              <select id="benchmark-phase">
-                <option value="model">Model reloading (required)</option>
-                <option value="chat">Model usage (optional)</option>
-              </select>
-              <small>The model phase is the gate; run the chat phase when sampling or prompting changes.</small>
-            </label>
-            <label class="check">
-              <input id="benchmark-baseline" type="checkbox" />
-              <span>Replace the baseline deliberately</span>
-            </label>
-            <label class="check">
-              <input id="benchmark-download" type="checkbox" />
-              <span>Download missing models</span>
-            </label>
-            <label class="check">
-              <input id="benchmark-full" type="checkbox" />
-              <span>Full six-model matrix (slow)</span>
-            </label>
-            <button class="primary-btn" id="benchmark-start" type="button">Start</button>
-            <button class="small-btn" id="benchmark-cancel" type="button" disabled>Cancel</button>
-          </div>
-          <p class="benchmark-progress" id="benchmark-progress">No benchmark is running.</p>
-          <p class="benchmark-base" id="benchmark-chat-base">Chat phase base: loading…</p>
-        </section>
-        <div class="benchmark-recommendations" id="benchmark-recommendations"></div>
-        <div class="benchmark-phases" id="benchmark-phases"></div>
-        <p class="settings-note">
-          Read-only report from <code>benchmarks/baseline-model.json</code>,
-          <code>baseline-chat.json</code> and <code>history.jsonl</code>. A live run
-          writes <code>benchmarks/results/latest-model.json</code> and appears here
-          when it finishes. Recommendations only fill the settings form; nothing is
-          applied until you save and reload the model.
-        </p>
-        </section>
+            <p class="benchmark-progress" id="benchmark-progress">No benchmark is running.</p>
+            <p class="benchmark-base" id="benchmark-chat-base">Chat phase base: loading…</p>
+          </section>
+          <div class="benchmark-recommendations" id="benchmark-recommendations"></div>
+          <div class="benchmark-phases" id="benchmark-phases"></div>
+          <p class="settings-note">
+            Read-only report from <code>benchmarks/baseline-model.json</code>,
+            <code>baseline-chat.json</code> and <code>history.jsonl</code>. A live run
+            writes <code>benchmarks/results/latest-model.json</code> and appears here
+            when it finishes. Recommendations only fill the settings form; nothing is
+            applied until you save and reload the model.
+          </p>
+          </section>
+        </div>
       </div>
       <div class="dialog-actions">
         <button class="small-btn" type="button" data-close-dialog="benchmark-dialog">Close</button>

@@ -3,9 +3,28 @@ const $ = (id) => document.getElementById(id);
 
 const els = {
   contextNote: $("context-note"),
-  modelPill: $("model-pill"),
-  modelPillName: $("model-pill-name"),
-  modelPillDot: $("model-pill-dot"),
+  dashboard: document.querySelector(".dashboard"),
+  dashboardModels: $("dashboard-models"),
+  dashboardTuning: $("dashboard-tuning"),
+  dashboardSystem: $("dashboard-system"),
+  dashboardConnectFacts: $("dashboard-connect-facts"),
+  dashboardApiUrl: $("dash-api-url"),
+  dashboardCopyApi: $("dashboard-copy-api"),
+  dashRuntime: $("dash-runtime"),
+  dashRuntimeDetail: $("dash-runtime-detail"),
+  dashModelCount: $("dash-model-count"),
+  dashTunedCount: $("dash-tuned-count"),
+  dashApiState: $("dash-api-state"),
+  dashApiDetail: $("dash-api-detail"),
+  dashTuneState: $("dash-tune-state"),
+  dashFooterVersion: $("dash-footer-version"),
+  statusAnnouncer: $("status-announcer"),
+  navOverview: $("nav-overview"),
+  railModelCount: $("rail-model-count"),
+  topServerState: $("top-server-state"),
+  heroModels: $("hero-models"),
+  heroBench: $("hero-bench"),
+  mastheadServer: $("masthead-server"),
   statusCard: $("status-card"),
   statusDot: $("status-dot"),
   statusModel: $("status-model"),
@@ -285,9 +304,6 @@ function applyTheme() {
 
 function renderHeader() {
   document.title = "ModelDuck Code — server and tuner";
-  const loaded = state.loaded;
-  els.modelPillName.textContent = loaded.model?.name || "No model";
-  els.modelPillDot.className = `dot ${loaded.status === "ready" ? "ready" : loaded.status === "loading" ? "loading" : ""}`;
 }
 
 function renderStatus() {
@@ -316,6 +332,244 @@ function renderStatus() {
     els.statusModel.textContent = "No model loaded";
     els.statusDetail.textContent = "Open Models to begin";
     els.contextNote.textContent = "No model loaded.";
+  }
+  renderDashboard();
+}
+
+function renderDashboard() {
+  if (!els.dashboard) return;
+  const loaded = state.loaded ?? { status: "idle", model: null };
+  const status = loaded.status === "ready" ? "Ready" : loaded.status === "loading" ? "Loading" : loaded.status === "error" ? "Error" : "Idle";
+  els.dashRuntime.textContent = status;
+  els.dashRuntimeDetail.textContent = loaded.model?.name ?? "No model loaded";
+  els.dashModelCount.textContent = String(state.models.length);
+  els.railModelCount.textContent = String(state.models.length);
+
+  const server = state.serverSettings ?? {};
+  const auth = Boolean(server.requireAuth);
+  const cors = Boolean(server.enableCors);
+  els.dashApiState.textContent = auth ? "Keyed" : "Open";
+  els.dashApiDetail.textContent = `${server.serveOnLocalNetwork ? "LAN" : "loopback"} · CORS ${cors ? "on" : "off"}`;
+  els.topServerState.textContent = auth ? "API · keyed" : "API · open";
+  els.dashboardApiUrl.textContent = `${location.origin}/v1`;
+
+  renderDashboardModels();
+  renderDashboardTuning();
+  renderDashboardFacts();
+  renderDashboardSystem();
+
+  if (els.statusAnnouncer) {
+    els.statusAnnouncer.textContent =
+      loaded.status === "ready" && loaded.model
+        ? `${loaded.model.name} is ready.`
+        : loaded.status === "loading"
+          ? "A model is loading."
+          : loaded.status === "error"
+            ? "The model could not be loaded."
+            : "No model is loaded.";
+  }
+}
+
+function renderDashboardModels() {
+  if (!els.dashboardModels) return;
+  els.dashboardModels.replaceChildren();
+  if (!state.models.length) {
+    const empty = document.createElement("div");
+    empty.className = "dash-empty";
+    const title = document.createElement("strong");
+    title.textContent = "No models installed";
+    const note = document.createElement("p");
+    note.textContent = "Add a GGUF model to start serving and tuning.";
+    const action = document.createElement("button");
+    action.type = "button";
+    action.className = "primary-btn";
+    action.dataset.dashboardOpenModels = "true";
+    action.textContent = "Open Models";
+    empty.append(title, note, action);
+    els.dashboardModels.appendChild(empty);
+    return;
+  }
+
+  for (const model of state.models.slice(0, 4)) {
+    const loaded = state.loaded.model?.id === model.id;
+    const loading = loaded && state.loaded.status === "loading";
+    const row = document.createElement("div");
+    row.className = "dash-model";
+    const main = document.createElement("div");
+    main.className = "dash-model-main";
+    const name = document.createElement("strong");
+    name.textContent = model.name;
+    const meta = document.createElement("span");
+    meta.textContent = [model.params, model.quant, model.contextLength ? `${Number(model.contextLength).toLocaleString()} ctx` : "", model.sizeLabel].filter(Boolean).join(" · ");
+    main.append(name, meta);
+
+    const badge = document.createElement("span");
+    badge.className = `badge ${loaded ? "accent" : ""}`;
+    badge.textContent = loaded
+      ? loading
+        ? "Loading"
+        : "Loaded"
+      : model.blocked
+        ? "Blocked"
+        : model.unreadable
+          ? "Unreadable"
+          : "Installed";
+
+    const actions = document.createElement("div");
+    actions.className = "dash-model-actions";
+    if (!model.blocked && !model.unreadable) {
+      const load = document.createElement("button");
+      load.type = "button";
+      load.className = "small-btn";
+      if (loaded) {
+        load.textContent = "Unload";
+        load.dataset.dashboardUnload = "true";
+      } else {
+        load.textContent = loading ? "Loading…" : "Load";
+        load.dataset.dashboardLoad = model.id;
+        load.disabled = loading;
+      }
+      actions.appendChild(load);
+      if (!loaded) {
+        const tune = document.createElement("button");
+        tune.type = "button";
+        tune.className = "ghost-btn";
+        tune.textContent = "Tune";
+        tune.dataset.dashboardTune = model.id;
+        actions.appendChild(tune);
+      }
+    }
+    row.append(main, badge, actions);
+    els.dashboardModels.appendChild(row);
+  }
+
+  if (state.models.length > 4) {
+    const more = document.createElement("button");
+    more.type = "button";
+    more.className = "ghost-btn dash-more";
+    more.dataset.dashboardOpenModels = "true";
+    more.textContent = `View all ${state.models.length} models`;
+    els.dashboardModels.appendChild(more);
+  }
+}
+
+function renderDashboardTuning() {
+  if (!els.dashboardTuning) return;
+  els.dashboardTuning.replaceChildren();
+  const total = state.models.length;
+  const overview = Array.isArray(state.tuneOverview) ? state.tuneOverview : null;
+  const profiles = overview ? overview.filter((item) => item.profile) : [];
+  const job = state.tuneJob;
+  els.dashTunedCount.textContent = overview ? String(profiles.length) : "—";
+  els.dashTuneState.textContent = job?.status ?? (profiles.length ? "measured" : "idle");
+
+  const summary = document.createElement("p");
+  summary.className = "tune-summary";
+  if (!total) {
+    summary.textContent = "Install a model before measuring settings.";
+  } else if (!overview) {
+    summary.textContent = "Reading saved profiles…";
+  } else if (!profiles.length) {
+    summary.textContent = `No measured profiles yet. ${total} model${total === 1 ? "" : "s"} ready to tune.`;
+  } else {
+    summary.textContent = `${profiles.length} of ${total} models have a measured profile. The tuner searches device, quality, speed, sampling and prompts.`;
+  }
+  els.dashboardTuning.appendChild(summary);
+
+  const stages = document.createElement("div");
+  stages.className = "tune-task-row";
+  for (const label of ["Device", "Quality", "Speed", "Sampling", "Prompt"]) {
+    const chip = document.createElement("span");
+    chip.className = "tune-chip";
+    chip.textContent = label;
+    stages.appendChild(chip);
+  }
+  els.dashboardTuning.appendChild(stages);
+
+  if (profiles.length) {
+    const latest = profiles[profiles.length - 1];
+    const line = document.createElement("p");
+    line.className = "tune-latest";
+    const rates = TUNE_TASKS
+      .map((task) => latest.profile?.tasks?.[task]?.stats?.rate)
+      .filter((value) => Number.isFinite(value));
+    const rate = rates.length ? Math.max(...rates) : null;
+    line.textContent = `Latest: ${latest.name}${Number.isFinite(rate) ? ` · ${rate}%` : ""}`;
+    els.dashboardTuning.appendChild(line);
+  }
+  if (job?.status === "running") {
+    const running = document.createElement("p");
+    running.className = "tune-running";
+    running.textContent = "A tune is running. Open Bench & Tune to follow it.";
+    els.dashboardTuning.appendChild(running);
+  }
+}
+
+function renderDashboardFacts() {
+  if (!els.dashboardConnectFacts) return;
+  els.dashboardConnectFacts.replaceChildren();
+  const server = state.serverSettings ?? {};
+  const facts = [
+    ["Authentication", server.requireAuth ? "Required" : "Off"],
+    ["CORS", server.enableCors ? "On" : "Off"],
+    ["Binding", server.serveOnLocalNetwork ? "LAN" : "Loopback"],
+    ["Models", `${state.models.length} installed`],
+  ];
+  for (const [label, value] of facts) {
+    const row = document.createElement("div");
+    row.className = "fact";
+    const key = document.createElement("span");
+    key.textContent = label;
+    const detail = document.createElement("strong");
+    detail.textContent = value;
+    row.append(key, detail);
+    els.dashboardConnectFacts.appendChild(row);
+  }
+}
+
+function compactPath(value) {
+  if (!value) return "—";
+  const separator = value.includes("\\") ? "\\" : "/";
+  const parts = value.split(/[\\/]+/).filter(Boolean);
+  return parts.length > 3 ? `…${separator}${parts.slice(-2).join(separator)}` : value;
+}
+
+function renderDashboardSystem() {
+  if (!els.dashboardSystem) return;
+  els.dashboardSystem.replaceChildren();
+  const app = state.app ?? {};
+  const fullFolder = state.modelsDir || "";
+  const facts = [
+    ["Models folder", compactPath(fullFolder)],
+    ["CPU", app.cpu ? `${app.cpu} · ${app.parallelism ?? "?"} threads` : "—"],
+    ["Runtime", app.node ? `Node ${app.node}` : "—"],
+    ["Version", app.version ? `v${app.version}` : "—"],
+  ];
+  for (const [label, value] of facts) {
+    const row = document.createElement("div");
+    row.className = "fact";
+    const key = document.createElement("span");
+    key.textContent = label;
+    const detail = document.createElement("strong");
+    detail.textContent = value;
+    if (label === "Models folder" && fullFolder) detail.title = fullFolder;
+    row.append(key, detail);
+    els.dashboardSystem.appendChild(row);
+  }
+  if (els.dashFooterVersion) els.dashFooterVersion.textContent = app.version ? `ModelDuck ${app.version}` : "ModelDuck";
+}
+
+async function refreshDashboardTuning() {
+  try {
+    const [overview, status] = await Promise.all([
+      request("/api/tune/overview"),
+      request("/api/tune/status").catch(() => ({ job: null })),
+    ]);
+    state.tuneOverview = overview.models ?? [];
+    state.tuneJob = status.job ?? null;
+    renderDashboardTuning();
+  } catch {
+    // The dashboard keeps its empty state if profiles cannot be read.
   }
 }
 
@@ -495,6 +749,7 @@ function switchTab(tab) {
     const active = button.dataset.tab === tab;
     button.classList.toggle("active", active);
     button.setAttribute("aria-selected", String(active));
+    button.tabIndex = active ? 0 : -1;
   });
   $("tab-discover").hidden = tab !== "discover";
   $("tab-installed").hidden = tab !== "installed";
@@ -510,6 +765,7 @@ async function refreshCatalog() {
     state.downloads = data.downloads;
     renderCatalog();
     renderInstalled();
+    renderDashboard();
     if (hasActiveDownloads()) startDownloadPolling();
   } catch (error) {
     showError(error);
@@ -701,7 +957,10 @@ async function loadGpuStatus() {
 
 function openSettings() {
   const settings = state.settings;
-  if (!settings) return;
+  if (!settings) {
+    showToast("Settings are not loaded", { message: "The server did not return settings. Reload the page and try again.", kind: "error" });
+    return;
+  }
   els.settingSystem.value = settings.systemPrompt;
   els.settingTuned.checked = settings.useTunedProfile !== false;
   els.settingSpeedPreset.value = ["fastest", "light", "quiet"].includes(settings.speedPreset) ? settings.speedPreset : "fastest";
@@ -817,6 +1076,7 @@ function renderServerSettings() {
   if (config.requireAuth && (config.activeKeys ?? 0) === 0) {
     els.serverKeyCount.textContent = "0 active — add one before enabling auth";
   }
+  renderDashboard();
 }
 
 function renderServerKeys(keys) {
@@ -1387,8 +1647,8 @@ async function cancelBenchmark() {
   }
 }
 
-const TUNE_TASKS = ["chat", "code", "math", "recall"];
-const TASK_NAMES = { chat: "Chat", code: "Code", math: "Math", recall: "Long context" };
+const TUNE_TASKS = ["code", "comprehension", "recall"];
+const TASK_NAMES = { code: "Code", comprehension: "Comprehension", recall: "Long context" };
 
 /** Every tunable setting: its stage, a readable name and what it changes. */
 const SETTING_GUIDE = {
@@ -1442,18 +1702,17 @@ function tuneStageChips(stages, staleParts = [], { modelId = null, running = fal
     const done = TUNE_TASKS.filter((task) => stages?.[stage]?.[task] === "done");
     const status = done.length === TUNE_TASKS.length ? "done" : done.length ? "partial" : "pending";
     const stale = staleParts.some((part) => part.startsWith(`${stage}:`));
-    add(stage, `${STAGE_NAMES[stage]} ${done.length}/${TUNE_TASKS.length}`, status, stale, `${STAGE_NAMES[stage]} done for: ${done.map((task) => TASK_NAMES[task]).join(", ") || "no task yet"} (runs all four tasks)`);
+    add(stage, `${STAGE_NAMES[stage]} ${done.length}/${TUNE_TASKS.length}`, status, stale, `${STAGE_NAMES[stage]} done for: ${done.map((task) => TASK_NAMES[task]).join(", ") || "no task yet"} (runs every task)`);
   }
   return chips;
 }
 
 /** The suite's question types in plain words. */
 const TYPE_NAMES = {
-  instruction: "Follow an instruction", format: "Follow a format", comprehension: "Reading comprehension",
-  knowledge: "Knowledge", facts: "Facts", "public-knowledge": "MMLU (public)", "public-truthful": "TruthfulQA (public)",
+  "code-comprehension": "Read code",
   code: "Write a function", "code-long": "Write a long function", "code-repo": "Work in a codebase",
   bugfix: "Fix a bug", "bugfix-long": "Fix several bugs", "bugfix-repo": "Fix a bug in a codebase", "public-code": "HumanEval and MBPP (public)",
-  reasoning: "Word problems", "public-math": "GSM8K word problems (public)", context: "Reason over a long document", recall: "Look up in a long document",
+  context: "Reason over a long document", recall: "Look up in a long document",
 };
 
 /** How the suite checks an answer, in plain words. */
@@ -2070,6 +2329,7 @@ function renderTuneJob() {
   }
   renderTuneModels();
   renderTuneLive(job);
+  renderDashboardTuning();
 }
 
 /** One running model: its progress, the setting it tries now and what it decided (ADR-055). */
@@ -2116,6 +2376,12 @@ function liveCard(item) {
 }
 
 const BENCH_TAB_KEY = "modelduck.benchTab";
+const BENCH_NARROW = typeof matchMedia === "function" ? matchMedia("(max-width: 980px)") : null;
+
+/** The rail is vertical on wide screens and horizontal once the shell stacks. */
+function syncBenchOrientation() {
+  els.benchTabs?.setAttribute("aria-orientation", BENCH_NARROW?.matches ? "horizontal" : "vertical");
+}
 
 /** The Bench dialog's tab that is showing. */
 function benchTab() {
@@ -2134,7 +2400,11 @@ function savedBenchTab() {
 function showBenchTab(name) {
   const tabs = [...els.benchTabs.querySelectorAll("[data-bench-tab]")];
   const chosen = tabs.some((tab) => tab.dataset.benchTab === name) ? name : "tune";
-  for (const tab of tabs) tab.setAttribute("aria-selected", String(tab.dataset.benchTab === chosen));
+  for (const tab of tabs) {
+    const active = tab.dataset.benchTab === chosen;
+    tab.setAttribute("aria-selected", String(active));
+    tab.tabIndex = active ? 0 : -1;
+  }
   for (const panel of document.querySelectorAll("[data-bench-panel]")) panel.hidden = panel.dataset.benchPanel !== chosen;
   try {
     localStorage.setItem(BENCH_TAB_KEY, chosen);
@@ -2222,6 +2492,7 @@ async function loadTuneOverview() {
   for (const model of state.tuneOverview.filter((item) => state.tuneOpen.has(item.id) && item.profile)) void loadTuneSweeps(model);
   state.tuneJob = status.job ?? null;
   renderTuneJob();
+  renderDashboardTuning();
   void loadRecommendations();
   if (state.tuneJob?.status === "running") startTuneLive();
 }
@@ -2229,17 +2500,17 @@ async function loadTuneOverview() {
 /** What to run on this PC: measured models first, catalog estimates after (ADR-069). */
 async function loadRecommendations() {
   try {
-    const data = await request("/api/recommendations?task=chat");
+    const data = await request("/api/recommendations?task=code");
     const box = els.tuneRecommend;
     const title = Object.assign(document.createElement("h3"), { textContent: "Recommended for this PC" });
     const note = Object.assign(document.createElement("p"), {
       className: "benchmark-progress",
-      textContent: `Free memory ${(data.memory.free / 1024 ** 3).toFixed(1)} GiB. Measured models are ranked by right answers on chat, then speed; catalog entries are estimates until downloaded and tuned.`,
+      textContent: `Free memory ${(data.memory.free / 1024 ** 3).toFixed(1)} GiB. Measured models are ranked by right answers on code, then speed; catalog entries are estimates until downloaded and tuned.`,
     });
     const table = document.createElement("table");
     table.className = "benchmark-table";
     const head = table.createTHead().insertRow();
-    for (const label of ["Model", "On chat", "Speed", "Memory", "Fit"]) head.appendChild(Object.assign(document.createElement("th"), { textContent: label }));
+    for (const label of ["Model", "On code", "Speed", "Memory", "Fit"]) head.appendChild(Object.assign(document.createElement("th"), { textContent: label }));
     const body = table.createTBody();
     for (const row of data.installed) {
       body.insertRow().append(
@@ -2325,8 +2596,8 @@ const TUNE_STEP_FIELDS = [
     ["load.checkpointing.interval", "Checkpoint intervals"], ["load.checkpointing.max", "Checkpoints kept"],
   ]],
   ["Stage 3 · sampling, per task", [
-    ["sampling.temperature", "Temperature"], ["sampling.maxTokens.chat", "Token budgets · chat"],
-    ["sampling.maxTokens.code", "Token budgets · code"], ["sampling.maxTokens.math", "Token budgets · math"],
+    ["sampling.temperature", "Temperature"], ["sampling.maxTokens.code", "Token budgets · code"],
+    ["sampling.maxTokens.comprehension", "Token budgets · comprehension"],
     ["sampling.maxTokens.recall", "Token budgets · long context"], ["sampling.repeatPenalty", "Repeat penalty"],
     ["sampling.minP", "Min-p"], ["sampling.topP", "Top-p"], ["sampling.topK", "Top-k (0 = off)"],
   ]],
@@ -2425,6 +2696,10 @@ async function loadTuneSettings() {
 }
 
 async function saveTuneSettings(steps) {
+  if (!els.tuneSettingsForm.querySelector("[data-step-key]")) {
+    showToast("Tune settings are not loaded", { message: "Reopen Bench & Tune, then try again.", kind: "error" });
+    return;
+  }
   try {
     const data = await request("/api/tune/steps", { method: "PUT", body: { steps } });
     renderTuneSettings(data.steps);
@@ -2483,6 +2758,7 @@ async function saveServerSettings(event) {
   try {
     const data = await request("/api/server-settings", { method: "PUT", body: { settings: payload } });
     state.serverSettings = { ...data.settings, apiKeys: data.apiKeys, activeKeys: data.activeKeys };
+    renderDashboard();
     els.serverDialog.close();
     showToast("Server settings saved", { message: "Restart ModelDuck to apply port or local-network changes." });
     if (
@@ -2650,13 +2926,64 @@ async function copyText(text) {
 
 /* Events ------------------------------------------------------------------- */
 
+function bindArrowTabs(container, selector, activate) {
+  if (!container) return;
+  container.addEventListener("keydown", (event) => {
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
+    const tabs = [...container.querySelectorAll(selector)];
+    const index = tabs.indexOf(document.activeElement);
+    if (index < 0) return;
+    event.preventDefault();
+    const forward = event.key === "ArrowRight" || event.key === "ArrowDown";
+    const next =
+      event.key === "Home"
+        ? 0
+        : event.key === "End"
+          ? tabs.length - 1
+          : (index + (forward ? 1 : -1) + tabs.length) % tabs.length;
+    tabs[next].focus();
+    activate(tabs[next]);
+  });
+}
+
 function bindEvents() {
   $("open-models").addEventListener("click", () => openModels("installed"));
+  els.heroModels.addEventListener("click", () => openModels("installed"));
+  els.heroBench.addEventListener("click", openBenchmarks);
+  els.mastheadServer.addEventListener("click", openServerSettings);
   $("status-card").addEventListener("click", () => openModels("installed"));
-  $("model-pill").addEventListener("click", () => openModels("installed"));
   $("open-settings").addEventListener("click", openSettings);
   $("open-server").addEventListener("click", openServerSettings);
   $("open-benchmarks").addEventListener("click", openBenchmarks);
+  els.navOverview.addEventListener("click", () => {
+    window.scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  });
+  els.dashboardCopyApi.addEventListener("click", async () => {
+    if (await copyText(`${location.origin}/v1`)) showToast("API URL copied");
+  });
+  els.dashboard.addEventListener("click", (event) => {
+    const load = event.target.closest("[data-dashboard-load]");
+    if (load) {
+      void loadModel(load.dataset.dashboardLoad);
+      return;
+    }
+    if (event.target.closest("[data-dashboard-unload]")) {
+      void unloadModel();
+      return;
+    }
+    const tune = event.target.closest("[data-dashboard-tune]");
+    if (tune) {
+      void openBenchmarks().then(() => startTune([tune.dataset.dashboardTune], { forceStale: true }));
+      return;
+    }
+    if (event.target.closest("[data-dashboard-open-models]")) {
+      openModels("installed");
+      return;
+    }
+    if (event.target.closest("[data-dashboard-open-bench]")) openBenchmarks();
+  });
+  bindArrowTabs(document.querySelector(".tabs"), ".tab", (tab) => switchTab(tab.dataset.tab));
+  bindArrowTabs(els.benchTabs, "[data-bench-tab]", (tab) => showBenchTab(tab.dataset.benchTab));
   els.benchmarkStart.addEventListener("click", startBenchmark);
   els.benchmarkCancel.addEventListener("click", cancelBenchmark);
   els.tuneAll.addEventListener("click", () => void startTune("all", { forceStale: true }));
@@ -2674,6 +3001,8 @@ function bindEvents() {
     if (tab) showBenchTab(tab.dataset.benchTab);
   });
   showBenchTab(savedBenchTab());
+  syncBenchOrientation();
+  BENCH_NARROW?.addEventListener("change", syncBenchOrientation);
   els.tuneRunsList.addEventListener("click", (event) => {
     const resume = event.target.closest("[data-tune-continue]");
     if (resume) {
@@ -2846,6 +3175,8 @@ async function boot() {
   renderStatus();
   renderCatalog();
   renderInstalled();
+  switchTab("discover");
+  void refreshDashboardTuning();
   if (hasActiveDownloads()) startDownloadPolling();
 }
 
