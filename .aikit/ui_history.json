@@ -628,5 +628,19 @@
     "final_snapshot_digest": "",
     "final_snapshot_entries": 0,
     "surface_digest": "7bb938b6a8f581303f8987b6a99e9c24bd5c748fa23ec74af44ee361510133fb"
+  },
+  {
+    "schema": 1,
+    "surface": "app",
+    "baseline_commit": "6efaa9941e3de9cd91bbe862cab9f52515e3c78b",
+    "contract_hash": "c6a291e913a9c8f174aadf7fb264b0941c55e9f4999a9a43152f1fb616845d11",
+    "started_at": 1793547844.9169312,
+    "finished_at": 1793547858.4572887,
+    "strikes": 0,
+    "reviewer": "Command Code (AI; reviewed quick/full preflight, measured pace, queue arrows, durable restore, guardrail and whole-queue stop at 1440 and 390; delegated by the user on 2026-11-01)",
+    "allowed_removals": [],
+    "final_snapshot_digest": "",
+    "final_snapshot_entries": 0,
+    "surface_digest": "1b022c6e5373bc13a81386cb011c7fc044cf16aca61a9e8a68e5d1f9096ad0f6"
   }
 ]
