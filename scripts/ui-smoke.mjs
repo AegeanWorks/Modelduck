@@ -304,6 +304,11 @@ async function main() {
       assert.equal(state.otherDisplayed, 0, `the ${tab} Bench tab left another panel visible`);
     }
     await evaluate('document.querySelector(\'[data-bench-tab="tune"]\').click(), true');
+    await evaluate('document.querySelector(\'[data-bench-tab="suite"]\').click(), true');
+    assert.ok(await waitFor(() => evaluate('document.querySelectorAll(".suite-task").length === 3'), 8_000), "the Bench suite did not render three tasks");
+    assert.equal(await evaluate('document.querySelectorAll(".suite-stat").length'), 4, "the Bench suite is missing its summary stats");
+    assert.equal(await evaluate('document.querySelectorAll(".suite-details").length'), 3, "the Bench suite is missing its detail disclosures");
+    await evaluate('document.querySelector(\'[data-bench-tab="tune"]\').click(), true');
     assert.equal(
       await evaluate('Boolean(document.getElementById("tune-help"))'),
       true,

@@ -113,6 +113,7 @@ const els = {
   benchTabs: document.querySelector(".bench-tabs"),
   benchTabDot: $("bench-tab-dot"),
   benchSuite: $("bench-suite"),
+  benchSuiteVersion: $("bench-suite-version"),
   tuneContinue: $("tune-continue"),
   tuneLive: $("tune-live"),
   tuneRunsList: $("tune-runs-list"),
@@ -1912,23 +1913,66 @@ async function loadBenchSuite() {
 
 function renderBenchSuite(suite) {
   const heldShare = Math.round(suite.holdoutShare * 100);
-  const intro = Object.assign(document.createElement("p"), {
-    className: "bench-suite-total",
-    textContent: `Suite version ${suite.suiteVersion}: ${suite.items} questions in ${suite.tasks.length} tasks. About ${heldShare}% of every question type is held back.`,
-  });
-  els.benchSuite.replaceChildren(intro);
+  if (els.benchSuiteVersion) els.benchSuiteVersion.textContent = `v${suite.suiteVersion}`;
+  const rounds = suite.tasks.flatMap((task) => task.rungs);
+  const summary = document.createElement("div");
+  summary.className = "suite-summary";
+  for (const [value, label] of [
+    [suite.items, "questions"],
+    [suite.tasks.length, "tasks"],
+    [`${heldShare}%`, "held back"],
+    [`${Math.min(...rounds)}–${Math.max(...rounds)}`, "rounds"],
+  ]) {
+    const stat = document.createElement("div");
+    stat.className = "suite-stat";
+    stat.append(Object.assign(document.createElement("strong"), { textContent: String(value) }), Object.assign(document.createElement("small"), { textContent: label }));
+    summary.appendChild(stat);
+  }
+  els.benchSuite.replaceChildren(summary);
+
   for (const task of suite.tasks) {
     const section = document.createElement("section");
-    section.className = "bench-suite-task";
-    section.appendChild(Object.assign(document.createElement("h4"), { textContent: `${TASK_NAMES[task.id] ?? task.label} — ${task.items} questions` }));
-    section.appendChild(Object.assign(document.createElement("p"), {
-      className: "tune-intro",
-      textContent: `Tuned on ${task.tunedOn}, in rounds of ${task.rungs.join(", ")} questions; ${task.held} held back.`,
-    }));
+    section.className = "suite-task";
+    const head = document.createElement("div");
+    head.className = "suite-task-head";
+    const title = document.createElement("div");
+    title.append(
+      Object.assign(document.createElement("p"), { className: "eyebrow", textContent: "Task" }),
+      Object.assign(document.createElement("h4"), { textContent: TASK_NAMES[task.id] ?? task.label }),
+    );
+    const count = document.createElement("div");
+    count.className = "suite-task-count";
+    count.append(
+      Object.assign(document.createElement("strong"), { textContent: String(task.items) }),
+      Object.assign(document.createElement("small"), { textContent: "questions" }),
+    );
+    head.append(title, count);
+
+    const meta = Object.assign(document.createElement("p"), {
+      className: "suite-task-meta",
+      textContent: `Tuned on ${task.tunedOn} · rounds ${task.rungs.join(" / ")} · ${task.held} held back`,
+    });
+    const types = document.createElement("div");
+    types.className = "suite-types";
+    for (const type of task.types) {
+      const row = document.createElement("div");
+      row.className = "suite-type";
+      row.append(
+        Object.assign(document.createElement("span"), { className: "suite-type-name", textContent: TYPE_NAMES[type.category] ?? type.category }),
+        Object.assign(document.createElement("span"), { className: "suite-type-count", textContent: `${type.items} · ${type.held} held` }),
+      );
+      types.appendChild(row);
+    }
+
+    const details = document.createElement("details");
+    details.className = "suite-details";
+    details.appendChild(Object.assign(document.createElement("summary"), { textContent: "Sources and checks" }));
     const table = document.createElement("table");
     table.className = "benchmark-table";
-    const head = table.createTHead().insertRow();
-    for (const text of ["Question type", "Questions", "Held back", "From", "Checked by"]) head.appendChild(Object.assign(document.createElement("th"), { textContent: text }));
+    const headRow = table.createTHead().insertRow();
+    for (const text of ["Question type", "Questions", "Held back", "From", "Checked by"]) {
+      headRow.appendChild(Object.assign(document.createElement("th"), { textContent: text }));
+    }
     const body = table.createTBody();
     for (const type of task.types) {
       body.insertRow().append(
@@ -1939,7 +1983,8 @@ function renderBenchSuite(suite) {
         tuneCell(type.checks.map((check) => CHECK_NAMES[check] ?? check).join(", ")),
       );
     }
-    section.appendChild(table);
+    details.appendChild(table);
+    section.append(head, meta, types, details);
     els.benchSuite.appendChild(section);
   }
 }

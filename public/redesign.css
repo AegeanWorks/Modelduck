@@ -2828,36 +2828,148 @@ a {
   margin-top: 20px;
 }
 
-/* Benchmark suite: one calm column */
+/* Benchmark suite: a concise task ledger */
 
 .bench-suite {
   border-top: 1px solid var(--line);
 }
 
-.bench-suite-total {
+.suite-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0 24px;
   padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.suite-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.suite-stat strong {
+  font-family: var(--mono);
+  font-size: 21px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.suite-stat small {
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 8.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.suite-task {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.suite-task-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.suite-task h4 {
+  margin: 2px 0 0;
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+}
+
+.suite-task-count {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  white-space: nowrap;
+}
+
+.suite-task-count strong {
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.suite-task-count small,
+.suite-task-meta {
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 8.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.suite-task-meta {
+  margin: 6px 0 0;
+}
+
+.suite-types {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 28px;
+  margin-top: 12px;
+}
+
+.suite-type {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 7px 0;
   border-bottom: 1px solid var(--line);
   color: var(--muted);
   font-size: 11.5px;
 }
 
-.bench-suite-task {
-  padding: 18px 0;
-  border-bottom: 1px solid var(--line);
-  margin: 0;
+.suite-type-name {
+  min-width: 0;
 }
 
-.bench-suite-task h4 {
-  margin: 0 0 3px;
-  font-family: var(--font-display);
-  font-size: 20px;
-  font-weight: 500;
-  letter-spacing: -0.02em;
+.suite-type-count {
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 9px;
+  white-space: nowrap;
 }
 
-.bench-suite-task .tune-intro {
-  margin: 0 0 10px;
+.suite-details {
+  margin-top: 10px;
+  overflow-x: auto;
+}
+
+.suite-details summary {
+  color: var(--muted);
   font-size: 11px;
+  cursor: pointer;
+}
+
+.suite-details .benchmark-table {
+  margin-top: 8px;
+  min-width: 620px;
+}
+
+@media (max-width: 760px) {
+  .suite-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 24px;
+  }
+
+  .suite-types {
+    grid-template-columns: 1fr;
+  }
+
+  .suite-task h4 {
+    font-size: 21px;
+  }
 }
 
 /* Quality gate reports and recommendations */
