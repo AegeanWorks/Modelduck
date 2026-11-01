@@ -16,13 +16,6 @@ The chat UI lives in [**ChatDuck**](https://github.com/AegeanWorks/Chatduck), a
 separate static client for any OpenAI-compatible server. ModelDuck keeps the
 server and the tuning control panel: Models, Bench & Tune, Settings and Server.
 
-## Why this exists
-
-LM Studio and Ollama are great when they work. ModelDuck is a small, inspectable
-alternative for the days they do not: one Node process, one native dependency, a
-plain browser UI, and state you can read with a text editor. It is CPU-first and
-happy with a 0.5B–3B Q4 model on a normal laptop.
-
 ## 30-Second Cold-Start Quick Reference
 
 - **Runtime Prerequisites**: Node.js 20 or newer, 8 GB RAM, and a modern browser.
@@ -78,6 +71,7 @@ npm start -- --port 4141 --no-open
 npm start -- --home D:\ModelDuckData --models D:\Models
 npm run dev                  # restart on source changes
 npm test                     # hermetic unit + integration tests
+npm run ui:smoke             # headless control-panel and dialog check
 npm run tune -- --model qwen2.5-0.5b-instruct-q4   # tune one model (reuses a saved profile)
 npm run tune -- --model <id> --tasks code,math --force   # re-tune chosen tasks
 npm run tune -- --model <id> --interactive   # choose every setting's steps first
@@ -154,12 +148,7 @@ npm run bench:update:model         # deliberately replace only the model baselin
 npm run bench:update:full          # replace the model baseline with six models
 npm run bench:report
 npm run bench:link                 # after commit: attach the run to HEAD
-npm run verify:manifest -- --models-dir ..\models
 ```
-
-`verify:manifest` is an opt-in real-model check that does not write history or
-change baselines. It proves session reuse, 40-message truncation, prompt
-repetition, completion after chat, and template and runtime identity on a GGUF.
 
 The chat phase only changes sampling and prompting, so run it when those change; a
 model-only baseline update leaves the chat baseline on its previous suite. Run
@@ -409,6 +398,13 @@ refuse a file that does not start with the `GGUF` signature.
 npm test
 ```
 
+`npm test` also checks the control-panel wiring: every element the app looks up
+exists, the four dialogs are present, and no chat shell or deleted chat route
+remains. `npm run ui:smoke` starts a temporary ModelDuck and a headless Edge or
+Chrome, opens Models, Bench & Tune, Settings and Server, and fails on a missing
+dialog or console exception. It needs Node 22+ and a Chromium browser; the
+server, browser and temporary data folder are cleaned up.
+
 The benchmark needs the installed benchmark models. Use
 `npm run bench:model -- --download` once, then run both phases for every
 generation-affecting change.
@@ -453,6 +449,8 @@ modelduck/
 │   ├── styles.css <- dark/light responsive theme
 │   └── brand/
 │       └── duck.svg <- the ModelDuck mascot and favicon
+├── scripts/
+│   └── ui-smoke.mjs <- headless control-panel and dialog check
 ├── benchmarks/ <- seeded quality, speed and history gate
 │   ├── README.md
 │   ├── run.mjs
@@ -492,6 +490,7 @@ modelduck/
 │   └── baseline-chat.json
 ├── tests/
 │   ├── helpers.js
+│   ├── ui-shell.test.js
 │   ├── config.test.js
 │   ├── fs-atomic.test.js
 │   ├── model-registry.test.js

@@ -789,11 +789,11 @@ function applyPresetToForm(preset) {
 /* Server settings ---------------------------------------------------------- */
 
 async function openServerSettings() {
+  if (!els.serverDialog.open) els.serverDialog.showModal();
   try {
     const data = await request("/api/server-settings");
     state.serverSettings = { ...data.settings, apiKeys: data.apiKeys, activeKeys: data.activeKeys };
     renderServerSettings();
-    if (!els.serverDialog.open) els.serverDialog.showModal();
   } catch (error) {
     showError(error);
   }

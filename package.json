@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "A local GGUF chat studio: load a model, talk to it, and serve an OpenAI-compatible API. Runs on the CPU or a Vulkan GPU; no cloud account required.",
+  "description": "A local GGUF coding-model server and tuner with an OpenAI-compatible API. Runs on the CPU or a Vulkan GPU; no cloud account required.",
   "license": "SEE LICENSE IN LICENSE",
   "engines": {
     "node": ">=20.0.0"
@@ -12,6 +12,7 @@
     "start": "node src/main.js",
     "dev": "node --watch src/main.js --no-open",
     "test": "node --test tests",
+    "ui:smoke": "node scripts/ui-smoke.mjs",
     "bench": "node benchmarks/run.mjs --phase model",
     "bench:full": "node benchmarks/run.mjs --phase model --full-matrix",
     "bench:all": "node benchmarks/run.mjs --phase model && node benchmarks/run.mjs --phase chat",
